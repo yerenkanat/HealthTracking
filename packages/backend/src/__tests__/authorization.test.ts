@@ -109,7 +109,7 @@ function makeApp(callerId: string) {
     adminListUsers: async () => ({ total: 0, users: [] }),
     adminUserHealth: async () => null,
     writeAudit: async () => {},
-    listAudit: async () => [],
+    listAudit: async () => ({ entries: [], hasMore: false }),
     // Nobody has been let in. This file is about a STRANGER reaching another
     // family's child, and the honest answer to "what is his level here" is
     // none — without it the shared-access guard called a method the fake did

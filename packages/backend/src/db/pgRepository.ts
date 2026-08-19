@@ -1419,7 +1419,7 @@ export function createPgRepository(pool: Pool): Repository {
       await pool.query(`INSERT INTO audit_log (staff_id, action, target, reason) VALUES ($1,$2,$3,$4)`,
         [entry.staffId, entry.action, entry.target ?? null, entry.reason ?? null]);
     },
-    async listAudit(limit) {
+    async listAudit(limit, offset = 0) {
       // Joined to the roster on both ends. The log's whole purpose is "who
       // looked at this mother's data", and it answered that with a UUID —
       // which nobody can read, and which the panel then printed verbatim.
@@ -1427,6 +1427,18 @@ export function createPgRepository(pool: Pool): Repository {
       // LEFT JOIN, and the id is still returned: entries written before there
       // were accounts (or by an account since removed) must stay visible.
       // Dropping them would make the log lie by omission.
+      //
+      // LIMIT $1 is asked for limit + 1: the surplus row is never returned, it
+      // only answers "is there another page". That is the whole reason this
+      // does not run count(*) — see AuditPage in repository.ts. One extra row
+      // on an indexed read, instead of a full scan of an append-only table
+      // with no upper bound, on every open of the tab.
+      //
+      // ORDER BY at DESC, id DESC — a tiebreak, not decoration. `at` defaults
+      // to now(), so two rows written inside one request share it exactly, and
+      // an unspecified order among equals is free to differ between the query
+      // for page one and the query for page two. A row that moves across the
+      // boundary is a row a reviewer sees twice, or never.
       const { rows } = await pool.query(
         `SELECT l.staff_id, l.action, l.target, l.reason, l.at,
                 a.display_name AS staff_name, a.phone AS staff_phone,
@@ -1434,20 +1446,24 @@ export function createPgRepository(pool: Pool): Repository {
            FROM audit_log l
            LEFT JOIN staff_accounts a ON a.id::text = l.staff_id
            LEFT JOIN staff_accounts t ON t.id::text = l.target
-          ORDER BY l.at DESC
-          LIMIT $1`,
-        [limit],
+          ORDER BY l.at DESC, l.id DESC
+          LIMIT $1 OFFSET $2`,
+        [limit + 1, Math.max(0, offset)],
       );
-      return rows.map((r) => ({
-        staffId: r.staff_id,
-        staffName: r.staff_name ?? null,
-        staffPhone: r.staff_phone ?? null,
-        action: r.action,
-        target: r.target,
-        targetName: r.target_name ?? null,
-        reason: r.reason ?? null,
-        at: new Date(r.at).toISOString(),
-      }));
+      const hasMore = rows.length > limit;
+      return {
+        hasMore,
+        entries: rows.slice(0, limit).map((r) => ({
+          staffId: r.staff_id,
+          staffName: r.staff_name ?? null,
+          staffPhone: r.staff_phone ?? null,
+          action: r.action,
+          target: r.target,
+          targetName: r.target_name ?? null,
+          reason: r.reason ?? null,
+          at: new Date(r.at).toISOString(),
+        })),
+      };
     },
 
     // ---- Back-office drilldowns ----

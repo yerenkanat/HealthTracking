@@ -396,7 +396,7 @@ describe('medical text needs a second person', () => {
 describe('the journal', () => {
   it('records the edit and the sign-off as separate, named actions', async () => {
     await publishEdit();
-    const log = await repo.listAudit(50);
+    const log = (await repo.listAudit(50)).entries;
     const actions = log.map((e) => e.action);
     expect(actions).toContain('edit_pregnancy_week_draft');
     expect(actions).toContain('pregnancy_week_review');

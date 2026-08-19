@@ -986,7 +986,7 @@ export function registerAdminRoutes(
       repo.dashboardSnapshot(now.toISOString()).catch(() => null),
       repo.contentCatalog().catch(() => ({} as Record<string, ContentItemRow[]>)),
       repo.getShopSettings().catch(() => ({} as Record<string, string>)),
-      repo.listAudit(2000).catch(() => []),
+      repo.listAudit(2000).catch(() => ({ entries: [], hasMore: false })),
     ]);
 
     // Medical cards published without a current signature — the same rule the
@@ -1026,7 +1026,7 @@ export function registerAdminRoutes(
             lowStock: snapshot?.commerce.lowStock ?? [],
             unreviewedMedical,
             unregisteredDevices: snapshot?.devices.unregistered ?? 0,
-            accessWithoutReason: summarizeSecurity(audit, now, 30).withoutReason,
+            accessWithoutReason: summarizeSecurity(audit.entries, now, 30).withoutReason,
             // Bought and never opened. Granted-minus-started, floored: a
             // negative would mean somebody is watching without access, which
             // is a different bug and must not show up here as a negative count.
@@ -1135,7 +1135,7 @@ export function registerAdminRoutes(
     const days = Math.min(365, Math.max(1, Number((req.query as { days?: string }).days) || 30));
     // A wide slice, because the summary counts over it and the panel shows the
     // hundred newest. Bounded so a year cannot pull the whole table.
-    const audit = await repo.listAudit(5000).catch(() => []);
+    const audit = (await repo.listAudit(5000).catch(() => ({ entries: [], hasMore: false }))).entries;
     // This page lists patients by name — «кто открывал карту Айгерім и почему»
     // — so reading it is itself a read of special-category data and is
     // recorded. Unlike GET /admin/audit, which returns the raw log and is
@@ -2807,12 +2807,31 @@ export function registerAdminRoutes(
     });
   });
 
-  // ---- Audit log (admin only) ----
+  /**
+   * ---- Audit log (`staff`) ----
+   *
+   * Paged. It served the newest 100 and nothing else, and the panel drew no
+   * pager, so a reviewer could reach the most recent page of the log and no
+   * other. That makes the guarantee the whole design rests on — opening a
+   * mother's record costs a written reason, and somebody can read the log
+   * afterwards — true only for this week.
+   *
+   * `hasMore` and not `total`: see AuditPage in db/repository.ts. The number
+   * of rows in an append-only table is a full scan Postgres would run on
+   * every open of the tab, and printing a made-up one instead is not on the
+   * table. The panel says so on screen.
+   *
+   * `limit` and `offset` are echoed back so the footer can number the page
+   * from what the server actually served rather than from what it asked for.
+   */
   app.get('/admin/audit', async (req, reply) => {
     const s = await requireCap(req, reply, 'staff');
     if (!s) return;
-    const limit = clampLimit((req.query as { limit?: string }).limit, 100, 500);
-    return reply.send({ audit: await repo.listAudit(limit) });
+    const q = req.query as { limit?: string; offset?: string };
+    const limit = clampLimit(q.limit, 100, 500);
+    const offset = Math.max(0, Number(q.offset ?? 0) || 0);
+    const page = await repo.listAudit(limit, offset);
+    return reply.send({ audit: page.entries, hasMore: page.hasMore, limit, offset });
   });
 
   // ---- Shop: inventory (per-colour stock) + orders to fulfil ----

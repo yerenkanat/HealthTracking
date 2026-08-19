@@ -234,7 +234,7 @@ describe('who may edit the catalogue', () => {
     // «каждый просмотр в журнале» — and every change, with the fields touched,
     // so «кто поменял этап» has an answer.
     await patch('tracker', { stage: 'toddler' });
-    const entries = await repo.listAudit(50);
+    const entries = (await repo.listAudit(50)).entries;
     const row = entries.find((e) => e.action === 'product_update');
     expect(row).toBeTruthy();
     expect(row!.target).toBe('tracker');

@@ -183,7 +183,7 @@ describe('who may read support', () => {
     // Every ticket names a person, so reading the board is a read of customer
     // data and «каждый просмотр в журнале» applies.
     await get('/admin/support');
-    const entries = await repo.listAudit(50);
+    const entries = (await repo.listAudit(50)).entries;
     expect(entries.some((e) => e.action === 'view_support')).toBe(true);
     await app.close();
   });

@@ -370,7 +370,7 @@ describe('medical text needs a second person', () => {
 describe('the journal', () => {
   it('records the edit and the sign-off as separate, named actions', async () => {
     await publishEdit();
-    const log = await repo.listAudit(50);
+    const log = (await repo.listAudit(50)).entries;
     const actions = log.map((e) => e.action);
     expect(actions).toContain('edit_emergency_help_draft');
     expect(actions).toContain('emergency_help_review');

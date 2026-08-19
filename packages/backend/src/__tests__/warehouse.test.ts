@@ -300,7 +300,7 @@ describe('Инвентаризация: count the shelf, book the difference', (
     // as `warehouse`, and the log is the `staff` capability. That it is
     // refused over HTTP is roleAccess.test.ts's job; what matters here is that
     // the row was written.
-    const audit = await repo.listAudit(50);
+    const audit = (await repo.listAudit(50)).entries;
     const row = audit.find((a) => a.action === 'stocktake');
     expect(row, 'a stocktake left no trace in the audit log').toBeDefined();
     expect(row!.target).toBe('1/1'); // one line changed of one counted

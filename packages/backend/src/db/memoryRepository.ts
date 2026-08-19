@@ -2342,14 +2342,32 @@ const UUID_RE =
     },
 
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, reason: e.reason ?? null, at: new Date().toISOString() }),
-    listAudit: async (limit) => {
+    // Paged, like the SQL, and by the same rule.
+    //
+    // `audit` is append-ordered, so reversing it is the stable total order that
+    // `ORDER BY at DESC, id DESC` gives in Postgres: entries written in the
+    // same millisecond keep a fixed relative position, and a row therefore
+    // cannot move across a page boundary between two requests. A fake that
+    // paged by timestamp alone would hide exactly the bug the tiebreak exists
+    // to prevent.
+    //
+    // hasMore is taken the same way too — one row past the page, never a count
+    // of the store. If this counted `audit.length` (which it trivially could,
+    // it is an array) the memory tests would be blessing a total that pg
+    // deliberately refuses to compute.
+    listAudit: async (limit, offset = 0) => {
       const byId = new Map([...staffAccounts.values()].map((a) => [a.id, a]));
-      return audit.slice(-limit).reverse().map((e) => ({
-        ...e,
-        staffName: byId.get(e.staffId)?.displayName ?? null,
-        staffPhone: byId.get(e.staffId)?.phone ?? null,
-        targetName: e.target ? byId.get(e.target)?.displayName ?? null : null,
-      }));
+      const from = Math.max(0, offset);
+      const window = audit.slice().reverse().slice(from, from + limit + 1);
+      return {
+        hasMore: window.length > limit,
+        entries: window.slice(0, limit).map((e) => ({
+          ...e,
+          staffName: byId.get(e.staffId)?.displayName ?? null,
+          staffPhone: byId.get(e.staffId)?.phone ?? null,
+          targetName: e.target ? byId.get(e.target)?.displayName ?? null : null,
+        })),
+      };
     },
 
     // ---- Shop ----

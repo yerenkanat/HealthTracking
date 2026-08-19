@@ -691,13 +691,21 @@ function makeDeps(
       lastAt: null,
     }),
     writeAudit: async (e) => void audit.push({ ...e, target: e.target ?? null, at: '2026-07-15T08:00:00Z' }),
-    listAudit: async () =>
+    listAudit: async (limit, offset = 0) => {
       // reason included: the interface declares it, and a fake that omits it
       // was how the security summary compiled against a shape nothing returns.
-      audit.map((a) => ({
+      // limit/offset honoured for the same reason — a fake that ignores its
+      // arguments is how paging got tested only in production once already.
+      // .reverse(): newest first, as the interface says and as both real
+      // implementations do. This fake handed back insertion order, which is
+      // backwards — harmless while every assertion used .some(), and exactly
+      // wrong the moment anything reads a PAGE of it.
+      const window = audit.slice().reverse().slice(offset, offset + limit + 1).map((a) => ({
         ...a, staffName: null, staffPhone: null, targetName: null,
         reason: (a as {reason?: string | null}).reason ?? null,
-      })),
+      }));
+      return { entries: window.slice(0, limit), hasMore: window.length > limit };
+    },
   };
 
   const server = buildServer(

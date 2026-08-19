@@ -76,7 +76,7 @@ describe('the live feed against a real server', () => {
 
   const poll = () => app.inject({ method: 'GET', url: '/admin/emergencies' });
   const auditCount = async () =>
-    (await repo.listAudit(500)).filter((a) => a.action === 'view_emergencies').length;
+    (await repo.listAudit(500)).entries.filter((a) => a.action === 'view_emergencies').length;
 
   it('records one row however many times the panel refreshes', async () => {
     for (let i = 0; i < 15; i++) expect((await poll()).statusCode).toBe(200);

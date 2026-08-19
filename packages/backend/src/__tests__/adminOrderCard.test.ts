@@ -309,7 +309,7 @@ describe('кадр 03 — the order card', () => {
     const [id] = await placeOrders(1, v);
     await get(`/admin/shop/orders/${id}`);
 
-    const rows = await repo.listAudit(50);
+    const rows = (await repo.listAudit(50)).entries;
     const entry = rows.find((r) => r.action === 'view_shop_order' && r.target === id);
     expect(entry, 'opening a customer card left no trace').toBeTruthy();
   });

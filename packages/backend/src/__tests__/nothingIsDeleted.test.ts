@@ -77,7 +77,7 @@ describe('a lesson with no history can be deleted', () => {
   it('and it is recorded, because somebody did it', async () => {
     const id = (await save(draft())).json().id;
     await del(id);
-    const audit = await repo.listAudit(20);
+    const audit = (await repo.listAudit(20)).entries;
     expect(audit.some((a) => a.action === 'course_lesson_delete' && a.target === id)).toBe(true);
   });
 

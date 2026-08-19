@@ -192,7 +192,7 @@ describe('publishing medical guidance takes two people', () => {
     await save(editor, [{ ...MEDICAL, draft: true }]);
     await review(doctor);
 
-    const audit = await repo.listAudit(20);
+    const audit = (await repo.listAudit(20)).entries;
     const row = audit.find((a) => a.action === 'content_review');
     expect(row, 'a sign-off left no trace').toBeDefined();
     expect(row!.staffId).toBe('clinician-1');

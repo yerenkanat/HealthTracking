@@ -130,7 +130,7 @@ describe('the threshold reaches a phone without a release', () => {
   it('changing it is written to the audit log', async () => {
     const a = app();
     await a.inject({ method: 'PUT', url: '/admin/cry/threshold', payload: { minConfidence: 0.6 } });
-    const rows = await repo.listAudit(50);
+    const rows = (await repo.listAudit(50)).entries;
     const row = rows.find((x) => x.action === 'edit_cry_threshold');
     expect(row, '«кто поднял порог» has no answer').toBeTruthy();
     expect(row!.target).toContain('0.6');

@@ -430,7 +430,7 @@ describe('the audit trail', () => {
   it('records who sent what, to whom, and how many got it', async () => {
     await staff('POST', '/admin/broadcasts', draft('bc-1'));
     await staff('POST', '/admin/broadcasts/bc-1/publish');
-    const entries = await repo.listAudit(50);
+    const entries = (await repo.listAudit(50)).entries;
     const actions = entries.map((e) => e.action);
     expect(actions).toContain('broadcast_create');
     expect(actions).toContain('broadcast_publish');

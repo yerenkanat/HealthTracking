@@ -220,7 +220,7 @@ describe('the back office can see and block a unit', () => {
     expect(res.statusCode).toBe(200);
     expect((await repo.deviceRegistryEntry('AABBCC000005'))?.status).toBe('blocked');
 
-    const audit = await repo.listAudit(20);
+    const audit = (await repo.listAudit(20)).entries;
     expect(audit.some((a) => a.action === 'device_blocked')).toBe(true);
   });
 });

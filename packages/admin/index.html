@@ -1634,6 +1634,14 @@
             <table><thead><tr><th>Когда</th><th>Сотрудник</th><th>Действие</th><th>Объект</th><th>Причина</th></tr></thead>
             <tbody id="auditBody"></tbody></table>
           </div>
+          <!-- Страницы журнала. Панель брала сотню последних строк и рисовала
+               их без подвала: всё, что старше, из интерфейса было недостижимо.
+               Журнал — это то, чем проверяют, кто открывал карту пациентки и
+               зачем; журнал, в котором видно только последнюю страницу, эту
+               проверку не выдерживает.
+               «Из N» здесь нет намеренно: сервер не считает строки журнала,
+               и подвал говорит об этом прямо. Смотрите AuditPage. -->
+          <div class="tfoot" id="auditFoot"></div>
         </div>
       </section>
 
@@ -4728,13 +4736,37 @@
     if(a.staffName) return a.staffName+(a.staffPhone?" · "+a.staffPhone:"");
     return a.staffId||"—";
   }
+  /**
+   * Одна страница журнала и место в ней.
+   *
+   * Панель просила `?limit=100`, читала `data.audit` и подвала не рисовала
+   * вовсе — как и список пациенток до §5.2. Сто последних действий видно,
+   * сто первое не существует: ни кнопки, ни строчки о том, что там что-то
+   * есть. Журнал именно этим и пользуются — «кто открывал карту Айгерім и
+   * почему» спрашивают про прошлый месяц, а не про последний час.
+   *
+   * Числа «из N» здесь нет, и это не недоделка. Сервер отдаёт `hasMore`, а
+   * не `total`: `audit_log` пополняется каждым действием в панели, и
+   * count(*) по нему — полный проход по таблице без верхней границы при
+   * каждом открытии вкладки. Подвал говорит это вслух. Выдуманное число на
+   * служебном экране — такая же ложь, как на клиническом.
+   */
+  const AUDIT_PAGE=100;
+  let auditOffset=0, auditReq=0;
   async function renderAudit(){
     const body=$("#auditBody"); if(!body) return;
+    const foot=$("#auditFoot");
+    const mine=++auditReq;
     body.innerHTML=tableBusy(5);
     let data=null;
-    try{ data=await api("/admin/audit?limit=100"); }catch(e){ data=null; }
+    try{ data=await api(`/admin/audit?limit=${AUDIT_PAGE}&offset=${auditOffset}`); }catch(e){ data=null; }
+    if(mine!==auditReq) return; // страницу уже перелистнули дальше
     if(!data){
       body.innerHTML=tableNote(5,"Не удалось загрузить журнал. Проверьте доступ и соединение.");
+      // Сбой чтения — это не «действий нет» и не «страница последняя».
+      // Подвал от прошлой удачной загрузки врал бы обоими.
+      if(foot) foot.innerHTML=`<span class="shown">Показано —</span>`+
+        `<span style="white-space:normal">Журнал не загрузился, поэтому ни строк, ни страниц здесь нет. Это сбой чтения, а не пустой журнал.</span>`;
       return;
     }
     const rows=data.audit||[];
@@ -4744,7 +4776,34 @@
         <td>${esc(AUDIT_ACTIONS[a.action]||a.action)}</td>
         <td class="t" title="${esc(a.target||"")}">${esc(a.targetName||a.target||"—")}</td>
         <td class="t">${a.reason?esc(a.reason):"<span style=\"color:var(--muted)\">—</span>"}</td></tr>`).join("")
-      || tableNote(5,"Действий пока не зафиксировано. Здесь появятся просмотры карт пациенток и изменения в панели — с автором, временем и причиной.");
+      || tableNote(5,auditOffset>0
+          ? "На этой странице пусто — вернитесь назад."
+          : "Действий пока не зафиксировано. Здесь появятся просмотры карт пациенток и изменения в панели — с автором, временем и причиной.");
+
+    if(foot){
+      const shown=rows.length;
+      // `hasMore` — ответ сервера, а не догадка панели. Если его нет (старая
+      // сборка на том конце), полная страница означает «возможно, есть ещё»,
+      // и подвал не притворяется, что знает точно.
+      const exact=typeof data.hasMore==="boolean";
+      const more=exact?data.hasMore:(shown>=AUDIT_PAGE);
+      const shownText=shown
+        ? `Показано ${fmt(auditOffset+1)}–${fmt(auditOffset+shown)}`
+        : "Показано 0";
+      const tail=shown
+        ? (more?(exact?" · есть ещё":" · возможно, есть ещё"):" · это конец журнала")
+        : "";
+      foot.innerHTML=
+        `<span class="shown">${esc(shownText+tail)}</span>`+
+        `<span style="white-space:normal">Сначала новые. Сколько всего строк в журнале — здесь не написано: сервер их не считает, потому что пересчёт всей таблицы при каждом открытии вкладки обошёлся бы дороже самой страницы. Придуманное «из N» было бы хуже, чем его отсутствие. Есть ли следующая страница — сервер отвечает точно.</span>`+
+        `<span class="pager">`+
+          `<button class="btn" type="button" id="auditPrev"${auditOffset<=0?" disabled":""}>← Назад</button>`+
+          `<button class="btn" type="button" id="auditNext"${more?"":" disabled"}>Вперёд →</button>`+
+        `</span>`;
+      const prev=$("#auditPrev"), next=$("#auditNext");
+      if(prev) prev.onclick=()=>{ auditOffset=Math.max(0,auditOffset-AUDIT_PAGE); renderAudit(); };
+      if(next) next.onclick=()=>{ auditOffset+=AUDIT_PAGE; renderAudit(); };
+    }
   }
 
   // ---- Frame 00 · «Дашборд владельца» -------------------------------------

@@ -996,6 +996,52 @@ export interface StaffSummary {
   lastLoginAt: string | null;
 }
 
+/**
+ * One entry of the back-office audit log, as a reader sees it.
+ *
+ * staffName/targetName are resolved from the roster where they can be. Null
+ * means the account is gone or predates accounts existing — the row still
+ * comes back, because a log that hides what it cannot label is worse than one
+ * that shows an id.
+ */
+export interface AuditEntry {
+  staffId: string;
+  staffName: string | null;
+  staffPhone: string | null;
+  action: string;
+  target: string | null;
+  targetName: string | null;
+  /**
+   * Why the record was opened, for the reads that demand one. Null on
+   * everything older than migration 029 and on actions that explain
+   * themselves.
+   */
+  reason: string | null;
+  at: string;
+}
+
+/**
+ * A page of the audit log, and whether there is another one behind it.
+ *
+ * `hasMore`, deliberately, and NOT a total.
+ *
+ * `audit_log` is append-only and grows with every back-office action — every
+ * sign-in, every order opened, every throttled feed read. Postgres cannot
+ * answer `count(*)` from an index, so a total would mean a full scan of a
+ * table with no upper bound, on every open of the «Журнал» tab and again after
+ * every patient card opened. `hasMore` costs one extra row instead: the page
+ * is fetched with `LIMIT n + 1` and the surplus row IS the answer.
+ *
+ * So the panel prints «Показано 101–200 · есть ещё» rather than «… из 4 812»,
+ * and says on screen that the log is not counted. An absent number that admits
+ * itself beats a number nobody paid for. See BACKLOG.md §4.4.
+ */
+export interface AuditPage {
+  entries: AuditEntry[];
+  /** True when at least one entry exists past this page. Never a guess. */
+  hasMore: boolean;
+}
+
 export interface Repository {
   // Health
   /**
@@ -1722,25 +1768,18 @@ export interface Repository {
    * and inventing one for them would make the old log look answered.
    */
   writeAudit(entry: { staffId: string; action: string; target?: string; reason?: string }): Promise<void>;
-  /// staffName/targetName are resolved from the roster where they can be. Null
-  /// means the account is gone or predates accounts existing — the row still
-  /// comes back, because a log that hides what it cannot label is worse than
-  /// one that shows an id.
-  listAudit(limit: number): Promise<Array<{
-    staffId: string;
-    staffName: string | null;
-    staffPhone: string | null;
-    action: string;
-    target: string | null;
-    targetName: string | null;
-    /**
-     * Why the record was opened, for the reads that demand one. Null on
-     * everything older than migration 029 and on actions that explain
-     * themselves.
-     */
-    reason: string | null;
-    at: string;
-  }>>;
+  /**
+   * One page of the log, newest first.
+   *
+   * [offset] skips that many of the newest entries, so a reviewer can walk
+   * backwards through time. The ordering is a stable TOTAL order, not merely
+   * `at DESC`: two rows written in the same instant — which happens, the
+   * column defaults to now() and one request can write twice — would otherwise
+   * be free to swap places between two page requests, and a row that swaps
+   * across a page boundary is a row shown twice or a row never shown at all.
+   * That is not an acceptable failure in an audit log.
+   */
+  listAudit(limit: number, offset?: number): Promise<AuditPage>;
 
   // ---- Shop (device store) ----
   /// Active products with every colour variant (in- and out-of-stock), for the
