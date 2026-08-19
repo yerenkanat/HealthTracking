@@ -4,6 +4,14 @@
  *
  *   STAFF_PHONE=7073452244 STAFF_PASSWORD='…' node db/seed-staff.mjs
  *   STAFF_PHONE=7071112233 STAFF_ROLE=support STAFF_NAME='Айгерім' node db/seed-staff.mjs
+ *   STAFF_PHONE=7071112244 STAFF_ROLE=warehouse STAFF_NAME='…' node db/seed-staff.mjs
+ *
+ * STAFF_ROLE accepts every role in src/auth/capabilities.ts — owner, operator,
+ * seller, warehouse, content, admin, clinician, support — and defaults to
+ * `admin` because the documented use of this script is recovering a lockout
+ * (src/routes/staffAdmin.ts names it for exactly that). Pass a narrower role
+ * whenever the job is narrower: `admin` carries health and finance, i.e. a
+ * mother's medical record and a child's location.
  *
  * The password is read from the environment and never written anywhere but the
  * scrypt hash — not to a file, not to the log, not to the shell history if you
@@ -15,6 +23,40 @@
 import { Pool } from 'pg';
 import { randomBytes, scrypt } from 'node:crypto';
 import { promisify } from 'node:util';
+
+/**
+ * The roles come from the ONE place the capability matrix lives, not from a
+ * copy.
+ *
+ * This script used to validate against a literal ['admin','clinician','support']
+ * while src/routes/staffAdmin.ts had already moved to the full STAFF_ROLES —
+ * and staffAdmin.ts names THIS script as the recovery route out of a lockout.
+ * So after a lockout the owner would SSH in, run `STAFF_ROLE=warehouse …`, get
+ * exit 2, and the only role the script still accepted was `admin` = every
+ * capability there is. A warehouse hand seeded from the shell came out holding
+ * `health` and `finance`: a mother's medical record and a child's location.
+ * Reading the shared list is what stops that drifting apart a second time.
+ *
+ * Imported from a .ts source deliberately: the backend runs its TypeScript
+ * directly under Node's type stripping (Node >= 22.18; the deploy image is
+ * node:24-alpine, see deploy/landing-stack.sh). If that ever fails, say so in
+ * words the person recovering a lockout can act on rather than dying with
+ * "Unknown file extension .ts".
+ */
+let STAFF_ROLES;
+try {
+  ({ STAFF_ROLES } = await import('../src/auth/capabilities.ts'));
+} catch (err) {
+  console.error('Could not read the role list from src/auth/capabilities.ts:');
+  console.error(`  ${err?.message ?? err}`);
+  console.error('This needs Node >= 22.18 for TypeScript type stripping. Run it in the');
+  console.error('deploy image instead, from the repo root on the box:');
+  console.error('  docker run --rm --network supabase_default -v /opt/umay:/app \\');
+  console.error('    -w /app/packages/backend --env-file /etc/umay/backend.env \\');
+  console.error('    -e STAFF_PHONE -e STAFF_PASSWORD -e STAFF_ROLE -e STAFF_NAME \\');
+  console.error('    node:24-alpine node db/seed-staff.mjs');
+  process.exit(2);
+}
 
 const scryptAsync = promisify(scrypt);
 
@@ -46,8 +88,10 @@ if (password.length < 8) {
   console.error('STAFF_PASSWORD is required and must be at least 8 characters');
   process.exit(2);
 }
-if (!['admin', 'clinician', 'support'].includes(role)) {
-  console.error(`STAFF_ROLE must be admin, clinician or support (got ${role})`);
+if (!STAFF_ROLES.includes(role)) {
+  console.error(`STAFF_ROLE must be one of: ${STAFF_ROLES.join(', ')} (got ${role})`);
+  console.error('Grant the narrowest role that does the job. `admin` is EVERY');
+  console.error('capability, including health and finance.');
   process.exit(2);
 }
 

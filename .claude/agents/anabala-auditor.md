@@ -37,7 +37,40 @@ You do not fix anything and you do not edit product code. You report.
 6. **`schema.sql` and the migration agree.** A column in one and not the other
    breaks a fresh install.
 
-7. Run `npx tsc --noEmit` and the full `npx vitest run`. Report real numbers.
+7. **Typecheck and test the whole workspace, from the repo root:**
+
+   ```
+   npm run typecheck     # tsc -b packages/shared packages/backend
+   npm test              # vitest run, root config, both packages
+   ```
+
+   Report real numbers: files passed/failed, tests passed/failed.
+
+   Not `npx tsc --noEmit`. There is no root `tsconfig.json` — only
+   `tsconfig.base.json` — so that command typechecks nothing, prints the
+   compiler's help text and exits 1. It has already misled one auditor into
+   reporting a clean typecheck that never ran.
+
+   Not `npx vitest run` from `packages/backend` either: vitest's root becomes
+   that directory and `packages/shared`'s contract and triage suites are never
+   collected.
+
+8. **Read exit codes directly. Never through a pipe.** A pipeline reports the
+   LAST command's status, so `some-check | tail` is always the status of
+   `tail`, which is always 0. That is exactly how the failing `npx tsc` above
+   got reported as "exit code 0". Run the command, then read `$?` — or write
+   the output to a file and read it afterwards:
+
+   ```
+   npm test > /tmp/out.txt 2>&1; echo "EXIT=$?"; tail -20 /tmp/out.txt
+   ```
+
+   The same trap has a second form that has cost this repo two separate
+   sessions: `curl … | grep -q "$marker"` under `set -o pipefail`. `grep -q`
+   exits at the first match, the writer takes SIGPIPE and dies with 141, and
+   the pipeline reports 141 — so the check fails *because* it succeeded. It
+   only bites past the 64 KB pipe buffer, which is why it looked selective and
+   real. If you are auditing a shell script, that shape is a finding.
 
 ## Report
 

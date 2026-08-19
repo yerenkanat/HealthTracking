@@ -176,12 +176,59 @@ echo "    cache OK ($(docker exec umay-backend printenv REDIS_URL))"
 
 echo
 echo "==> Landing page self-check (as the proxy will see it)"
-docker run --rm --network "$NETWORK" "$NODE_IMAGE" sh -c '
-  wget -qO- http://umay-backend:8080/ | head -c 400000 > /tmp/p
-  grep -q "<title>" /tmp/p && echo "    title      OK"
-  grep -q "landing/a/" /tmp/p && echo "    assets     OK"
-  grep -q "landing/wire.js" /tmp/p && echo "    form wired OK"
-  printf "    bytes      %s\n" "$(wc -c < /tmp/p)"'
+#
+# The body is fetched HERE and matched HERE, in this shell. Two separate traps
+# forced that, and both have already cost this repo real time.
+#
+# 1. These checks used to live inside `docker run … sh -c '…'`. The outer
+#    `set -euo pipefail` does not reach into a child shell, and the `sh -c`
+#    exit status is its LAST command's — which was a `printf` of the byte
+#    count, and printf always succeeds. So a landing page shipped WITHOUT
+#    landing/wire.js printed three OK lines instead of four, printed a byte
+#    count, said «Backend is up» and exited 0. wire.js is the lead form's
+#    entire callback path — the monetisation surface — and the first symptom
+#    would have been a week of zero leads with every check green.
+#
+# 2. NOT `wget -qO- … | grep -q`. Under `set -o pipefail`, `grep -q` exits the
+#    instant it matches, the writer's next write takes SIGPIPE and dies with
+#    141, and the pipeline reports that 141 — so the check fails BECAUSE it
+#    succeeded. It only bites past the 64 KB pipe buffer, and this page is
+#    ~130 KB. The identical bug was diagnosed once in verify-live.sh and once
+#    in update.sh; do not reintroduce it here. A bash `case` matches in the
+#    shell itself: no pipeline, no subprocess, no exit status to invert.
+#
+# Both rules are guarded by packages/backend/src/__tests__/deployScripts.test.ts.
+LANDING_BODY="$(docker run --rm --network "$NETWORK" "$NODE_IMAGE" \
+  wget -qO- http://umay-backend:8080/ 2>/dev/null || true)"
+LANDING_FAILURES=0
+
+# Every check runs before anything exits, so the report is complete: "the form
+# is not wired" and "the assets are not there" are different problems and the
+# operator should see both in one pass.
+landing_check() { # literal substring, label
+  case "$LANDING_BODY" in
+    *"$1"*) echo "    $2 OK"; return 0 ;;
+  esac
+  echo "!!  $2 MISSING — / did not contain $1"
+  LANDING_FAILURES=$((LANDING_FAILURES + 1))
+}
+
+landing_check "<title>"         "title     "
+landing_check "landing/a/"      "assets    "
+landing_check "landing/wire.js" "form wired"
+printf "    bytes      %s\n" "$(printf '%s' "$LANDING_BODY" | wc -c)"
+
+if [ "$LANDING_FAILURES" -ne 0 ]; then
+  echo
+  echo "!!  the landing page this backend serves is incomplete —" \
+       "$LANDING_FAILURES check(s) failed."
+  echo "    / is an EXPORTED ARTIFACT unpacked by tools/build-landing.mjs into"
+  echo "    packages/backend/landing/. A re-export that was not rebuilt and"
+  echo "    committed serves the previous one. Rebuild, commit, re-run this script."
+  echo "    Not shipping a lead form is not a cosmetic failure: it is the whole"
+  echo "    callback path off the monetisation surface."
+  exit 1
+fi
 
 echo
 docker ps --filter name=umay --format "    {{.Names}}  {{.Status}}"

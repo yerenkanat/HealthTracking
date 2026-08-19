@@ -53,12 +53,34 @@ jobs:
         with:
           node-version: 22
 
-      - name: Backend typecheck + tests
-        working-directory: packages/backend
+      # Deliberately identical to the `backend` job in ci.yml — root directory,
+      # root scripts. Keep the two in step: a deploy gate that diverges from CI
+      # is a gate that goes green on a different repository than the one CI
+      # checked, and the difference is invisible until it matters.
+      #
+      # This used to run `npm ci && npx tsc --noEmit -p tsconfig.json &&
+      # npx vitest run` with `working-directory: packages/backend`. That is not
+      # broken the way it looks — npm walks up to the workspace lock, and vitest
+      # walks up to the root vitest.config.ts, so both the install and the 30 s
+      # panel-suite timeout were fine (verified on npm 10.9.2 and 11.16.0,
+      # vitest 2). What it did do is silently scope the gate to ONE package:
+      #
+      #   * vitest's root became packages/backend, and its include glob is
+      #     relative to root — so packages/shared/src/__tests__/contract.test.ts
+      #     and triage.test.ts were never collected. `npx vitest run
+      #     contract.test` from there prints "No test files found". contract is
+      #     the app<->backend payload contract; it is not an optional suite.
+      #   * `-p tsconfig.json` typechecks packages/backend only, while
+      #     `npm run typecheck` is `tsc -b packages/shared packages/backend`.
+      #     A type error in shared could not fail this deploy.
+      #
+      # So "nothing ships unless the suites are green" was true of the backend
+      # suites and untrue of the shared ones. Running from the root fixes both.
+      - name: Typecheck + tests (whole workspace)
         run: |
-          npm ci
-          npx tsc --noEmit -p tsconfig.json
-          npx vitest run
+          npm install
+          npm run typecheck
+          npm test
 
       - name: Load the deploy key
         env:

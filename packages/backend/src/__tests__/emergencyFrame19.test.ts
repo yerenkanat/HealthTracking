@@ -14,7 +14,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
-import { createMemoryRepository } from '../db/memoryRepository';
+import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
 
 const STAFF = { staffId: 's1', role: 'admin' as const };
@@ -118,10 +118,17 @@ describe('GET /admin/emergencies — the reason, not a placeholder', () => {
   });
 });
 
+// The alerts below belong to DEMO_USER, not to a made-up 'demo-user'.
+// safety_alerts.user_id is a UUID foreign key to users(id) and
+// pgRepository.adminSafetyEvents INNER JOINs users, so an alert owned by an
+// account that does not exist cannot be inserted, let alone appear in the feed.
+// While the fake ignored the user id it happily served one, attached to the
+// demo profile's name and phone — so this file asserted a number the real
+// query could never have produced for that row.
 describe('GET /admin/safety — how the SOS ended, and who to call', () => {
   it('reads the outcome back after the mother closes it', async () => {
     const at = '2026-07-15T08:00:00.000Z';
-    await repo.recordAlert('demo-user', { childId: CHILD, kind: 'sos', zoneName: '', at });
+    await repo.recordAlert(DEMO_USER, { childId: CHILD, kind: 'sos', zoneName: '', at });
     const a = app();
 
     let events = (await a.inject({ method: 'GET', url: '/admin/safety' })).json().events;
@@ -130,7 +137,7 @@ describe('GET /admin/safety — how the SOS ended, and who to call', () => {
     // outcome and not as a false press.
     expect(events[0].outcome).toBeNull();
 
-    expect(await repo.setAlertOutcome('demo-user', CHILD, at, 'false_press')).toBe(true);
+    expect(await repo.setAlertOutcome(DEMO_USER, CHILD, at, 'false_press')).toBe(true);
 
     events = (await a.inject({ method: 'GET', url: '/admin/safety' })).json().events;
     expect(events[0].outcome).toBe('false_press');
@@ -138,7 +145,7 @@ describe('GET /admin/safety — how the SOS ended, and who to call', () => {
   });
 
   it('carries the mother’s number so «Позвонить маме» has one, and never an outcome on a crossing', async () => {
-    await repo.recordAlert('demo-user', {
+    await repo.recordAlert(DEMO_USER, {
       childId: CHILD, kind: 'entered', zoneName: 'Школа', at: '2026-07-15T09:00:00.000Z',
     });
     const a = app();

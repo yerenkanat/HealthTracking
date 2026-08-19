@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   phone         TEXT NOT NULL UNIQUE,          -- digits only, e.g. 77073452244
   password_hash TEXT NOT NULL,                 -- scrypt, salted, see http/staffAuth.ts
-  role          TEXT NOT NULL DEFAULT 'admin', -- admin | clinician | support
+  role          TEXT NOT NULL DEFAULT 'admin', -- any of STAFF_ROLES in src/auth/capabilities.ts
   display_name  TEXT NOT NULL DEFAULT '',
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_login_at TIMESTAMPTZ,
