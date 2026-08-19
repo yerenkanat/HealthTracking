@@ -5049,23 +5049,100 @@
         || tableNote(2,"Пока никто не открывал защищённые данные. Сотрудник появится здесь после первого такого просмотра.");
     }
 
+    renderRetentionCard(d.retention);
+  }
+
+  /// A period in the words it was decided in.
+  ///
+  /// Whole years read as years — «3 года», not «1095 дн.», because that is the
+  /// unit the question is asked in. Anything else stays in days. The exact day
+  /// count is printed beside the years by the caller: it is the number the
+  /// cutoff uses, and a screen that shows only the rounded form cannot be
+  /// checked against the schedule.
+  function periodRu(days){
+    const n=Number(days);
+    if(!Number.isFinite(n)||n<=0) return "—";
+    if(n%365!==0) return n+" дн.";
+    const y=n/365, h=y%100, u=y%10;
+    const word=(h>=11&&h<=14)?"лет":(u===1?"год":(u>=2&&u<=4?"года":"лет"));
+    return y+" "+word;
+  }
+
+  /// «Хранение» — every enforced period, and everything deliberately kept.
+  ///
+  /// Drawn from the server's list, which the server derives from the deletion
+  /// schedule itself. This card used to print two rows while EIGHT sweeps ran:
+  /// маршруты and журнал доступа, each typed here by hand, with geofence
+  /// crossings, тревоги, коды из SMS, попытки входа, заявки и обращения
+  /// invisible. This is the page somebody opens to answer «что вы храните и
+  /// сколько», and two of eight does not read as a partial answer — it reads as
+  /// the whole one.
+  ///
+  /// So nothing below names a table or a number. A ninth sweep appears here
+  /// because it was added to the schedule, not because anyone remembered this
+  /// file.
+  function renderRetentionCard(r){
     const ret=$("#secRetention");
-    if(ret&&d.retention){
-      // Read from the server, which reads it from the constants the sweep uses.
-      // Typing «90 дней» here is how this page ends up promising a regulator
-      // something the job does not do.
-      ret.innerHTML=`
-        <div class="tli"><span><b>Маршруты детей</b></span>
-          <span class="t" style="color:var(--muted)">удаляются автоматически</span>
-          <span class="num">${esc(String(d.retention.routeDays))} дн.</span></div>
-        <div class="tli"><span><b>Журнал доступа</b></span>
-          <span class="t" style="color:var(--muted)">${d.retention.auditSweep
-            ? 'удаляется автоматически'
-            : 'хранится бессрочно — срок не задан'}</span>
-          <span class="num">${d.retention.auditSweep
-            ? esc(String(d.retention.auditSweep)) + ' года'
-            : '—'}</span></div>`;
+    if(!ret) return;
+    if(!r){ ret.innerHTML=""; return; }
+    const swept=Array.isArray(r.swept)?r.swept:[];
+    const kept=Array.isArray(r.kept)?r.kept:[];
+    const has=(t)=>swept.some(s=>s&&s.table===t);
+
+    const name=(label,table)=>`<span><b>${esc(label||table||"—")}</b><br>`
+      +`<span class="t" style="color:var(--muted-2);font-family:var(--mono)">${esc(table||"")}</span></span>`;
+    const why=(text)=>`<span class="t" style="color:var(--muted);white-space:normal">${esc(text||"")}</span>`;
+
+    const sweptRow=(s)=>{
+      const n=Number(s.days);
+      const exact=(Number.isFinite(n)&&n>=365&&n%365===0)
+        ? `<br><span class="t" style="color:var(--muted-2);font-weight:400">${esc(String(n))} дн.</span>`
+        : "";
+      return `<div class="tli" data-table="${esc(s.table||"")}">${name(s.label,s.table)}${why(s.why)}`
+        +`<span class="num" style="text-align:right">${esc(periodRu(s.days))}${exact}</span></div>`;
+    };
+
+    // A promise with no sweep behind it is the defect this card has already
+    // shipped once: «3 года» printed for months while nothing deleted a row.
+    // If a period is ever withdrawn the row stays and says so, in red, rather
+    // than the table quietly dropping off the list.
+    const unsetRow=(label,table,note)=>`<div class="tli" data-table="${esc(table)}">${name(label,table)}`
+      +`<span class="t" style="color:var(--crit-text);white-space:normal">${esc(note)}</span>`
+      +`<span class="num" style="text-align:right;color:var(--crit-text)">—</span></div>`;
+
+    const head=(title,sub)=>`<div class="tli" style="border-top:none;padding-bottom:4px">`
+      +`<span style="font-weight:700">${esc(title)}</span>`
+      +`<span class="t" style="color:var(--muted-2);white-space:normal">${esc(sub)}</span>`
+      +`<span></span></div>`;
+
+    const out=[head("Что удаляется автоматически","через сколько сервер удаляет запись")];
+    swept.forEach(s=>out.push(sweptRow(s)));
+    if(r.routeDays==null&&!has("location_history")){
+      out.push(unsetRow("Маршруты детей","location_history",
+        "приложение обещает срок — в расписании удаления его нет"));
     }
+    if(r.auditSweep==null&&!has("audit_log")){
+      out.push(unsetRow("Журнал доступа","audit_log","хранится бессрочно — срок не задан"));
+    }
+
+    if(kept.length){
+      // Its own block, and its own word. «хранится» is not «удаляется через»,
+      // and an absence from the list above must read as a decision somebody
+      // took rather than as something nobody got to.
+      const box=[head("Что хранится и почему","не удаляется по расписанию — это решение, а не упущение")];
+      kept.forEach(k=>box.push(`<div class="tli" data-kept="${esc(k.table||"")}">${name(k.label,k.table)}${why(k.why)}`
+        +`<span class="num" style="text-align:right;color:var(--muted)">хранится</span></div>`));
+      out.push(`<div style="margin-top:14px;padding:2px 12px;background:var(--surface-2);`
+        +`border:1px solid var(--hair);border-radius:var(--r)">${box.join("")}</div>`);
+    }
+
+    out.push(`<p class="t" style="color:var(--muted-2);white-space:normal;margin:12px 0 0">`
+      +`Оба списка приходят с сервера из одного расписания удаления — здесь нет ни одного срока, `
+      +`набранного в панели. ${kept.length
+        ? "Чего нет в верхнем списке, по расписанию не удаляется; почему — сказано ниже."
+        : "Чего нет в этом списке, по расписанию не удаляется."}</p>`);
+
+    ret.innerHTML=out.join("");
   }
   // Changing the period re-asks the server rather than filtering what is drawn:
   // the tiles count over the window, and filtering here would leave them stating

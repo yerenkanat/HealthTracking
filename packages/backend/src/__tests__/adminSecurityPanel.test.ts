@@ -15,8 +15,9 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { summarizeSecurity, type AuditRow } from '../admin/security.js';
+import { retentionSummary, summarizeSecurity, type AuditRow } from '../admin/security.js';
 import { ALL_CAPABILITIES, ROLE_CAPS, STAFF_ROLES } from '../auth/capabilities.js';
+import { RETENTION_KEPT, RETENTION_SWEEPS } from '../privacy/retention.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -47,7 +48,11 @@ const ROWS: AuditRow[] = [
 
 const SECURITY = {
   ...summarizeSecurity(ROWS, NOW, 30),
-  retention: { routeDays: 90, auditSweep: 3 },
+  // The retention block was two hand-written numbers here while eight sweeps
+  // ran — the same fixture shape as the defect, so the fixture could not have
+  // caught it. It is now the object the route actually sends, derived from
+  // RETENTION_SWEEPS and RETENTION_KEPT.
+  retention: retentionSummary(),
 };
 
 const ROLES = {
@@ -202,6 +207,80 @@ describe('frame 22 · Безопасность', () => {
     expect(t).not.toContain('срок не задан');
   });
 
+  it('reports every enforced period, not the two it used to', () => {
+    // The card printed «Маршруты детей» and «Журнал доступа» while EIGHT sweeps
+    // ran. Six enforced periods — пересечения зон, тревоги и SOS, коды из SMS,
+    // попытки входа, заявки с сайта, обращения в поддержку — were invisible on
+    // the one page that answers «что вы храните и сколько». Two of eight does
+    // not read as a partial answer; it reads as the whole one.
+    //
+    // Counted against RETENTION_SWEEPS itself, so a ninth sweep fails here
+    // until it is on the screen — and it reaches the screen without this file,
+    // the route or the panel's HTML naming it.
+    const rows = [...page.window.document.querySelectorAll('#secRetention .tli[data-table]')];
+    expect(rows.map((r) => r.getAttribute('data-table')))
+      .toEqual(RETENTION_SWEEPS.map((s) => s.table));
+    expect(rows).toHaveLength(RETENTION_SWEEPS.length);
+    expect(painted(page, '#secRetention .tli[data-table]')).toBe(true);
+  });
+
+  it('gives every period its reason, in the words the decision was written in', () => {
+    const t = page.text('#secRetention');
+    for (const s of RETENTION_SWEEPS) {
+      expect(t, `${s.table} is not named on the card`).toContain(s.labelRu);
+      expect(t, `${s.table} states no reason`).toContain(s.whyRu);
+      // The English rationale in privacy/retention.ts is for the reader of that
+      // file. This screen is Russian-only and a Russian reviewer reads it.
+      expect(t, `${s.table} printed its English rationale`).not.toContain(s.why);
+    }
+  });
+
+  it('prints no period the sweep does not enforce', () => {
+    // Every number on this card is checked back against the schedule: «3 года»
+    // stands beside audit_log because AUDIT_RETENTION_DAYS is 1095, not because
+    // somebody typed it into the HTML — which is exactly what it used to be.
+    for (const s of RETENTION_SWEEPS) {
+      const row = page.window.document.querySelector(`#secRetention [data-table="${s.table}"]`);
+      const t = (row?.textContent ?? '').replace(/\s+/g, ' ');
+      expect(t, `${s.table} does not print the period its cutoff uses`).toContain(String(s.days));
+    }
+    // A whole number of years is said in years — the unit the question is asked
+    // in — with the exact day count kept beside it so the claim stays checkable.
+    const audit = page.window.document.querySelector('#secRetention [data-table="audit_log"]');
+    const at = (audit?.textContent ?? '').replace(/\s+/g, ' ');
+    expect(at).toContain('3 года');
+    expect(at).toContain('1095 дн.');
+  });
+
+  it('shows what is deliberately kept, as its own group', () => {
+    // RETENTION_KEPT existed so that an absence would be a decision on the
+    // record rather than an oversight, and it was read by no code at all. An
+    // order kept as an accounting record is something a reviewer must be told.
+    const kept = [...page.window.document.querySelectorAll('#secRetention [data-kept]')];
+    expect(kept).toHaveLength(RETENTION_KEPT.length);
+    expect(painted(page, '#secRetention [data-kept]')).toBe(true);
+    const t = page.text('#secRetention');
+    for (const k of RETENTION_KEPT) {
+      expect(t, `${k.table} is not on the card`).toContain(k.labelRu);
+      expect(t, `${k.table} says why nowhere`).toContain(k.whyRu);
+    }
+
+    const orders = page.window.document.querySelector('#secRetention [data-kept*="shop_orders"]');
+    const ot = (orders?.textContent ?? '').replace(/\s+/g, ' ');
+    // «хранится», not «удаляется через N» — the two must not read alike, and a
+    // kept table must never be given a period nothing enforces.
+    expect(ot).toContain('хранится');
+    expect(ot).toContain('Бухгалтерский документ');
+    expect(ot).not.toContain('дн.');
+    expect(ot).not.toMatch(/\d/);
+  });
+
+  it('states the rule the card is drawn by', () => {
+    // Every table on this panel states its rule; this one's is that it holds no
+    // periods of its own.
+    expect(page.text('#secRetention')).toContain('расписания удаления');
+  });
+
   it('says the period is unset when the server says so', async () => {
     // The other branch, still reachable and still honest: if a period is ever
     // withdrawn, the card must go back to naming no number rather than keeping
@@ -214,6 +293,47 @@ describe('frame 22 · Безопасность', () => {
     const t = p.text('#secRetention');
     expect(t).toContain('срок не задан');
     expect(t).not.toContain('года');
+  });
+
+  it('keeps a withdrawn period on its own row, with the other sweeps intact', async () => {
+    // The realistic shape of the branch above: audit_log leaves the schedule
+    // while the other seven sweeps keep running. The row has to STAY and say
+    // so — a table that quietly drops off the list is how «журнал хранится
+    // вечно» becomes invisible on the page whose whole job is to show it.
+    const full = retentionSummary();
+    const p = await render('security', [], {
+      ...SECURITY,
+      retention: {
+        ...full,
+        auditSweep: null,
+        swept: full.swept.filter((s) => s.table !== 'audit_log'),
+      },
+    });
+    const audit = p.window.document.querySelector('#secRetention [data-table="audit_log"]');
+    const t = (audit?.textContent ?? '').replace(/\s+/g, ' ');
+    expect(t).toContain('срок не задан');
+    expect(t).not.toContain('года');
+    // Seven sweeps plus the row that says the eighth has no period.
+    expect(p.count('#secRetention .tli[data-table]')).toBe(RETENTION_SWEEPS.length);
+  });
+
+  it('says so when the route promise has no sweep behind it', async () => {
+    // The app tells every user her child's trail is kept 90 days. If that sweep
+    // ever leaves the schedule, this card must say the promise is unenforced
+    // rather than simply not mention routes.
+    const full = retentionSummary();
+    const p = await render('security', [], {
+      ...SECURITY,
+      retention: {
+        ...full,
+        routeDays: null,
+        swept: full.swept.filter((s) => s.table !== 'location_history'),
+      },
+    });
+    const row = p.window.document.querySelector('#secRetention [data-table="location_history"]');
+    const t = (row?.textContent ?? '').replace(/\s+/g, ' ');
+    expect(t).toContain('Маршруты детей');
+    expect(t).toContain('в расписании удаления его нет');
   });
 
   it('ends on the open question rather than settling it quietly', () => {

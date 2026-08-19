@@ -21,6 +21,7 @@ import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 import {
   AUDIT_RETENTION_YEARS,
+  RETENTION_KEPT,
   RETENTION_SWEEPS,
   ROUTE_RETENTION_DAYS,
   retentionCutoff,
@@ -239,6 +240,71 @@ describe('GET /admin/security', () => {
     const body = (await app.inject({ method: 'GET', url: '/admin/security' })).json();
     expect(body.retention.routeDays).toBe(ROUTE_RETENTION_DAYS);
     expect(body.retention.auditSweep).toBe(AUDIT_RETENTION_YEARS);
+    await app.close();
+  });
+
+  it('reports EVERY enforced period, derived from the schedule', async () => {
+    // The card reported two of eight. `routeDays` and `auditSweep` were typed
+    // into this route by hand while geofence crossings, safety alerts, phone
+    // codes, login attempts, shop leads and support threads were all being
+    // deleted on periods nobody could see. This is the page a reviewer opens to
+    // ask «what does this product keep, and for how long», and a page showing
+    // two periods reads as a page showing all of them.
+    //
+    // The length is asserted against RETENTION_SWEEPS itself, so a ninth sweep
+    // fails HERE until it reaches the panel — which it does without this file
+    // or the route being edited, because the payload is derived, not listed.
+    const body = (await app.inject({ method: 'GET', url: '/admin/security' })).json();
+    expect(
+      body.retention.swept?.length,
+      'the security card is served a hand-kept list of periods, not the schedule',
+    ).toBe(RETENTION_SWEEPS.length);
+    expect(body.retention.swept.map((s: { table: string }) => s.table))
+      .toEqual(RETENTION_SWEEPS.map((s) => s.table));
+    for (const [i, s] of RETENTION_SWEEPS.entries()) {
+      // The period served is the period the cutoff uses. Nothing is rounded on
+      // the way to the screen.
+      expect(body.retention.swept[i].days, `${s.table} is served a period the sweep does not use`)
+        .toBe(s.days);
+      expect(body.retention.swept[i].label).toBe(s.labelRu);
+      expect(body.retention.swept[i].why).toBe(s.whyRu);
+    }
+    await app.close();
+  });
+
+  it('reports what is deliberately kept, so an absence is a decision', async () => {
+    // An order kept as an accounting record is something a reviewer should be
+    // TOLD, not left to infer from a table's absence from the swept list.
+    const body = (await app.inject({ method: 'GET', url: '/admin/security' })).json();
+    expect(
+      body.retention.kept?.length,
+      'nothing on the page says what is kept on purpose',
+    ).toBe(RETENTION_KEPT.length);
+    const orders = body.retention.kept
+      .find((k: { table: string }) => k.table.includes('shop_orders'));
+    expect(orders, 'the accounting decision is not on the page').toBeDefined();
+    expect(orders.why).toBe(RETENTION_KEPT.find((k) => k.table.includes('shop_orders'))!.whyRu);
+    // No period is served for a kept table: there is none, and a number here
+    // would be a promise nothing enforces.
+    expect(orders.days).toBeUndefined();
+    await app.close();
+  });
+
+  it('states each period in the language of the panel that prints it', async () => {
+    // The admin panel is Russian-only. `why` in privacy/retention.ts is written
+    // in English for the reader of that file; `whyRu` is the same decision for
+    // the reviewer reading the screen, and it lives beside it there rather than
+    // being re-authored in the panel's HTML — a second set of explanations is a
+    // second set that can drift. 1e25233 shipped English audit keys at a
+    // Russian reviewer; this is the same trap one file along.
+    const body = (await app.inject({ method: 'GET', url: '/admin/security' })).json();
+    const lines = [...(body.retention.swept ?? []), ...(body.retention.kept ?? [])];
+    expect(lines.length, 'the card is served no periods to state at all').toBeGreaterThan(0);
+    for (const line of lines) {
+      expect(line.label, `${line.table} has no Russian name`).toMatch(/[А-Яа-яЁё]/);
+      expect(line.why, `${line.table} has no Russian reason`).toMatch(/[А-Яа-яЁё]/);
+      expect(line.why.length, `${line.table} has no stated reason`).toBeGreaterThan(10);
+    }
     await app.close();
   });
 

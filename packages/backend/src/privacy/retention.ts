@@ -160,6 +160,24 @@ export interface RetentionSweep {
   days: number;
   /** The decision in one line, so a reader here need not go and find it. */
   why: string;
+  /**
+   * The same two fields again, in Russian, for the one screen that reports
+   * them — the admin panel's «Безопасность» card (frame 22), which is Russian
+   * only.
+   *
+   * They live HERE, beside the period and the English rationale, and not in
+   * the panel's HTML. The panel printing its own sentence about a period is
+   * the exact shape of the defect this card keeps producing: a screen that
+   * says three years while nothing deletes a row. A reviewer asking «what does
+   * this product keep, and for how long» must be reading the schedule itself.
+   *
+   * `label` is what the row IS to somebody who has never seen the schema —
+   * `location_history` answers nothing. `whyRu` is `why` said in the language
+   * of the reader; the two sit on adjacent lines so one cannot be changed
+   * without the other being in front of the eye that changes it.
+   */
+  labelRu: string;
+  whyRu: string;
   run(repo: RetentionDeps, cutoffIso: string): Promise<number>;
 }
 
@@ -175,48 +193,64 @@ export const RETENTION_SWEEPS: readonly RetentionSweep[] = [
     table: 'location_history',
     days: ROUTE_RETENTION_DAYS,
     why: 'the route promise printed in the app',
+    labelRu: 'Маршруты детей',
+    whyRu: 'обещание о маршрутах, напечатанное в приложении',
     run: (repo, cutoff) => repo.pruneLocationHistory(cutoff),
   },
   {
     table: 'geofence_events',
     days: GEOFENCE_EVENT_RETENTION_DAYS,
     why: 'a crossing is the route that produced it and cannot outlive it',
+    labelRu: 'Входы и выходы из зон',
+    whyRu: 'это тот же маршрут: пересечение зоны не может храниться дольше него',
     run: (repo, cutoff) => repo.pruneGeofenceEvents(cutoff),
   },
   {
     table: 'safety_alerts',
     days: SAFETY_ALERT_RETENTION_DAYS,
     why: 'a school year to look back over, not a permanent history of a child',
+    labelRu: 'Тревоги и SOS',
+    whyRu: 'учебный год, чтобы оглянуться назад, а не вечная история ребёнка',
     run: (repo, cutoff) => repo.pruneSafetyAlerts(cutoff),
   },
   {
     table: 'audit_log',
     days: AUDIT_RETENTION_DAYS,
-    why: 'the accountability record; the period the panel has always claimed',
+    why: 'the accountability record — who opened whose record, and why',
+    labelRu: 'Журнал доступа',
+    whyRu: 'запись о том, кто открывал карту пациентки и на каком основании',
     run: (repo, cutoff) => repo.pruneAuditLog(cutoff),
   },
   {
     table: 'phone_codes',
     days: PHONE_CODE_RETENTION_DAYS,
     why: 'an abandoned sign-in left a phone number behind for ever',
+    labelRu: 'Коды из SMS',
+    whyRu: 'незавершённый вход оставлял номер телефона навсегда',
     run: (repo, cutoff) => repo.prunePhoneCodes(cutoff),
   },
   {
     table: 'login_attempts',
     days: LOGIN_ATTEMPT_RETENTION_DAYS,
     why: 'rate-limiting and intrusion review need weeks, not years',
+    labelRu: 'Попытки входа',
+    whyRu: 'защите от подбора и разбору взлома нужны недели, а не годы',
     run: (repo, cutoff) => repo.pruneLoginAttempts(cutoff),
   },
   {
     table: 'shop_leads',
     days: SHOP_LEAD_RETENTION_DAYS,
     why: 'a name and a phone nobody acted on in a year is not a business need',
+    labelRu: 'Заявки с сайта',
+    whyRu: 'имя и телефон, по которым за год никто не связался, — уже не нужны',
     run: (repo, cutoff) => repo.pruneShopLeads(cutoff),
   },
   {
     table: 'support_tickets',
     days: SUPPORT_RETENTION_DAYS,
     why: 'a dispute about an order can surface long after the order',
+    labelRu: 'Обращения в поддержку',
+    whyRu: 'спор о заказе может всплыть намного позже самого заказа',
     run: (repo, cutoff) => repo.pruneSupportTickets(cutoff),
   },
 ];
@@ -224,12 +258,28 @@ export const RETENTION_SWEEPS: readonly RetentionSweep[] = [
 /**
  * What is deliberately NOT swept, and why.
  *
- * Read by no code. Written so the absence is a decision on the record rather
- * than something nobody got to — which is exactly what the single-table version
- * of this file was. If one of these ever gains a period it moves up into
- * RETENTION_SWEEPS, and the published policy changes in the same commit.
+ * Written so the absence is a decision on the record rather than something
+ * nobody got to — which is exactly what the single-table version of this file
+ * was. If one of these ever gains a period it moves up into RETENTION_SWEEPS,
+ * and the published policy changes in the same commit.
+ *
+ * It was read by no code, which made it a note to ourselves. It is now on the
+ * «Безопасность» card beside the sweeps, because the reviewer who asks what is
+ * deleted is asking the same question about what is not, and «заказы хранятся
+ * как бухгалтерский документ» is something to be told rather than left to be
+ * inferred from a table's absence from a list.
  */
-export const RETENTION_KEPT: readonly { table: string; why: string }[] = [
+export interface RetentionKept {
+  /** The tables, named as db/schema.sql names them. */
+  table: string;
+  /** The decision, in English, for the reader of this file. */
+  why: string;
+  /** The same, for the Russian-only panel. See RetentionSweep.labelRu. */
+  labelRu: string;
+  whyRu: string;
+}
+
+export const RETENTION_KEPT: readonly RetentionKept[] = [
   {
     table: 'shop_orders, shop_order_items, shop_order_events',
     why:
@@ -238,20 +288,34 @@ export const RETENTION_KEPT: readonly { table: string; why: string }[] = [
       + 'financial record on a period nobody can cite. NEEDS A LAWYER to fix '
       + 'the exact term; until then they are kept, and the policy says so in '
       + 'those words rather than implying a number.',
+    labelRu: 'Заказы и их история',
+    whyRu:
+      'Бухгалтерский документ. Закон РК требует хранить первичные учётные '
+      + 'документы, и код не вправе удалять финансовую запись по сроку, '
+      + 'который некому обосновать. Точный срок должен назвать юрист; до тех '
+      + 'пор заказы хранятся, и здесь это сказано прямо, а не подразумевается.',
   },
   {
     table: 'health tables, children, diaries',
     why: 'Kept until the account is deleted, when they cascade. Unchanged.',
+    labelRu: 'Здоровье, дети, дневники',
+    whyRu: 'Хранятся до удаления аккаунта — вместе с ним и удаляются.',
   },
   {
     table: 'device_registry.activated_by_phone',
     why: 'Warranty and anti-fraud on a physical unit somebody still owns.',
+    labelRu: 'Телефон, на который активировали устройство',
+    whyRu: 'Гарантия и защита от подмены на приборе, которым кто-то владеет.',
   },
   {
     table: 'user_entitlements',
     why:
       'What a purchase unlocked, keyed by phone. Deleting it would take away '
       + 'a course she paid for if she came back with the same number.',
+    labelRu: 'Оплаченные доступы',
+    whyRu:
+      'Что открыла покупка, привязано к номеру. Удалить — значит отобрать '
+      + 'оплаченный курс, если она вернётся с тем же телефоном.',
   },
 ];
 

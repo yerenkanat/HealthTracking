@@ -49,12 +49,11 @@ import {
   type BroadcastSegment,
 } from '../admin/broadcasts';
 import { HOLD_REASON_RU, NOTIFY_CATEGORIES } from '../notifications/gate';
-import { PROTECTED_ACTIONS, summarizeSecurity } from '../admin/security';
+import { PROTECTED_ACTIONS, retentionSummary, summarizeSecurity } from '../admin/security';
 import { buildOwnerDashboard } from '../admin/ownerDashboard';
 import { buildMotherCard } from '../admin/motherCard';
 import { MAMA_COURSE } from './entitlements';
 import { normalizePhone } from '../phone';
-import { AUDIT_RETENTION_YEARS, ROUTE_RETENTION_DAYS } from '../privacy/retention';
 import {
   carryReview, reviewIsCurrent, reviewMessage, textFingerprint, unreviewed,
   type ReviewableItem,
@@ -1220,13 +1219,13 @@ export function registerAdminRoutes(
       // and printed «срок не задан» instead, which was honest and useless.
       //
       // The owner has now set it, and privacy/retention.ts sweeps audit_log on
-      // that period. So the number is back — read from AUDIT_RETENTION_YEARS,
-      // which is the same constant the sweep's cutoff is derived from. It
-      // cannot be true here and false there.
-      retention: {
-        routeDays: ROUTE_RETENTION_DAYS,
-        auditSweep: AUDIT_RETENTION_YEARS,
-      },
+      // that period. So the number is back — and now so are the other six.
+      // This object was a hand-kept pair of fields while EIGHT sweeps ran, so
+      // the page that answers «what is kept, and for how long» under-reported
+      // by six and looked complete doing it. `retentionSummary()` derives all
+      // of it from RETENTION_SWEEPS and RETENTION_KEPT: a ninth sweep reaches
+      // this screen without a line changing here.
+      retention: retentionSummary(),
     });
   });
 

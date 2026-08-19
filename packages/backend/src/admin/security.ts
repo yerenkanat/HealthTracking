@@ -17,6 +17,8 @@
  * it is given.
  */
 
+import { RETENTION_KEPT, RETENTION_SWEEPS } from '../privacy/retention';
+
 /** Audit actions that touch health or a child's whereabouts. */
 export const PROTECTED_ACTIONS: Readonly<Record<string, 'health' | 'location'>> = {
   view_health: 'health',
@@ -109,5 +111,90 @@ export function summarizeSecurity(
     // something that just happened.
     recent: [...rows].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 100),
     windowDays,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// «Хранение» — the second half of frame 22.
+// ---------------------------------------------------------------------------
+
+/** One swept table, as the card prints it. */
+export interface RetentionSweptLine {
+  /** The table, so a claim on this screen can be checked against the schema. */
+  table: string;
+  /** What it is, for somebody who has never seen the schema. */
+  label: string;
+  /** Why it is that period, in the words of the decision. */
+  why: string;
+  /** The period the sweep actually uses. Days, because that is the cutoff. */
+  days: number;
+}
+
+/** One table deliberately not swept. */
+export interface RetentionKeptLine {
+  table: string;
+  label: string;
+  why: string;
+}
+
+export interface RetentionReport {
+  /**
+   * The route promise, kept as its own field because it is the one this
+   * product printed to every user before any of the rest existed.
+   *
+   * Derived, not typed: null if location_history ever leaves the schedule,
+   * so the card says «срок не задан» instead of quoting a period nothing
+   * enforces. That failure has already happened once here, with the audit log.
+   */
+  routeDays: number | null;
+  /** The audit period in YEARS, or null when audit_log is off the schedule. */
+  auditSweep: number | null;
+  /** Every sweep that runs. One line per entry in RETENTION_SWEEPS. */
+  swept: RetentionSweptLine[];
+  /** What is kept on purpose, so an absence reads as a decision. */
+  kept: RetentionKeptLine[];
+}
+
+/** The period a table is swept on, or null when nothing sweeps it. */
+function sweptDays(table: string): number | null {
+  return RETENTION_SWEEPS.find((s) => s.table === table)?.days ?? null;
+}
+
+/**
+ * What this product deletes, and what it keeps — derived, never listed.
+ *
+ * The card reported exactly two of eight enforced periods: the route sweep and
+ * the audit sweep, each named in the route by hand. Six were invisible —
+ * geofence crossings, safety alerts, phone codes, login attempts, shop leads,
+ * support threads — and this is the page somebody opens to answer «what does
+ * this product keep, and for how long». A page listing two of eight does not
+ * read as incomplete; it reads as the whole answer.
+ *
+ * So nothing here names a table except to pull the two legacy fields out of the
+ * schedule by name. A ninth sweep appears on the panel by being added to
+ * RETENTION_SWEEPS, with no edit to this function, to the route, or to the
+ * panel's HTML — which is the only arrangement under which the card stays true
+ * without somebody remembering to make it so.
+ */
+export function retentionSummary(): RetentionReport {
+  const auditDays = sweptDays('audit_log');
+  return {
+    routeDays: sweptDays('location_history'),
+    // Years, because that is the unit the decision was made in and the unit the
+    // card has always printed. AUDIT_RETENTION_DAYS is AUDIT_RETENTION_YEARS
+    // × 365 by construction (privacy/retention.ts), so this division is exact
+    // and cannot invent a period the sweep does not use.
+    auditSweep: auditDays == null ? null : Math.round(auditDays / 365),
+    swept: RETENTION_SWEEPS.map((s) => ({
+      table: s.table,
+      label: s.labelRu,
+      why: s.whyRu,
+      days: s.days,
+    })),
+    kept: RETENTION_KEPT.map((k) => ({
+      table: k.table,
+      label: k.labelRu,
+      why: k.whyRu,
+    })),
   };
 }
