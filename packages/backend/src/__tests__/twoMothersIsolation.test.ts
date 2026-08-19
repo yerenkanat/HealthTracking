@@ -25,6 +25,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import type { InjectPayload } from 'light-my-request';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
@@ -66,7 +67,7 @@ beforeEach(async () => {
 
 const as = (userId: string) => ({ 'x-test-user': userId });
 
-async function post(userId: string, url: string, payload: unknown) {
+async function post(userId: string, url: string, payload: InjectPayload) {
   const res = await app.inject({ method: 'POST', url, payload, headers: as(userId) });
   // The write is asserted, not assumed: a 400 from a schema change would
   // otherwise leave both reads empty and the isolation check vacuously green.
@@ -74,7 +75,7 @@ async function post(userId: string, url: string, payload: unknown) {
   return res;
 }
 
-async function put(userId: string, url: string, payload: unknown) {
+async function put(userId: string, url: string, payload: InjectPayload) {
   const res = await app.inject({ method: 'PUT', url, payload, headers: as(userId) });
   expect(res.statusCode, `PUT ${url}: ${res.body}`).toBe(200);
   return res;

@@ -95,6 +95,27 @@ export function registerEntitlementRoutes(
   //
   // Returns the caller's own entitlements and nothing else. The app decides
   // what to show from this; the server decides what is true.
+  //
+  // NO APP CALLER TODAY, AND THAT IS NOT THE USUAL DEFECT. An audit flagged
+  // this as the only orphan among 213 registered routes, and this repo's
+  // dominant defect really is finished code nobody invokes. It does not apply
+  // here, and the distinction is worth keeping:
+  //
+  //   FEATURES has one entry. /course/lessons already answers "does she own
+  //   the course" as a side effect of serving it, from the SAME
+  //   repo.hasEntitlement(phone, MAMA_COURSE) with the same normalisation — so
+  //   the two cannot disagree, and the app reads the one that also carries the
+  //   lesson list rather than paying for a second round trip.
+  //
+  // So nothing is broken for a user: the feature works through the other
+  // route. This endpoint is the general answer to a question that currently
+  // has one specific answer.
+  //
+  // Kept rather than deleted, deliberately: it is correct, authenticated, and
+  // covered by entitlements.test.ts and courseEndToEnd.test.ts. Deleting
+  // tested behaviour to satisfy a caller count would have to be undone the day
+  // FEATURES gains a second member — and on that day the app should read THIS,
+  // not grow a second implicit gate inside whatever route serves that feature.
   app.get('/account/entitlements', async (req, reply) => {
     const u = await authUser(req);
     if (!u) return reply.code(401).send({ error: 'unauthorized' });
