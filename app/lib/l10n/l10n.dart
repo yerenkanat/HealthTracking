@@ -115,8 +115,30 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // refused sentence #21 and "The absorber rule".
   'ADV_NOTHING_UNUSUAL': {AppLocale.ru: 'Ничего необычного в показаниях', AppLocale.kk: 'Көрсеткіштерде ерекше ештеңе жоқ', AppLocale.en: 'Nothing unusual in the readings'},
   'ADV_NOTHING_UNUSUAL_b': {AppLocale.ru: 'В этих показаниях нет ничего необычного. Это не проверка здоровья: приложение видит только то, что измерено, а часть чисел — приблизительные оценки с датчика. Если вы плохо себя чувствуете, скажите об этом врачу, что бы ни показывали цифры.', AppLocale.kk: 'Бұл көрсеткіштерде ерекше ештеңе жоқ. Бұл — денсаулықты тексеру емес: қолданба тек өлшенгенді ғана көреді, ал кейбір сандар — датчиктің шамалас болжамы. Өзіңізді нашар сезінсеңіз, сандар не көрсетсе де, дәрігерге айтыңыз.', AppLocale.en: 'There is nothing unusual in these readings. This is not a health check: the app sees only what was measured, and some of the numbers are rough sensor estimates. If you feel unwell, tell your doctor, whatever the numbers show.'},
-  'ADV_BP_STEADY': {AppLocale.ru: 'Давление ровное', AppLocale.kk: 'Қысым біркелкі', AppLocale.en: 'Blood pressure steady'},
-  'ADV_BP_STEADY_b': {AppLocale.ru: 'Давление по браслету держится ровно, без скачков.', AppLocale.kk: 'Білезік бойынша қысым секірмей, біркелкі.', AppLocale.en: 'Your blood-pressure readings have held steady, without spikes.'},
+  // 'ADV_BP_STEADY' / 'ADV_BP_STEADY_b' — «Давление ровное» / «Давление по
+  // браслету держится ровно, без скачков.» — are DELETED, not reworded, on the
+  // clinical gate's verdict of 2026-08-19: docs/CLINICAL-REVIEW-WATCH.md,
+  // «ADV_BP_STEADY — REFUSED, and the card with it».
+  //
+  // The card gated a REASSURANCE on `sys < 130 && dia < 85` in
+  // health_advisor.dart. 130/85 appears in no source this product cites — the
+  // same search that failed for 135/85 (docs/Антенатальный уход.docx, docs/92
+  // бұйрық.docx, packages/contract/antenatal_protocol.json,
+  // triage_thresholds.json) fails for it — and it graded a POSITIVE claim,
+  // which this review ranks as the worse direction: the antenatal protocol
+  // pairs blood pressure with urine protein at every visit from the second, so
+  // a reassurance here can defer a check that is actually scheduled. The rule
+  // for an uncited number is «cite the band or stop asserting on it»; no band
+  // could be cited, so the assertion goes rather than moving to another
+  // uncited pair. Widening it to the only cited number (140/90, ACOG) would
+  // have been worse: it would call 139/89 «ровное».
+  //
+  // Deleted rather than left in the catalogue, for the reason `repeat_cta` was
+  // — docs/TODO.md §2.5, «a dead key is a live key to the next person who
+  // finds a call site». Nothing is lost from the screen: a day with nothing to
+  // watch already ends at ADV_NOTHING_UNUSUAL, which is approved copy and
+  // claims no more than the readings support. The WARNING half is untouched —
+  // ADV_BP_ELEVATED and ADV_BP_DEVICE_HIGH still fire, from both sources.
   // ---- The raised blood-pressure cards, one per instrument ------------------
   // Approved copy, 2026-08-14. Do not rewrite: a rewrite voids the approval.
   //
@@ -1784,14 +1806,31 @@ const Map<String, Map<AppLocale, String>> _catalog = {
 
   // ---- Signs of labour (lab_*) ----
   'lab_title': {AppLocale.ru: 'Признаки родов', AppLocale.kk: 'Босану белгілері', AppLocale.en: 'Signs of labour'},
-  // KAZAKH RAISED WITH THE CLINICAL GATE 2026-08-19, TODO §9.14, NOT edited:
-  // fingerprinted in reviewed_medical_copy_test.dart. «Қашан баруға болатыны»
-  // is PERMISSION — "when one is allowed to go" — where ru says «когда пора
-  // ехать» and en "when it's time to go". On the screen that introduces when
-  // to go in, that is the divergence that costs hours. Proposal in §9.14.
+  // KAZAKH REVIEWED AND CHANGED BY THE CLINICAL GATE, 2026-08-19 — TODO §9.14,
+  // docs/CLINICAL-REVIEW-WATCH.md, «lab_intro — CHANGES».
+  //
+  // «Қашан баруға болатыны» is PERMISSION — "when one is allowed to go" — where
+  // ru says «когда пора ехать» and en "when it's time to go". Both of those
+  // prompt; the Kazakh only permitted, on the sentence that introduces the
+  // whole «when to go in» screen. A softened translation is a different
+  // clinical claim, and this is the direction that costs hours: a woman who
+  // reads that she MAY go decides later, and the list below this line contains
+  // ruptured membranes, bleeding, preterm contractions and reduced movements.
+  //
+  // «Қашан бару керегі» — necessity, bounded by «қашан» and by the list it
+  // introduces, so it prompts exactly as far as the Russian does and no
+  // further. It does not tell her to go NOW: the screen's own
+  // `lab_go_intro`/`lab_go_*` items say on what. Checked against the section
+  // heading it sits above, `lab_go_title` «Қашан бару немесе қоңырау шалу»,
+  // which already uses the bare infinitive with no modal — so the strengthening
+  // is to the Russian's level and not past it.
+  //
+  // ru and en are APPROVED UNCHANGED against the same screen. `lab_disclaimer`
+  // («нақты нұсқауларды перзентханаңыз береді») is directly below and is what
+  // keeps this from reading as instruction from us.
   'lab_intro': {
     AppLocale.ru: 'Что подсказывает, что роды близко, и когда пора ехать. При любых сомнениях звоните.',
-    AppLocale.kk: 'Босанудың жақындағанын не білдіреді және қашан баруға болатыны. Кез келген күмәнда қоңырау шалыңыз.',
+    AppLocale.kk: 'Босанудың жақындағанын не білдіреді және қашан бару керегі. Кез келген күмәнда қоңырау шалыңыз.',
     AppLocale.en: "What tells you labour is near, and when it's time to go. When in doubt, call.",
   },
   'lab_signs_title': {AppLocale.ru: 'Роды могут начинаться', AppLocale.kk: 'Босану басталуы мүмкін', AppLocale.en: 'Labour may be starting'},
@@ -2405,14 +2444,34 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // both numerals sit outside it, so no locale needs a plural rule for n = 1.
   // The Kazakh «{total} ішінен {n}» avoids the numeral-possessive («2-уі» but
   // «1-еуі») for the same reason.
-  // KAZAKH RAISED WITH THE CLINICAL GATE 2026-08-19, TODO §9.14, NOT edited:
-  // the string is fingerprinted in reviewed_medical_copy_test.dart. «{total}
-  // ішінен» is a bare numeral with no noun for «ішінен» to govern («4 ішінен
-  // 2»), and «Барлық … ескерілмеді» carries a negation-scope risk Russian
-  // resolves with its second clause. Proposed replacement is in §9.14.
+  // KAZAKH REVIEWED AND CHANGED BY THE CLINICAL GATE, 2026-08-19 — TODO §9.14,
+  // docs/CLINICAL-REVIEW-WATCH.md, «db_ring_partial — CHANGES».
+  //
+  // Two defects, and the first is the clinical one. «Барлық көрсеткіш
+  // ескерілмеді» puts the negation on the verb after «барлық көрсеткіш» —
+  // «every metric was NOT counted», which in Kazakh reads as easily as «none of
+  // them was counted» as it does «not all of them were». The Russian is safe
+  // because «Учтены не все показатели» negates «все» directly. This line's
+  // whole job is to keep a full ring from claiming everything was assessed, so
+  // a reading of «nothing was assessed» is not a harmless slip — it is the
+  // opposite absence, and `db_ring_ungraded` is the string that means that one.
+  // «Барлығы ескерілмеді» carries the negation on «барлығы» and leaves the
+  // arithmetic after the colon to say what WAS counted.
+  //
+  // Second, the grammar the language gate raised: «{total} ішінен» rendered as
+  // «4 ішінен 2», a bare numeral with no noun for «ішінен» to govern. «{total}
+  // көрсеткіштің ішінен {n}» gives it one, in the singular a Kazakh numeral
+  // takes, and the numeral-possessive dodge is untouched — {n} stays bare, so
+  // no locale needs a rule for n = 1.
+  //
+  // It still names a count and not a feeling, it still says nothing about her
+  // body, and it is neither an alarm nor a reassurance: peace_ring_coverage_test
+  // pins that in all three languages. Fits at 320 dp / 130 % in Kazakh —
+  // narrow_phone_test, «the partial-ring sentence fits in Kazakh». ru and en
+  // APPROVED UNCHANGED.
   'db_ring_partial': {
     AppLocale.ru: 'Учтены не все показатели: {n} из {total}.',
-    AppLocale.kk: 'Барлық көрсеткіш ескерілмеді: {total} ішінен {n}.',
+    AppLocale.kk: 'Барлығы ескерілмеді: {total} көрсеткіштің ішінен {n}.',
     AppLocale.en: 'Not every reading is counted here: {n} of {total}.',
   },
   'metric_bp': {AppLocale.ru: 'Давление', AppLocale.kk: 'Қан қысымы', AppLocale.en: 'Blood pressure'},
@@ -3829,7 +3888,44 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'kick_session_discard_title': {AppLocale.ru: 'Прервать сессию?', AppLocale.kk: 'Сессияны тоқтату керек пе?', AppLocale.en: 'Discard this session?'},
   'kick_session_discard_body': {AppLocale.ru: 'Подсчитанные шевеления не сохранятся.', AppLocale.kk: 'Саналған тебінулер сақталмайды.', AppLocale.en: 'The movements you counted won\'t be saved.'},
   'kick_session_discard': {AppLocale.ru: 'Прервать', AppLocale.kk: 'Тоқтату', AppLocale.en: 'Discard'},
-  'kick_goal_reached': {AppLocale.ru: 'Цель достигнута', AppLocale.kk: 'Мақсатқа жетті', AppLocale.en: 'Goal reached'},
+  // «Цель достигнута» / «Мақсатқа жетті» / «Goal reached» UNTIL 2026-08-19,
+  // when the clinical gate refused it and the owner ruled the counter stays and
+  // the verdict goes. See docs/CLINICAL-REVIEW-WATCH.md, «kick_goal_reached —
+  // REFUSED as written; CHANGES made».
+  //
+  // Two words, and they were a reassurance verdict on fetal movement — printed
+  // by a screen whose own cited protocol says the method behind them predicts
+  // nothing. The RK MOH clinical protocol «Антенатальный уход» (2025),
+  // docs/Антенатальный уход.docx, the document `an_source` cites on screen:
+  // «Нет доказательных данных по эффективности профилактики неблагоприятных
+  // перинатальных исходов на основании подсчета числа движений плода.» A green
+  // «Цель достигнута» after ten taps is the one thing on this screen that could
+  // stop a woman phoning — and the trigger the protocol DOES act on is the
+  // subjective one, «шевеления кажутся реже обычного», which a reached goal
+  // does not answer.
+  //
+  // WHAT REPLACES IT IS NOT AN ALARM EITHER. Most days ten movements is simply
+  // what happened, and a counter that ends in worry every time is a counter she
+  // stops opening — the same calibration `kickSessionEndedEarly` was written
+  // for. So it states her own numbers and stops: the count she recorded and how
+  // long it took, with no verdict attached to either.
+  //
+  // The clause is not translated fresh. It is `kick_low_body`'s own descriptive
+  // half, minus «Записано» — the wording the gate already read clause for
+  // clause in ru + kk + en on 2026-08-19 — so the three languages say the same
+  // thing here by construction. «время»/«уақыты»/«in» carry no claim; kk says
+  // «қимыл», the word `preg_note_movement_pattern`, `preg_warn_movement` and
+  // `kick_low_body` all use, so the number and the reference stay comparable.
+  //
+  // {n} IS INTERPOLATED AND MUST BE. The counter does not stop at ten — she can
+  // tap to fourteen — and a hard-coded «10» under a circle reading «14 / 10»
+  // would be the app misdescribing what she just did. kick_session_test pins
+  // both placeholders as filled in all three languages.
+  'kick_goal_reached': {
+    AppLocale.ru: 'Шевелений: {n}, время: {t}',
+    AppLocale.kk: 'Қимыл: {n}, уақыты: {t}',
+    AppLocale.en: '{n} movements in {t}',
+  },
   // Ten movements, but it took longer than the two hours the count-to-ten
   // method references. No confetti and no diagnosis — it states the fact and
   // defers to her provider, the same voice the 5-1-1 card uses.
@@ -3935,7 +4031,20 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'kick_history': {AppLocale.ru: 'История сессий', AppLocale.kk: 'Сессиялар тарихы', AppLocale.en: 'Session history'},
   'kick_avg_count': {AppLocale.ru: 'Ср. шевелений', AppLocale.kk: 'Орт. тебіну', AppLocale.en: 'Avg movements'},
   'kick_avg_length': {AppLocale.ru: 'Ср. длительность', AppLocale.kk: 'Орт. ұзақтық', AppLocale.en: 'Avg length'},
-  'kick_goal_hits': {AppLocale.ru: 'Цель достигнута', AppLocale.kk: 'Мақсатқа жетті', AppLocale.en: 'Goals met'},
+  // The SAME verdict one screen away, and it is why the counter's label was not
+  // fixed on its own. This labels «3/5» in the kick-history strip; it read
+  // «Цель достигнута» / «Мақсатқа жетті» / «Goals met» — the identical Russian
+  // words to `kick_goal_reached`, scoring her past sessions against a target
+  // the cited protocol says predicts nothing. A copy path that keeps rendering
+  // a removed claim is this repo's most-repeated defect (db_peace_stable beside
+  // the fixed advisor; see docs/CLINICAL-REVIEW-WATCH.md, «The absorber rule»).
+  //
+  // Now it names the tally and nothing else: sessions in which ten or more
+  // movements were counted. «10» is not a new threshold — it is the
+  // count-to-ten method's own number, already on the counter as «/ 10» and
+  // stated in `kick_method_note`. Refused: «Цель», «достигнута», and any word
+  // that grades the ratio.
+  'kick_goal_hits': {AppLocale.ru: '10+ шевелений', AppLocale.kk: '10+ қимыл', AppLocale.en: '10+ movements'},
   'kick_history_count': {AppLocale.ru: '{n} шевелений', AppLocale.kk: '{n} тебіну', AppLocale.en: '{n} movements'},
   'cal_tooltip': {
     AppLocale.ru: 'Калибруйте по медицинскому тонометру еженедельно для точной оценки давления по браслету.',

@@ -18,6 +18,16 @@
 /// it. Ten felt slowly keeps its existing `kick_goal_reached_slow` line. It
 /// still diagnoses nothing.
 ///
+/// AND IT NO LONGER CONGRATULATES, since 2026-08-19. The counter stays — it is
+/// what produces the subjective trigger the RK MOH protocol acts on, and a
+/// woman who wants to count will count with or without us — but «Цель
+/// достигнута», and the mint the disc turned with it, are gone. That protocol
+/// («Антенатальный уход», 2025, the document `an_source` cites) says there is
+/// no evidence that counting movements prevents adverse perinatal outcomes, so
+/// a screen that cites it may not print a verdict on the count. Reaching ten
+/// now states what she recorded — the count and the time — and nothing else.
+/// docs/CLINICAL-REVIEW-WATCH.md, «kick_goal_reached — REFUSED as written».
+///
 /// State/timing lives here; the counting + elapsed logic is the pure
 /// [KickSession] model (verified by verify_kicks.dart).
 library;
@@ -275,9 +285,25 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
+                          // ONE COLOUR THROUGHOUT, and the absence of the
+                          // second one is the ruling of 2026-08-19. The ring
+                          // and the disc turned `Palette.good` — mint, the
+                          // colour this app uses for «healthy» — the moment the
+                          // count reached ten. That is the same reassurance
+                          // verdict as «Цель достигнута», in the most confident
+                          // register the screen has, and a shape cannot be
+                          // qualified the way a sentence can: it is exactly the
+                          // hole the amber tile turned out to be for 135/85
+                          // (docs/CLINICAL-REVIEW-WATCH.md, «The colour was the
+                          // hole in that rule»). Stripping the words and
+                          // leaving the mint would have moved the claim, not
+                          // removed it. `Ds.coralCta` is the control's own
+                          // colour, not a status colour, so the counter still
+                          // looks like the button it is, and the FILLED RING
+                          // still shows the count against ten.
                           MetricRing(
                             fraction: kickGoalFraction(_session.count, defaultKickGoal),
-                            color: reached ? Palette.good : Ds.coralCta,
+                            color: Ds.coralCta,
                             size: 244,
                             stroke: 8,
                           ),
@@ -290,7 +316,7 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                                 width: 206,
                                 height: 206,
                                 decoration: BoxDecoration(
-                                  color: reached ? Palette.good : Ds.coralCta,
+                                  color: Ds.coralCta,
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                       color: Ds.ink,
@@ -326,10 +352,22 @@ class _KickSessionScreenState extends State<KickSessionScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
+                                    // Reached, inside the window: HER NUMBERS,
+                                    // no verdict. «Цель достигнута» stood here
+                                    // until 2026-08-19 and was refused — the
+                                    // protocol this screen cites says the count
+                                    // it congratulated predicts nothing. Both
+                                    // placeholders are filled here and nowhere
+                                    // else, so an unfilled «{n}» cannot reach a
+                                    // reader.
                                     Text(
-                                      l.t(reached
-                                          ? (prompt ? 'kick_goal_reached' : 'kick_goal_reached_slow')
-                                          : 'kick_session_tap'),
+                                      l.t(
+                                        reached
+                                            ? (prompt ? 'kick_goal_reached' : 'kick_goal_reached_slow')
+                                            : 'kick_session_tap',
+                                        {'n': _session.count, 't': elapsed},
+                                      ),
+                                      textAlign: TextAlign.center,
                                       style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, fontWeight: FontWeight.w600),
                                     ),
                                   ],

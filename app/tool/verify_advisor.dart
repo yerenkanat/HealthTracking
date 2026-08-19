@@ -36,7 +36,14 @@ void main() {
   _chk('normal → ADV_NOTHING_UNUSUAL', _has(n, 'ADV_NOTHING_UNUSUAL'));
   _chk('the refused whole-body verdict is gone', !_has(n, 'ADV_ALL_STEADY'));
   _chk('normal → no watch tone', n.every((a) => a.tone != AdviceTone.watch));
-  _chk('normal → BP steady advisory', _has(n, 'ADV_BP_STEADY'));
+  // REPLACED 2026-08-19, and it is a tightening, not a loosening. This asserted
+  // that a normal CUFF day earns ADV_BP_STEADY. The card is gone from every
+  // source — «Давление ровное» was graded on `sys < 130 && dia < 85`, and 130/85
+  // is uncited (docs/CLINICAL-REVIEW-WATCH.md, «ADV_BP_STEADY — REFUSED, and the
+  // card with it»). The line now pins the absence, so the card cannot come back
+  // by accident, and the absorber below it is still checked.
+  _chk('normal → no blood-pressure reassurance, from any source',
+      !_has(n, 'ADV_BP_STEADY'));
   _chk('normal → temp steady', _has(n, 'ADV_TEMP_STEADY'));
   _chk('normal → spo2 steady', _has(n, 'ADV_SPO2_STEADY'));
 
@@ -156,6 +163,9 @@ void main() {
           source: ReadingSource.sensor),
   ];
   final w = generateAdvisories(wrist);
+  // Was the provenance half of the rule; since 2026-08-19 the card does not
+  // exist for any source, and this line keeps the wrist case pinned in its own
+  // right so the absorber checklist below still has its subject.
   _chk('wrist BP in range → no ADV_BP_STEADY', !_has(w, 'ADV_BP_STEADY'));
   _chk('…and no whole-body verdict in its place', !_has(w, 'ADV_ALL_STEADY'));
   _chk('…the fallback claims only the readings', _has(w, 'ADV_NOTHING_UNUSUAL'));

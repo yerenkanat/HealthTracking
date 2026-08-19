@@ -21,6 +21,22 @@
 /// because the obvious over-correction is to silence the whole branch.
 ///
 /// ---------------------------------------------------------------------------
+/// UPDATED 2026-08-19 — «ADV_BP_STEADY — REFUSED, and the card with it» in
+/// docs/CLINICAL-REVIEW-WATCH.md.
+///
+/// This file's original question was WHO measured it. The 2026-08-19 review
+/// asked the other one — against WHAT — and the card had no answer: it fired on
+/// `sys < 130 && dia < 85`, and 130/85 is uncited in every source this product
+/// names, exactly as 135/85 was. A reassurance is the worse direction for an
+/// uncited number, so the card is deleted from the catalogue and the branch
+/// from `generateAdvisories`.
+///
+/// Two expectations here therefore REVERSED, and both were tightenings: the
+/// cuff path no longer earns the card either, and the manifest no longer holds
+/// its keys. Everything this file protects on the WARNING side is untouched and
+/// still asserted below.
+///
+/// ---------------------------------------------------------------------------
 /// UPDATED 2026-08-14 — "Device blood pressure — closed" and "The absorber
 /// rule" in docs/CLINICAL-REVIEW-WATCH.md.
 ///
@@ -95,13 +111,37 @@ void main() {
       expect(codes, isNot(contains('ADV_BP_STEADY')));
     });
 
-    test('a cuff reading she typed in still does', () {
-      // The whole point of branching on provenance rather than deleting the
-      // card: a real instrument keeps its voice. If this ever goes silent the
-      // fix has become "say nothing about blood pressure", which is a different
-      // and unreviewed decision.
+    test('and neither does a cuff reading, since 2026-08-19', () {
+      // REVERSED, WITH A VERDICT — docs/CLINICAL-REVIEW-WATCH.md, «ADV_BP_STEADY
+      // — REFUSED, and the card with it». This asserted that a cuff 118/76 still
+      // earns ADV_BP_STEADY, on the reasoning that a real instrument keeps its
+      // voice. What the 2026-08-19 review found is that the card had no band to
+      // keep it with: `sys < 130 && dia < 85` is uncited in every source this
+      // product names, and it graded a POSITIVE claim.
+      //
+      // The old test's fear — that the fix becomes "say nothing about blood
+      // pressure" — is answered by the tests below rather than by this card: the
+      // warning still fires from both sources, the cuff reading still travels to
+      // the clipboard, and it still counts in the ring. Only the verdict is gone.
       final codes = _codes(generateAdvisories(_bp(118, 76, ReadingSource.manual)));
-      expect(codes, contains('ADV_BP_STEADY'));
+      expect(codes, isNot(contains('ADV_BP_STEADY')),
+          reason: 'no band this product cites supports «Давление ровное»');
+      // …and it is not answered by promoting the reassurance one level up.
+      expect(codes, isNot(contains('ADV_ALL_STEADY')));
+      expect(codes, contains('ADV_NOTHING_UNUSUAL'));
+    });
+
+    test('the refused card is gone from the catalogue, not just from the logic',
+        () {
+      // `repeat_cta`'s precedent, and docs/TODO.md §2.5: a dead key is a live
+      // key to the next person who finds a call site. If someone re-adds the
+      // string, this fails before the copy can reach a screen.
+      for (final locale in AppLocale.values) {
+        for (final key in const ['ADV_BP_STEADY', 'ADV_BP_STEADY_b']) {
+          expect(L10n(locale).t(key), key,
+              reason: '$key is back in the catalogue (${locale.name})');
+        }
+      }
     });
 
     test('a stored row with no provenance is treated as a wrist, not a cuff', () {
@@ -277,8 +317,9 @@ void main() {
           'ADV_BP_DEVICE_HIGH_b',
           'ADV_BP_ELEVATED',
           'ADV_BP_ELEVATED_b',
-          'ADV_BP_STEADY',
-          'ADV_BP_STEADY_b',
+          // ADV_BP_STEADY / _b were here and are DELETED (2026-08-19); the test
+          // above pins their absence, which is stronger than pinning that they
+          // do not name 135.
         ]) {
           expect(l.t(key), isNot(contains('135')), reason: '$key (${locale.name})');
           expect(l.t(key), isNot(contains('85')), reason: '$key (${locale.name})');
@@ -558,11 +599,15 @@ void main() {
           reason: 'a wrist estimate in the danger band still counts against her');
     });
 
-    test('a cuff day keeps every reassurance it earned', () {
-      // The over-correction guard. None of the above may be achieved by going
-      // quiet about blood pressure: a reading she took with an instrument and
-      // typed in is a different evidential object, and it keeps its card, its
-      // clipboard row and its place in the ring.
+    test('a cuff day keeps everything except the verdict it never earned', () {
+      // The over-correction guard, NARROWED 2026-08-19 by the same review that
+      // deleted ADV_BP_STEADY. None of the above may be achieved by going quiet
+      // about blood pressure: a reading she took with an instrument and typed in
+      // is a different evidential object, and it keeps its clipboard row with
+      // the number in it. What it does not keep is the positive CARD, because
+      // «Давление ровное» was graded on an uncited 130/85 — see the group above.
+      // The two halves are asserted together here so that neither can be lost
+      // while the other is being defended.
       final cuffDay = [
         for (var i = 0; i < 4; i++)
           HealthSample(
@@ -573,9 +618,10 @@ void main() {
             source: ReadingSource.manual,
           ),
       ];
-      expect(_codes(generateAdvisories(cuffDay)), contains('ADV_BP_STEADY'));
+      expect(_codes(generateAdvisories(cuffDay)), isNot(contains('ADV_BP_STEADY')));
       final shared = buildHealthSummary(_en, cuffDay, now: now);
-      expect(shared, contains('118/76'));
+      expect(shared, contains('118/76'),
+          reason: 'the MEASUREMENT still travels — only the verdict went');
       expect(shared, isNot(contains(_en.t('share_bp_cuff_only'))));
     });
 

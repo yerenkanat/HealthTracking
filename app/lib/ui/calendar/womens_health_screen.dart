@@ -2236,7 +2236,17 @@ class _KickHistoryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final age = now.difference(record.endedAt);
-    final reached = kickGoalReached(record.count, defaultKickGoal);
+    // NO TICK HERE ANY MORE, and its absence is the ruling of 2026-08-19.
+    // Every session with ten or more movements ended this row with a green
+    // `Icons.check_rounded` in `Palette.good` — a wordless «all good» on a
+    // fetal-movement count, on a screen whose cited protocol («Антенатальный
+    // уход», RK MOH 2025) says that count predicts nothing. It carried no
+    // string, so no fingerprint and no token guard could ever have caught it;
+    // it was found by reading the widget beside `kick_goal_hits`.
+    //
+    // Nothing takes its place. The row already states what happened — the count
+    // and how long it took — and the strip above it gives the tally. See
+    // docs/CLINICAL-REVIEW-WATCH.md, «kick_goal_reached — REFUSED as written».
     return Row(
       children: [
         Container(
@@ -2265,16 +2275,6 @@ class _KickHistoryRow extends StatelessWidget {
             ],
           ),
         ),
-        if (reached)
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-                color: Palette.good.withValues(alpha: 0.14),
-                shape: BoxShape.circle),
-            child:
-                const Icon(Icons.check_rounded, size: 16, color: Palette.good),
-          ),
       ],
     );
   }

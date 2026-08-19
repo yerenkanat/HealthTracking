@@ -119,7 +119,8 @@ const _medicalKeys = <String>{
   'gd_call_body', 'gd_call_title', // «Когда сразу звонить 103»
   'gest_estimate_note', 'grw_no_percentiles',
   'help_emergency_note', 'help_q2_a',
-  'kick_goal_reached', // «Цель достигнута» on a fetal-movement count
+  'kick_goal_hits', // the same verdict, aggregated, in the history strip
+  'kick_goal_reached', // was «Цель достигнута» on a fetal-movement count
   'kick_goal_reached_slow', 'kick_low_action', 'kick_low_body', 'kick_low_title',
   'kick_method_note', // «считай до десяти» — ten movements in about two hours
   'legal_priv_medical_b', 'legal_priv_medical_h',
@@ -183,8 +184,17 @@ String fingerprint(String key) {
 ///     set, read as one item by the clinical gate against the RK MOH protocol
 ///     «Антенатальный уход» (2025) — docs/CLINICAL-REVIEW-WATCH.md, «Reduced
 ///     fetal movement — CLOSED, 2026-08-19». Three were approved unchanged;
-///     `kick_low_action` was rewritten, and its Kazakh is written but NOT
-///     language-gate reviewed (docs/TODO.md §9.12), which the line says.
+///     `kick_low_action` was rewritten, and its Kazakh has since been
+///     gate-reviewed too (docs/TODO.md §9.12).
+///   · FOUR MORE carry a verdict from 2026-08-19, the sitting of the same day
+///     that closed the movement item — `kick_goal_reached` and `kick_goal_hits`
+///     (the reassurance verdict on a fetal-movement count, REFUSED as written
+///     and rewritten in all three languages) and `lab_intro` and
+///     `db_ring_partial` (Kazakh that did not say what the Russian said,
+///     CHANGES in kk only, ru + en approved unchanged). Their lines say so.
+///     `kick_goal_hits` is NEW to this manifest: it was never matched, and it
+///     printed the same two Russian words one screen away from a string that
+///     was.
 ///   · The remainder marked `// pinned 2026-08-18, UNREVIEWED` do NOT. They are the
 ///     strings the old predicate never matched — labour, antenatal, postpartum,
 ///     EPDS, vaccination, solids, safe sleep, child illness, home safety,
@@ -200,8 +210,17 @@ const reviewed = <String, String>{
  'ADV_BP_DEVICE_HIGH_b': '51a822daf784f8ef',
  'ADV_BP_ELEVATED': 'b3454be5d00cae45',
  'ADV_BP_ELEVATED_b': '39b41fc89495d1eb',
- 'ADV_BP_STEADY': '145364321f0f022c',
- 'ADV_BP_STEADY_b': '4e73890134198469',
+ // 'ADV_BP_STEADY' and 'ADV_BP_STEADY_b' were pinned here. Both keys were
+ // DELETED from the catalogue on 2026-08-19 with a verdict behind them — the
+ // card gated «Давление ровное» on `sys < 130 && dia < 85`, and 130/85 is
+ // uncited in every source this product names, exactly as 135/85 was. A
+ // reassurance is the worse direction for an uncited number, so the assertion
+ // stopped rather than moving to another band. See docs/CLINICAL-REVIEW-WATCH.md,
+ // «ADV_BP_STEADY — REFUSED, and the card with it». Removed from the manifest
+ // so the "manifest does not name keys that no longer exist" test passes for
+ // the right reason; their absence from the catalogue is pinned by
+ // bp_advisory_provenance_test.dart instead. This is a deletion with a verdict
+ // behind it, not a fingerprint updated to make a build green.
  'ADV_GATHERING': '8d58a49c0de65853',
  'ADV_GATHERING_b': '8bf8e75ceef1df9f',
  'ADV_GLUCOSE_HIGH': '7589240640d46392',
@@ -361,7 +380,7 @@ const reviewed = <String, String>{
  'cyc_share_disclaimer': '222b440cf2251d11', // pinned 2026-08-18, UNREVIEWED
  'db_not_measuring': '9a27d7c8fa250298', // pinned 2026-08-18, UNREVIEWED
  'db_outside_range': '6a5abe517d132320', // pinned 2026-08-18, UNREVIEWED
- 'db_ring_partial': '0233d3702667aff9', // pinned 2026-08-18, UNREVIEWED
+ 'db_ring_partial': '4826097ffa3b6a87', // REVIEWED 2026-08-19; kk CHANGED, ru/en unchanged
  'db_ring_ungraded': '3d2d6a1fd60527ef', // pinned 2026-08-18, UNREVIEWED
  'detail_safe_range': '2900744a7b475ded', // pinned 2026-08-18, UNREVIEWED
  'dev_ask_note': '3e122f72cb2f6ef7', // pinned 2026-08-18, UNREVIEWED
@@ -522,7 +541,8 @@ const reviewed = <String, String>{
  'ill_warn_unrousable': '936c0e1c327dade2', // pinned 2026-08-18, UNREVIEWED
  'ill_young_body': 'f2ecb5dc03ccd2b9', // pinned 2026-08-18, UNREVIEWED
  'ill_young_title': '229f5bdd2cbbd24e', // pinned 2026-08-18, UNREVIEWED
- 'kick_goal_reached': 'f0f87b2a5e8b7ade', // pinned 2026-08-18, UNREVIEWED
+ 'kick_goal_hits': '894aa4be4d4149c2', // REVIEWED + REWRITTEN 2026-08-19 (all three)
+ 'kick_goal_reached': '942b0082b689e064', // REVIEWED + REWRITTEN 2026-08-19 (all three)
  'kick_goal_reached_slow': '7331c5c534b66a1e', // pinned 2026-08-18, UNREVIEWED
  'kick_low_action': '00677ac9fd6a374c', // REVIEWED + REWRITTEN 2026-08-19 (ru/en); kk §9.12
  'kick_low_body': 'f9b753c88cc9fcdb', // pinned 2026-08-18, UNREVIEWED
@@ -537,7 +557,7 @@ const reviewed = <String, String>{
  'lab_go_title': '9b2e311656851dea', // pinned 2026-08-18, UNREVIEWED
  'lab_go_unsure': '3c93e3451065ab15', // pinned 2026-08-18, UNREVIEWED
  'lab_go_waters_broke': '84678c997e2ab2e9', // pinned 2026-08-18, UNREVIEWED
- 'lab_intro': 'f3aa307c7e323c3b', // pinned 2026-08-18, UNREVIEWED
+ 'lab_intro': '1853663aac4db948', // REVIEWED 2026-08-19; kk CHANGED, ru/en unchanged
  'lab_sign_backache': '5b414b65cdc7c1a2', // pinned 2026-08-18, UNREVIEWED
  'lab_sign_contractions': 'c23e35ce5f8b190d', // pinned 2026-08-18, UNREVIEWED
  'lab_sign_show': 'ecbb1aaae1d02845', // pinned 2026-08-18, UNREVIEWED

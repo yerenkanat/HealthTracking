@@ -53,6 +53,11 @@ List<Advisory> generateAdvisories(
 
   // ---- Blood pressure ----
   //
+  // READ THE 2026-08-19 NOTE BELOW FIRST: this block no longer produces a
+  // positive card at all, from any source. What follows is the history of how
+  // it got there, and it is kept because every line of it is still the reason
+  // the WARNING branches the way it does.
+  //
   // The same rule as temperature below, for the same reason, and if anything a
   // stronger one. «Давление ровное» is a normality verdict on a body; from a
   // wrist PPG estimate it is not one this product can make. The review puts
@@ -109,13 +114,31 @@ List<Advisory> generateAdvisories(
           // 137/88 is a blood pressure, 137 is not.
           : Advisory('ADV_BP_ELEVATED', AdviceTone.watch, 'systolic',
               value: sys.latest, pairedValue: dia.latest));
-    } else if (belowEmergency && !bpFromDevice && sys.latest < 130 && dia.latest < 85) {
-      // `belowEmergency` is redundant against 130/85 today and is stated anyway,
-      // so that the day someone widens the reassurance band it cannot reach
-      // over the cutoff triage escalates on.
-      positive.add(Advisory('ADV_BP_STEADY', AdviceTone.positive, 'systolic',
-          value: sys.latest, pairedValue: dia.latest));
     }
+    // THERE IS NO POSITIVE BLOOD-PRESSURE BRANCH ANY MORE, and its absence is
+    // the ruling of 2026-08-19 — docs/CLINICAL-REVIEW-WATCH.md, «ADV_BP_STEADY
+    // — REFUSED, and the card with it»; docs/TODO.md §1.1.
+    //
+    // It read `else if (belowEmergency && !bpFromDevice && sys.latest < 130 &&
+    // dia.latest < 85)` and added ADV_BP_STEADY, «Давление ровное». 130/85 is
+    // uncited in exactly the way 135/85 was — the gate searched the RK MOH
+    // protocol, the contract and the thresholds file and could source neither —
+    // and unlike 135/85 it graded a POSITIVE claim, which is the worse
+    // direction: refusing to reassure costs a woman a compliment, and a wrong
+    // reassurance about blood pressure costs her a scheduled check.
+    //
+    // Not narrowed, not re-based on the elevated card's own trigger: making the
+    // reassurance the complement of 135/85 would have graded a positive claim
+    // on the other uncited pair, and basing it on 140/90 (the one cited number,
+    // ACOG, packages/shared/src/triage.ts) would call 139/89 steady. There is
+    // no band this product can cite for «ровное», so it says nothing — a day
+    // with nothing to watch still ends at ADV_NOTHING_UNUSUAL below, which was
+    // written for exactly this absence and claims no more than the readings
+    // support.
+    //
+    // The WARNING is untouched and this is not the first step of silencing the
+    // metric: `ADV_BP_ELEVATED` / `ADV_BP_DEVICE_HIGH` still fire above, from
+    // both sources, and triage still escalates at 140/90 from both.
   }
 
   // ---- Heart rate trend (first half vs second half of the window) ----

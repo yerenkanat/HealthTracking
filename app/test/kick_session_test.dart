@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
 import 'package:fcs_app/ui/calendar/kick_session_screen.dart';
+import 'package:fcs_app/ui/design_system.dart';
+import 'package:fcs_app/ui/widgets/glass.dart';
 
 void main() {
   Future<void> pumpAndOpen(
@@ -58,18 +60,59 @@ void main() {
     expect(find.text('Take note of the movements'), findsNothing);
   });
 
-  testWidgets('reaching the goal shows the goal-reached state', (tester) async {
+  // ---- Ten movements, and NO verdict ----
+  //
+  // «Цель достигнута» / «Goal reached» stood here until 2026-08-19, when the
+  // clinical gate refused it: the RK MOH protocol this screen cites says there
+  // is no evidence that counting movements prevents adverse perinatal outcomes,
+  // so the app may not print a reassurance verdict on the count. The counter
+  // stays; the verdict does not. docs/CLINICAL-REVIEW-WATCH.md,
+  // «kick_goal_reached — REFUSED as written; CHANGES made».
+  testWidgets('reaching ten states her numbers and passes no verdict', (tester) async {
     await pumpAndOpen(tester, (_, __) {});
-    // Ten taps on the counter (label is "movement" until the goal is reached).
+    // Ten taps on the counter (label is "movement" until ten are counted).
     for (var i = 0; i < 10; i++) {
       await tester.tap(find.text('movement'));
       await tester.pump();
     }
-    expect(find.text('10'), findsOneWidget); // count reached the goal
-    expect(find.text('Goal reached'), findsOneWidget);
+    expect(find.text('10'), findsOneWidget); // the count itself
+    // What she recorded, with both placeholders filled — an unfilled «{n}» on
+    // this screen would be the app failing to describe what she just did.
+    expect(find.textContaining('10 movements in'), findsOneWidget);
+    expect(find.textContaining('{'), findsNothing);
+    // …and none of the words that grade it. The refused string cannot come back
+    // in any of its three languages, and neither can a synonym of it.
+    for (final refused in const [
+      'Goal reached', 'Цель достигнута', 'Мақсатқа жетті',
+    ]) {
+      expect(find.text(refused), findsNothing, reason: '«$refused» is refused copy');
+    }
+    // THE COLOUR IS PART OF THE VERDICT. The ring and the disc turned mint —
+    // this app's «healthy» colour — the moment the count reached ten, which is
+    // the same claim in the register a sentence cannot qualify. One colour
+    // throughout now, and it is the control's own.
+    final ring = tester.widget<MetricRing>(find.byType(MetricRing).first);
+    expect(ring.color, Ds.coralCta,
+        reason: 'mint at ten is «Цель достигнута» drawn instead of written');
+    expect(ring.fraction, 1.0, reason: 'the count against ten still shows');
     // Clean up the running timer.
     await tester.tap(find.text('Save session'));
     await tester.pumpAndSettle();
+  });
+
+  // The same verdict lived one screen away, wordless, and outlived the copy
+  // review twice because no fingerprint or token guard can see an icon: every
+  // history row with ten or more movements ended in a green tick. It is gone,
+  // and the strip's label no longer says «Цель достигнута» either.
+  test('the history strip passes no verdict either', () {
+    for (final locale in AppLocale.values) {
+      final l = L10n(locale);
+      expect(l.t('kick_goal_hits'), isNot(contains('Цель')));
+      expect(l.t('kick_goal_hits'), isNot(contains('Мақсат')));
+      expect(l.t('kick_goal_hits').toLowerCase(), isNot(contains('goal')));
+      expect(l.t('kick_goal_hits'), contains('10'),
+          reason: 'it names the tally it counts (${locale.name})');
+    }
   });
 
   // ---- Two hours, fewer than ten ----

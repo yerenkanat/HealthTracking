@@ -231,6 +231,18 @@ void _clinicalGateTests() {
     /// `knownUnreviewed` still says what it says, because PINNING IS NOT
     /// APPROVING. The text is frozen; no reviewer has yet ruled on it.
     ///
+    /// HALF OF THAT IS NOW OUT OF DATE, and the name of the set is kept anyway.
+    /// `lab_intro` WAS ruled on, 2026-08-19 — CHANGES in Kazakh only, ru and en
+    /// approved unchanged (docs/CLINICAL-REVIEW-WATCH.md, «lab_intro —
+    /// CHANGES»). It stays in this set because the set is not a review status:
+    /// it is the list of keys whose text MATCHES the deny-list below, and the
+    /// approved Russian contains «пора ехать». That fragment is here for the
+    /// 5-1-1 directive — «каждые 5 минут … пора» — and `lab_intro` states no
+    /// number at all, which is why it was pinned rather than refused. Removing
+    /// it from the set would make this test fail; the correct reading is «these
+    /// two keys contain the fragment», not «these two keys are unreviewed».
+    /// `lab_go_five_one_one` genuinely still has no verdict.
+    ///
     /// That is not mine to delete — the guide is a deliberate, spec'd feature
     /// and removing clinical content is as much a clinical decision as adding
     /// it. So the exposure is PINNED here, by exact key, which is strictly

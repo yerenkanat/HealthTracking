@@ -460,17 +460,30 @@ void main() {
     addTearDown(c.dispose);
   });
 
-  testWidgets('kick history shows a summary strip and goal badge', (tester) async {
+  // RENAMED AND NARROWED 2026-08-19: it was «kick history shows a summary strip
+  // and goal badge», and the badge is gone. Every row with ten or more
+  // movements ended in a green `Icons.check_rounded` — a wordless reassurance
+  // verdict on a fetal-movement count, which the RK MOH protocol this app cites
+  // says predicts nothing — and the strip's label read «Goals met» / «Цель
+  // достигнута». The TALLY stays, because it describes her sessions; the
+  // grading of it does not. docs/CLINICAL-REVIEW-WATCH.md, «kick_goal_reached —
+  // REFUSED as written».
+  testWidgets('kick history shows a summary strip and no verdict on it', (tester) async {
     final c = controllerFor(dueDate: today.add(const Duration(days: 140))); // pregnancy mode
-    c.logKickSession(today, 12, const Duration(seconds: 600)); // reaches goal (10)
-    c.logKickSession(today, 8, const Duration(seconds: 400)); // misses goal
+    c.logKickSession(today, 12, const Duration(seconds: 600)); // ten or more
+    c.logKickSession(today, 8, const Duration(seconds: 400)); // fewer than ten
     await tester.pumpWidget(wrap(c));
 
     await tester.scrollUntilVisible(find.text('SESSION HISTORY'), 200, scrollable: find.byType(Scrollable).first);
-    // Summary strip: labels + goals-met fraction (1 of 2 reached the goal).
+    // Summary strip: labels + the fraction (1 of 2 counted ten or more).
     expect(find.text('Avg movements'), findsOneWidget);
-    expect(find.text('Goals met'), findsOneWidget);
-    expect(find.text('1/2'), findsOneWidget); // one of two reached the goal
+    expect(find.text('10+ movements'), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget);
+    // The verdict, in both registers it was published in.
+    expect(find.text('Goals met'), findsNothing);
+    expect(find.byIcon(Icons.check_rounded), findsNothing,
+        reason: 'the green tick on a session that reached ten is the same '
+            'claim as «Цель достигнута», drawn instead of written');
     addTearDown(c.dispose);
   });
 

@@ -1155,6 +1155,12 @@ Recorded as a known and accepted gap, not as a solved one.
 worse direction. The card is unreachable today (hand entry removed), which is
 the only reason this is a note rather than a change.
 
+**CLOSED the same day — see «ADV_BP_STEADY — REFUSED, and the card with it»
+below.** The owner ruled it now rather than later: unreachable today means
+reachable the day hand entry returns, and §1.2 and §2.5 both record that
+decision as still open, so this was a trap waiting for whoever reopens that
+door.
+
 ### The tree was not green when this arrived, and it is not the gate's to fix
 
 `reviewed_medical_copy_test` fails on `db_ring_partial` and `lab_intro`: both
@@ -1163,3 +1169,207 @@ pinned medical strings, and neither has a verdict. Their fingerprints were left
 alone. An unreviewed item blocking a release is the system working — and
 `lab_intro` is the modal softening this document already flagged, so the pass is
 touching the right string; it still needs a verdict before the pin moves.
+
+**Both have verdicts now**, 2026-08-19, below.
+
+---
+
+## Four items ruled 2026-08-19 (second sitting)
+
+Two were decisions the owner had already made and sent here to be implemented
+or refused; two were verdicts only this gate could give.
+
+| item | verdict | against what |
+|---|---|---|
+| `kick_goal_reached` (+ `kick_goal_hits`, + two wordless siblings) | **REFUSED as written; CHANGES made** | RK MOH «Антенатальный уход» (2025), the paragraph on movement counting |
+| `ADV_BP_STEADY` / `ADV_BP_STEADY_b` | **REFUSED, and the card with it** | no source; the same search that failed for 135/85 |
+| `lab_intro` | **CHANGES** — kk only; ru + en **APPROVED unchanged** | the screen it introduces, and `lab_go_title` beside it |
+| `db_ring_partial` | **CHANGES** — kk only; ru + en **APPROVED unchanged** | Kazakh negation scope; the claim the string exists to make |
+
+### `kick_goal_reached` — REFUSED as written; CHANGES made
+
+The owner ruled that the counter stays and the reassurance verdict goes, and
+invited a refusal if the reasoning was wrong. **It is not wrong, and this gate
+would have reached the same place from the protocol alone.** The counter earns
+its keep because it produces the SUBJECTIVE trigger the protocol acts on and
+because a woman who wants to count will count somewhere; «Цель достигнута» is a
+positive clinical claim on a screen whose own cited protocol says the count
+behind it predicts nothing:
+
+> «Нет доказательных данных по эффективности профилактики неблагоприятных
+> перинатальных исходов на основании подсчета числа движений плода.»
+> — RK MOH «Антенатальный уход» (2025), `docs/Антенатальный уход.docx`, the
+> document `an_source` cites on screen.
+
+**What replaces it states her numbers and stops.** Not an alarm either: most
+days ten movements is simply what happened, and a counter that ends in worry
+every time is a counter she stops opening — the calibration
+`kickSessionEndedEarly` was already written for.
+
+| | before | after |
+|---|---|---|
+| ru | «Цель достигнута» | «Шевелений: {n}, время: {t}» |
+| kk | «Мақсатқа жетті» | «Қимыл: {n}, уақыты: {t}» |
+| en | «Goal reached» | «{n} movements in {t}» |
+
+The clause is not translated fresh: it is `kick_low_body`'s own descriptive
+half, minus «Записано», read clause for clause in all three languages by this
+gate earlier the same day. `{n}` is interpolated because the counter does not
+stop at ten — a hard-coded «10» under a circle reading «14 / 10» would be the
+app misdescribing what she just did.
+
+**Three more instances of the same verdict, and two of them carry no words at
+all.** The item arrived as one string; it was four.
+
+1. **The mint disc and ring** (`kick_session_screen.dart`). Both turned
+   `Palette.good` — this app's «healthy» colour — the moment the count reached
+   ten. That is «Цель достигнута» in the register a sentence cannot qualify, and
+   it is exactly the hole the amber tile turned out to be for 135/85 («The
+   colour was the hole in that rule», above). Stripping the words and leaving
+   the mint would have moved the claim, not removed it. One colour throughout
+   now, the control's own; the filled ring still shows the count against ten.
+2. **The green tick per history row** (`womens_health_screen.dart`,
+   `_KickHistoryRow`). Every saved session with ten or more movements ended in
+   `Icons.check_rounded` in `Palette.good`. It carried no string, so no
+   fingerprint and no token guard could ever have caught it — it was found by
+   reading the widget beside `kick_goal_hits`. Removed, and nothing takes its
+   place: the row already states the count and the duration.
+3. **`kick_goal_hits`**, the label over «3/5» in the history strip, read «Цель
+   достигнута» / «Goals met» — the identical Russian words, scoring her past
+   sessions against the same target. It was NOT in the manifest and
+   `isMedicalKey` did not match it, which is how it survived the same review
+   twice. Now «10+ шевелений» / «10+ қимыл» / «10+ movements», and pinned. Ten is
+   not a new threshold: it is the count-to-ten method's own number, already on
+   the counter as «/ 10» and stated in `kick_method_note`.
+
+**Not done, deliberately.** No sentence about the evidence base was added to the
+counter (the `epds_not_validated` shape). That is new user-facing clinical copy
+and needs the owner, not the gate — it is consequence 3 of the movement ruling
+above and stays open.
+
+### `ADV_BP_STEADY` — REFUSED, and the card with it
+
+The owner ruled: apply the 135/85 treatment now, «either cite the band or stop
+asserting on it». **No band could be cited**, so the assertion stops.
+
+Where the gate looked is recorded above under «The four uncited numbers»: the RK
+MOH protocol document, `92 бұйрық.docx`, `antenatal_protocol.json`,
+`emergency_help.json` and `triage_thresholds.json`. None of them names 130/85
+any more than they named 135/85.
+
+**Two narrower fixes were considered and both are worse.**
+
+* *Re-base it on the elevated card's own trigger* (`else if (belowEmergency &&
+  !bpFromDevice)`, i.e. fire below 135/85). That does not remove an uncited
+  number from a positive claim; it moves the claim onto the other uncited pair.
+* *Cite 140/90* — the one attributed number this product has (ACOG, via
+  `packages/shared/src/triage.ts`). It would call 139/89 «ровное».
+
+So the branch is gone from `generateAdvisories` and both keys are DELETED from
+the catalogue, on `repeat_cta`'s precedent and §2.5's rule that «a dead key is a
+live key to the next person who finds a call site». A cuff day now ends at
+`ADV_NOTHING_UNUSUAL`, which was written for exactly this absence and claims no
+more than the readings support.
+
+**This is not the first step of silencing the metric, and the code says so.**
+`ADV_BP_ELEVATED` and `ADV_BP_DEVICE_HIGH` still fire from both sources, triage
+still escalates at 140/90 from both, the cuff reading still travels to the
+clipboard with its number in it, and a wrist estimate in the danger band still
+pulls the ring down. `bp_advisory_provenance_test.dart` asserts all of that in
+the same group as the removal, so neither half can be lost while the other is
+being defended. Its «a cuff reading she typed in still does» expectation was
+REVERSED with this verdict behind it — the old test's fear was that the fix
+becomes «say nothing about blood pressure», and the answer is that only the
+verdict went.
+
+Unreachable today (hand entry removed, §1.2/§2.5), which is why no user sees a
+change; the point is that it cannot come back the day that door reopens.
+
+### `lab_intro` — CHANGES (kk only)
+
+ru «когда **пора** ехать» and en «when it's **time** to go» both prompt. kk
+«қашан баруға **болатыны**» is PERMISSION — «when one is allowed to go» — on the
+sentence that introduces the entire «when to go in» screen, above a list that
+holds ruptured membranes, bleeding, preterm contractions and reduced movements.
+A softened translation is a different clinical claim, and this is the direction
+that costs hours: a woman who reads that she MAY go decides later.
+
+**The language gate's proposal is accepted: «қашан бару керегі».** The question
+referred here was whether necessity overshoots the Russian. It does not, for two
+reasons that are on the screen rather than in a dictionary: the modal is bounded
+by «қашан» and by the list it introduces — it never says go NOW, the `lab_go_*`
+items say on what — and the section heading immediately below it,
+`lab_go_title` «Қашан бару немесе қоңырау шалу», already uses the bare
+infinitive with no permissive modal. The Kazakh was the outlier among its own
+neighbours, not the Russian.
+
+ru and en **APPROVED unchanged**. `lab_disclaimer` sits directly below and is
+what keeps the screen from reading as instruction from us.
+
+`lab_intro` stays in `contraction_timer_test.dart`'s `knownUnreviewed` set for a
+different reason than before, and the comment there now says which: its Russian
+contains «пора ехать», which that scan matches as a fragment. That scan is about
+the 5-1-1 THRESHOLD clause, and this string states no number.
+
+### `db_ring_partial` — CHANGES (kk only)
+
+**In remit, and not for the reason it was referred.** The owner offered that this
+may fall outside the clinical gate because it counts metrics rather than
+describing a body. The count is not the issue; the negation is. This string
+exists to stop a full ring from claiming that everything was assessed, and
+Kazakh «Барлық көрсеткіш ескерілмеді» puts the negation on the verb after «every
+metric» — a reading of «NONE of them was counted» is available, which is the
+opposite absence and the one `db_ring_ungraded` already means. Russian is safe
+because «Учтены не все» negates «все» directly. That is a claim about what the
+app assessed, so it is this gate's.
+
+**Accepted as proposed: «Барлығы ескерілмеді: {total} көрсеткіштің ішінен {n}.»**
+The negation now sits on «барлығы» and the arithmetic after the colon says what
+WAS counted. The grammar half — «{total} ішінен» rendered «4 ішінен 2», a bare
+numeral with no noun for «ішінен» to govern — is the language gate's and is
+accepted with it; it changes no claim. The numeral-possessive dodge is intact
+({n} stays bare, so no locale needs a rule for n = 1), it still names a count
+and not a feeling, and `peace_ring_coverage_test` still pins that it is neither
+an alarm nor a reassurance in all three languages. Fits at 320 dp / 130 % in
+Kazakh (`narrow_phone_test`). ru and en **APPROVED unchanged**.
+
+### Verified by reverting — each change on its own, exact messages
+
+1. `kick_goal_reached` restored in all three languages. **Fails**
+   `reviewed_medical_copy_test` — `kick_goal_reached: 942b0082b689e064 ->
+   f0f87b2a5e8b7ade`, the exact hash it was pinned at on 2026-08-18 — and
+   `kick_session_test`: `Found 0 widgets with text containing 10 movements in`.
+2. **The KAZAKH alone** restored to «Мақсатқа жетті», ru and en left corrected.
+   **Fails** the fingerprint only — `kick_goal_reached: 942b0082b689e064 ->
+   c2e284e9511f9aee` — and `kick_session_test` PASSES, because its assertions
+   read the English. The same lesson as `kick_low_action`: a one-language
+   softening is caught by the fingerprint and by nothing else.
+3. Mint put back on the ring. **Fails** — `Expected: Color:<…red: 0.8392, green:
+   0.0000, blue: 0.2902…> Actual: <…red: 0.0902, green: 0.6627, blue: 0.4784…>`,
+   `mint at ten is «Цель достигнута» drawn instead of written`.
+4. The green tick put back in the history row. **Fails** — `Expected: no matching
+   candidates / Actual: Found 1 widget with icon "IconData(U+0F636)"`.
+5. `kick_goal_hits` restored. **Fails** three guards at once —
+   `kick_goal_hits: 894aa4be4d4149c2 -> 0c77634fe370d76f`, `Expected: not
+   contains 'Цель' / Actual: 'Цель достигнута'`, and `Found 0 widgets with text
+   "10+ movements"`.
+6. `ADV_BP_STEADY` / `_b` put back in the CATALOGUE only, the branch left
+   deleted. **Fails** — `Medical keys with no reviewed fingerprint:
+   [ADV_BP_STEADY, ADV_BP_STEADY_b]`, plus the new catalogue-absence test. Worth
+   recording: an `ADV_*` key cannot be re-added without a verdict even when
+   nothing renders it.
+7. The advisor branch put back as well. **Fails** —
+   `Expected: not contains 'ADV_BP_STEADY' / Actual: ['ADV_NOTHING_UNUSUAL',
+   'ADV_BP_STEADY']` on the cuff path, and `verify_advisor.dart`: `FAIL  normal →
+   no blood-pressure reassurance, from any source`, `32 passed, 1 failed`.
+8. Both Kazakh strings restored. **Fails** — `db_ring_partial:
+   4826097ffa3b6a87 -> 0233d3702667aff9` and `lab_intro: 1853663aac4db948 ->
+   f3aa307c7e323c3b`, both the exact hashes they were pinned at.
+   `narrow_phone_test` and `peace_ring_coverage_test` PASS on the old Kazakh —
+   they measure fit and placeholders, not meaning — so the fingerprint is the
+   only guard these two have, which is the argument for it.
+
+All eight reverted. `flutter test` in `app/`: **2288 passing** (2286 plus the two
+tests added here). `dart run tool/verify_all.dart`: **82 runners · 3138
+assertions**.
+
