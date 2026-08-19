@@ -229,7 +229,11 @@ export function createMemoryRepository(): Repository {
   // acknowledging one needs no change to the ingest/triage path.
   const emergencyAcks = new Map<string, { staffId: string; at: string }>();
   const audit: Array<{ staffId: string; action: string; target: string | null; reason: string | null; at: string }> = [];
-  const sleep: SleepNight[] = [];
+  // Keyed by (user, night), exactly like the pg PRIMARY KEY. The userId was
+  // dropped on the way in and ignored on the way out, so a second mother
+  // saving the same night OVERWROTE the first one's row and then read it back
+  // as her own — and no isolation test written against this fake could fail.
+  const sleep: Array<SleepNight & { userId: string }> = [];
   // Keyed by (user, device, day), exactly like the pg PRIMARY KEY. The userId
   // was dropped on the way in and ignored on the way out, so every account in
   // the process shared one watch history — a fake more permissive than
@@ -243,9 +247,11 @@ export function createMemoryRepository(): Repository {
   const cryResults: Array<CryRow & { userId: string }> = [];
   /** `cry_settings` — absent until somebody sets a threshold (frame 17c). */
   let cryThresholdRow: CryThresholdRow | null = null;
-  const weights: WeightRow[] = [];
-  const kickSessions: KickSessionRow[] = [];
-  const contractionSessions: ContractionSessionRow[] = [];
+  // The same defect, the same fix, three more tables: (user, log_date) for the
+  // weight log and (user, ended_at) for the two timers, matching each ON CONFLICT.
+  const weights: Array<WeightRow & { userId: string }> = [];
+  const kickSessions: Array<KickSessionRow & { userId: string }> = [];
+  const contractionSessions: Array<ContractionSessionRow & { userId: string }> = [];
   const childEmergency = new Map<string, MedicalIdRow>();
   const newbornEvents = new Map<string, NewbornEventRow[]>();
   const growth = new Map<string, GrowthRow[]>();
@@ -253,10 +259,18 @@ export function createMemoryRepository(): Repository {
   const vaccines = new Map<string, Set<string>>(); // childId → done vaccine keys
   type BpCalRow = BpCalibration & { cuffSystolic: number; cuffDiastolic: number; ppgSystolic: number; ppgDiastolic: number };
   const bpCalibrations: Array<BpCalRow & { userId: string }> = [];
-  const dayLogs = new Map<string, DayLogRow>();
+  /**
+   * `${userId}|${date}` -> the day, keyed like cycle_day_logs' ON CONFLICT
+   * (user_id, log_date). It was keyed by the DATE alone, so one mother saving
+   * her diary DESTROYED another's entry for the same day, and every read after
+   * that answered with the wrong woman's mood, symptoms and note.
+   */
+  const dayLogs = new Map<string, DayLogRow & { userId: string }>();
   /** `${userId}|${id}` → screening. Keyed like the pg table's primary key. */
   const epds = new Map<string, EpdsRow>();
-  const alerts: SafetyAlertRow[] = [];
+  // Per user, like safety_alerts.user_id. Unscoped, one family's SOS appeared
+  // in another's history and setAlertOutcome could close it from either side.
+  const alerts: Array<SafetyAlertRow & { userId: string }> = [];
   /** Profiles by user id — what the pg repository stores on `users`. */
   const profiles = new Map<string, ProfileRow>();
   /** Edited pregnancy weeks, by week — `pregnancy_week_overrides`. */
@@ -1257,11 +1271,21 @@ const UUID_RE =
         .sort((a, b) => b.at.localeCompare(a.at))
         .slice(0, limit),
     // Sleep
-    recordSleep: async (_u, s) => {
-      const i = sleep.findIndex((x) => x.night === s.night);
-      if (i >= 0) sleep[i] = s; else sleep.push(s);
+    // Upsert on (user, night), like ON CONFLICT (user_id, night) — not on the
+    // night alone, which let the second account to sync a night overwrite the
+    // first account's row.
+    recordSleep: async (userId, s) => {
+      const i = sleep.findIndex((x) => x.userId === userId && x.night === s.night);
+      if (i >= 0) sleep[i] = { ...s, userId }; else sleep.push({ ...s, userId });
     },
-    listSleep: async (_u, limit) => [...sleep].sort((a, b) => b.night.localeCompare(a.night)).slice(0, limit),
+    // Hers, not everybody's — and without the userId field, which is implied by
+    // the question and is not part of the row the interface promises.
+    listSleep: async (userId, limit) =>
+      sleep
+        .filter((x) => x.userId === userId)
+        .sort((a, b) => b.night.localeCompare(a.night))
+        .slice(0, limit)
+        .map(({ userId: _u, ...night }) => ({ ...night })),
     // Watch activity/wellbeing days — upsert on (device, day), exactly as the
     // pg repository's ON CONFLICT does, so a fake that "works" here cannot hide
     // a duplicate-row bug that only appears against a real database.
@@ -1336,26 +1360,48 @@ const UUID_RE =
       };
     },
     // Weight (upsert on the date)
-    recordWeight: async (_u, w) => {
-      const i = weights.findIndex((x) => x.date === w.date);
-      if (i >= 0) weights[i] = w; else weights.push(w);
+    recordWeight: async (userId, w) => {
+      const i = weights.findIndex((x) => x.userId === userId && x.date === w.date);
+      if (i >= 0) weights[i] = { ...w, userId }; else weights.push({ ...w, userId });
     },
-    listWeight: async (_u, limit) => [...weights].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit),
+    listWeight: async (userId, limit) =>
+      weights
+        .filter((x) => x.userId === userId)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, limit)
+        .map(({ userId: _u, ...row }) => ({ ...row })),
     // Timed sessions (upsert on ended_at, newest-first out)
-    recordKickSession: async (_u, s) => {
-      const i = kickSessions.findIndex((x) => x.endedAt === s.endedAt);
-      if (i >= 0) kickSessions[i] = s; else kickSessions.push(s);
+    recordKickSession: async (userId, s) => {
+      const i = kickSessions.findIndex((x) => x.userId === userId && x.endedAt === s.endedAt);
+      if (i >= 0) kickSessions[i] = { ...s, userId }; else kickSessions.push({ ...s, userId });
     },
-    listKickSessions: async (_u, limit) => [...kickSessions].sort((a, b) => b.endedAt.localeCompare(a.endedAt)).slice(0, limit),
-    recordContractionSession: async (_u, s) => {
-      const i = contractionSessions.findIndex((x) => x.endedAt === s.endedAt);
-      if (i >= 0) contractionSessions[i] = s; else contractionSessions.push(s);
+    listKickSessions: async (userId, limit) =>
+      kickSessions
+        .filter((x) => x.userId === userId)
+        .sort((a, b) => b.endedAt.localeCompare(a.endedAt))
+        .slice(0, limit)
+        .map(({ userId: _u, ...row }) => ({ ...row })),
+    recordContractionSession: async (userId, s) => {
+      const i = contractionSessions.findIndex((x) => x.userId === userId && x.endedAt === s.endedAt);
+      if (i >= 0) contractionSessions[i] = { ...s, userId }; else contractionSessions.push({ ...s, userId });
     },
-    listContractionSessions: async (_u, limit) => [...contractionSessions].sort((a, b) => b.endedAt.localeCompare(a.endedAt)).slice(0, limit),
+    listContractionSessions: async (userId, limit) =>
+      contractionSessions
+        .filter((x) => x.userId === userId)
+        .sort((a, b) => b.endedAt.localeCompare(a.endedAt))
+        .slice(0, limit)
+        .map(({ userId: _u, ...row }) => ({ ...row })),
     // Day logs
-    upsertDayLog: async (_u, log) => void dayLogs.set(log.date, log),
-    listDayLogs: async (_u, from, to) =>
-      [...dayLogs.values()].filter((d) => d.date >= from && d.date <= to).sort((a, b) => a.date.localeCompare(b.date)),
+    // The sharp one, because it is a WRITE. `dayLogs.set(log.date, log)` keyed
+    // by the date alone meant the second mother to save 2026-08-19 replaced the
+    // first mother's diary entry for that day — her mood, her symptoms and her
+    // free-text note, gone, with the other woman's shown in their place.
+    upsertDayLog: async (userId, log) => void dayLogs.set(`${userId}|${log.date}`, { ...log, userId }),
+    listDayLogs: async (userId, from, to) =>
+      [...dayLogs.values()]
+        .filter((d) => d.userId === userId && d.date >= from && d.date <= to)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map(({ userId: _u, ...day }) => ({ ...day })),
     // Screening results: upsert on (user, id), newest first. Scoped by user id
     // even though this fake models one account — the moment it does not, a test
     // that passes here would be reading another woman's screening in
@@ -1439,20 +1485,25 @@ const UUID_RE =
     },
     listSupportTemplates: async () => [...supportTemplates].sort((a, b) => a.sort - b.sort),
 
-    recordAlert: async (_u, a) => void alerts.unshift(a),
-    listAlerts: async (_u, limit, fromIso, toIso) =>
+    recordAlert: async (userId, a) => void alerts.unshift({ ...a, userId }),
+    listAlerts: async (userId, limit, fromIso, toIso) =>
       alerts
-        // Before the slice, like the SQL's WHERE before its LIMIT.
-        .filter((a) => (!fromIso || a.at >= fromIso) && (!toIso || a.at < toIso))
+        // Before the slice, like the SQL's WHERE before its LIMIT — and hers
+        // first of all, which is the condition the SQL never omits.
+        .filter((a) => a.userId === userId && (!fromIso || a.at >= fromIso) && (!toIso || a.at < toIso))
         // recordAlert unshifts, so insertion order is usually newest-first —
         // usually. An offline tracker flushing a buffer records out of order,
         // and the database sorts on `at`. Stable, so equal instants keep the
         // order they were recorded in.
         .sort((a, b) => b.at.localeCompare(a.at))
-        .slice(0, limit),
-    setAlertOutcome: async (_u, childId, at, outcome) => {
+        .slice(0, limit)
+        .map(({ userId: _u, ...alert }) => ({ ...alert })),
+    // Scoped by user as well as child, exactly as the pg UPDATE is: a write
+    // that trusts only the path parameter can close somebody else's alarm.
+    setAlertOutcome: async (userId, childId, at, outcome) => {
       const row = alerts.find(
-        (a) => a.childId === childId && a.kind === 'sos' && Date.parse(a.at) === Date.parse(at));
+        (a) => a.userId === userId && a.childId === childId && a.kind === 'sos'
+          && Date.parse(a.at) === Date.parse(at));
       if (!row) return false;
       row.outcome = outcome;
       return true;
@@ -1719,14 +1770,25 @@ const UUID_RE =
         })),
         latest: health?.latest ?? {},
         triage: health?.triage ?? [],
-        alerts: alerts.slice(0, 20).map((a) => ({
-          kind: a.kind,
-          childName: children.find((c) => c.id === a.childId)?.name ?? '',
-          zoneName: a.zoneName,
-          at: a.at,
-        })),
-        sleepNights: sleep.length,
-        loggedDays: dayLogs.size,
+        // Hers. `alerts`, `sleep` and `dayLogs` hold every account's rows now,
+        // and the pg queries behind this card are all WHERE user_id = $1 — an
+        // unfiltered count here would put another family's nights and another
+        // woman's diary on this mother's card.
+        alerts: alerts
+          .filter((a) => a.userId === userId)
+          // ORDER BY a.at DESC, like the query. recordAlert unshifts, so
+          // insertion order is USUALLY newest-first; an offline tracker
+          // flushing its buffer records out of order and the database does not.
+          .sort((a, b) => b.at.localeCompare(a.at))
+          .slice(0, 20)
+          .map((a) => ({
+            kind: a.kind,
+            childName: children.find((c) => c.id === a.childId)?.name ?? '',
+            zoneName: a.zoneName,
+            at: a.at,
+          })),
+        sleepNights: sleep.filter((x) => x.userId === userId).length,
+        loggedDays: [...dayLogs.values()].filter((d) => d.userId === userId).length,
       };
     },
 
@@ -1760,8 +1822,13 @@ const UUID_RE =
 
     adminSafetyEvents: async (limit) =>
       alerts.slice(0, limit).map((a) => ({
-        userId: DEMO_USER,
-        displayName: profile?.displayName ?? '',
+        // The alert's real owner, not a constant — the same reasoning as
+        // adminDevices. The rows carry a user id now, and a fleet-wide feed
+        // that labels every event DEMO_USER is fiction that always agrees
+        // with the code.
+        userId: a.userId,
+        displayName: userNames.get(a.userId) ?? profiles.get(a.userId)?.displayName
+          ?? (a.userId === DEMO_USER ? profile?.displayName ?? '' : ''),
         childName: children.find((c) => c.id === a.childId)?.name ?? '',
         kind: a.kind,
         zoneName: a.zoneName,
@@ -1771,7 +1838,8 @@ const UUID_RE =
         // `outcome` column; leaving it out here would let a fake agree with a
         // panel that shows every closed SOS as open.
         outcome: a.kind === 'sos' ? (a.outcome ?? null) : null,
-        phone: profile?.phone ?? null,
+        phone: profiles.get(a.userId)?.phone
+          ?? (a.userId === DEMO_USER ? profile?.phone ?? null : null),
       })),
 
     deleteAccount: async (userId) => {
@@ -1789,30 +1857,40 @@ const UUID_RE =
       medications.length = 0;
       events.length = 0;
       emergencyAcks.clear();
-      weights.length = 0;
-      kickSessions.length = 0;
-      contractionSessions.length = 0;
+      /**
+       * Just this account's rows, like ON DELETE CASCADE. These stores hold
+       * every account's data now, so `weights.length = 0` would erase other
+       * mothers' logs — a fake that deletes MORE than the cascade does is the
+       * same class of defect as one that overwrites.
+       */
+      const dropMine = <T extends { userId: string }>(rows: T[]) => {
+        for (let i = rows.length - 1; i >= 0; i--) {
+          if (rows[i].userId === userId) rows.splice(i, 1);
+        }
+      };
+      dropMine(weights);
+      dropMine(kickSessions);
+      dropMine(contractionSessions);
       childEmergency.clear();
       newbornEvents.clear();
       healthRows.length = 0;
       seenReadings.clear();
-      sleep.length = 0;
+      dropMine(sleep);
       // Hers, by user id — the rows are keyed like the pg table now, and a
       // blanket truncate would be a fake that erases more than the cascade does.
-      for (let i = cryResults.length - 1; i >= 0; i--) {
-        if (cryResults[i].userId === userId) cryResults.splice(i, 1);
-      }
-      dayLogs.clear();
+      dropMine(cryResults);
+      for (const [k, d] of [...dayLogs]) if (d.userId === userId) dayLogs.delete(k);
       // Her screenings cascade with the account (epds_results.user_id), and
       // this is the last table that may survive an erasure.
       for (const k of [...epds.keys()]) {
         if (k.startsWith(`${userId}|`)) epds.delete(k);
       }
-      alerts.length = 0;
+      dropMine(alerts);
       // The watch's activity days go with the account, exactly as
       // wearable_days does through ON DELETE CASCADE. Leaving them behind
-      // would let the fake say «стёрто» while still holding her step counts.
-      wearableDays.length = 0;
+      // would let the fake say «стёрто» while still holding her step counts —
+      // and truncating the whole array erased every OTHER account's days too.
+      dropMine(wearableDays);
       // Her notification switches cascade too (notification_prefs.user_id).
       // push_deliveries does NOT: its user_id is ON DELETE SET NULL, so the
       // count of what we sent survives the erasure while the name does not —

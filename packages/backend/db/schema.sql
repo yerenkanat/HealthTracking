@@ -726,6 +726,12 @@ CREATE TABLE IF NOT EXISTS shop_orders (
 );
 CREATE INDEX IF NOT EXISTS idx_shop_orders_created ON shop_orders (created_at DESC);
 CREATE INDEX IF NOT EXISTS shop_orders_bundle ON shop_orders (bundle_id);
+-- Entitlement is granted by matching a fulfilled order to a phone number, so
+-- this lookup runs on every fulfilment. Added by migration 023 and missing
+-- here until 2026-08-19, which meant every migrated server had it and every
+-- fresh install silently did not.
+CREATE INDEX IF NOT EXISTS shop_orders_phone_normalized
+  ON shop_orders (phone_normalized);
 CREATE TABLE IF NOT EXISTS shop_order_items (
   order_id         UUID NOT NULL REFERENCES shop_orders(id) ON DELETE CASCADE,
   variant_id       UUID NOT NULL REFERENCES shop_variants(id),
@@ -838,7 +844,7 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   phone         TEXT NOT NULL UNIQUE,          -- digits only, e.g. 77073452244
   password_hash TEXT NOT NULL,                 -- scrypt, salted
-  role          TEXT NOT NULL DEFAULT 'admin', -- admin | clinician | support
+  role          TEXT NOT NULL DEFAULT 'admin', -- any of STAFF_ROLES in src/auth/capabilities.ts
   display_name  TEXT NOT NULL DEFAULT '',
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_login_at TIMESTAMPTZ,

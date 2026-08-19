@@ -145,23 +145,66 @@ describe('pgRepository against db/schema.sql', () => {
     expect(referencedTables().size).toBeGreaterThan(5);
   });
 
-  it('the index migration and schema.sql do not drift apart', () => {
+  it('EVERY migration that creates an index has it in schema.sql too', () => {
     // schema.sql builds a fresh database; db/migrations/ brings an existing one
     // to the same state. They are two files that must describe one index set,
-    // which is exactly the pair that silently diverges — a new index added to
-    // only one of them means either fresh installs or upgraded installs run
-    // without it, and nothing fails loudly enough to notice.
-    const migration = readFileSync(`${root}db/migrations/001_performance_indexes.sql`, 'utf8')
+    // which is exactly the pair that silently diverges — an index added to only
+    // one of them means either fresh installs or upgraded installs run without
+    // it, and nothing fails loudly enough to notice.
+    //
+    // This read migration 001 alone, and 001 is the file NAMED for indexes — so
+    // the one that actually drifted was 023, which creates
+    // shop_orders_phone_normalized while doing something else entirely. Every
+    // MIGRATED server had that index; a FRESH install matched an order to an
+    // account by scanning the whole table. Nothing here looked at file 023.
+    //
+    // The sibling checks in this file compare tables and columns; the auditor
+    // diffed every CREATE TABLE and every ALTER TABLE … ADD COLUMN across all
+    // 49 migrations and found no other divergence, so indexes were the last
+    // unguarded kind. They are guarded now, for every file in the folder.
+    const stripComments = (sql: string) => sql
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
       .replace(/^\s*--.*$/gm, ' '); // comments name indexes that are deliberately absent
-    const names = (sql: string) =>
-      new Set([...sql.matchAll(/create\s+index\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)]
-        .map((m) => m[1].toLowerCase()));
 
-    const inMigration = names(migration);
-    expect(inMigration.size).toBeGreaterThan(3); // the regex actually matched
-    const missingFromSchema = [...inMigration].filter((n) => !names(schema).has(n));
-    expect(missingFromSchema, `in the migration but not schema.sql: ${missingFromSchema.join(', ')}`)
-      .toEqual([]);
+    // UNIQUE and CONCURRENTLY are matched as well as the plain form: an index
+    // this regex fails to see is an index the check silently stops guarding,
+    // which is the exact failure mode that let 023 through for 26 migrations.
+    const created = (sql: string) =>
+      [...sql.matchAll(/create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)]
+        .map((m) => m[1].toLowerCase());
+    const dropped = (sql: string) =>
+      [...sql.matchAll(/drop\s+index\s+(?:concurrently\s+)?(?:if\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)]
+        .map((m) => m[1].toLowerCase());
+
+    const files = readdirSync(`${root}db/migrations`)
+      .filter((f) => f.endsWith('.sql'))
+      .sort(); // apply order, which is what decides whether a drop undoes a create
+
+    // Guards the guard: a folder read that silently returned nothing would let
+    // every assertion below pass while checking not one index.
+    expect(files.length, 'no migrations were read — the folder scan broke').toBeGreaterThan(20);
+
+    /** index name -> the migration that creates it, minus anything later dropped. */
+    const wanted = new Map<string, string>();
+    for (const f of files) {
+      const sql = stripComments(readFileSync(`${root}db/migrations/${f}`, 'utf8'));
+      // A migration may drop an index it or an earlier one created (a rebuild).
+      // Dropping wins: an index the migrations have REMOVED must not be
+      // demanded of schema.sql, or the fix for a bad index would be to weaken
+      // this test.
+      for (const n of created(sql)) if (!wanted.has(n)) wanted.set(n, f);
+      for (const n of dropped(sql)) wanted.delete(n);
+    }
+
+    expect(wanted.size, 'the CREATE INDEX regex matched nothing').toBeGreaterThan(30);
+    // 001 is the file named for indexes. If the sweep ever stops seeing it, the
+    // check has quietly regressed to something narrower than it replaced.
+    expect([...wanted.values()]).toContain('001_performance_indexes.sql');
+
+    const inSchema = new Set(created(stripComments(schema)));
+    const missing = [...wanted].filter(([n]) => !inSchema.has(n)).map(([n, f]) => `${n} (${f})`);
+    expect(missing, `created by a migration and absent from schema.sql, so a fresh ` +
+      `install runs without it: ${missing.join(', ')}`).toEqual([]);
   });
 
   it('the hot filter columns the repository queries by are indexed', () => {
