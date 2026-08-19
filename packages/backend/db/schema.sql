@@ -828,7 +828,14 @@ CREATE TABLE IF NOT EXISTS shop_product_photos (
   CONSTRAINT photo_not_empty CHECK (octet_length(bytes) > 0),
   CONSTRAINT photo_not_huge  CHECK (octet_length(bytes) <= 3 * 1024 * 1024),
   uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  uploaded_by UUID REFERENCES staff_accounts(id) ON DELETE SET NULL,
+  -- The FOREIGN KEY to staff_accounts is added further down, once that table
+  -- exists. schema.sql runs top to bottom and declares the shop before the back
+  -- office; migration 044 could write the reference inline because on a LIVE
+  -- server migration 019 had created staff_accounts long before. Written inline
+  -- HERE it made schema.sql abort with «relation "staff_accounts" does not
+  -- exist», so no fresh database could be built at all. See the ALTER under
+  -- staff_accounts.
+  uploaded_by UUID,
   PRIMARY KEY (product_id, color)
 );
 CREATE INDEX IF NOT EXISTS idx_product_photos_product ON shop_product_photos(product_id);
@@ -871,6 +878,17 @@ CREATE TABLE IF NOT EXISTS staff_accounts (
   last_login_at TIMESTAMPTZ,
   disabled_at   TIMESTAMPTZ
 );
+
+-- shop_product_photos.uploaded_by points here, and could not say so where the
+-- column is declared: that block runs some forty tables earlier. The name is
+-- the one Postgres derives from an inline REFERENCES, so a server migrated
+-- through 044 and a database built from this file end up with the SAME
+-- constraint under the SAME name. IF NOT EXISTS is not available for ADD
+-- CONSTRAINT; schema.sql is applied exactly once per database (apply.mjs
+-- records it in schema_migrations), inside a transaction, so this runs once.
+ALTER TABLE shop_product_photos
+  ADD CONSTRAINT shop_product_photos_uploaded_by_fkey
+  FOREIGN KEY (uploaded_by) REFERENCES staff_accounts(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS staff_sessions (
   token_hash  TEXT PRIMARY KEY,               -- sha256 of the cookie value

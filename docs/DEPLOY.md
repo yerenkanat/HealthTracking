@@ -174,6 +174,53 @@ and the migrations must agree, and `pgSchema.test.ts` fails when they drift. Not
 
 A fresh `schema.sql` box does **not** need the migrations (they'd no-op).
 
+### 3a. Run `db:smoke` once, on a THROWAWAY database, before the first deploy
+
+**Do this once per release that touches `db/` or `src/db/pgRepository.ts`, and
+you must do it before the retention sweeps first fire on a box.**
+
+```bash
+cd packages/backend
+docker compose up -d --wait                       # a scratch Postgres on :5433
+DATABASE_URL=postgres://umay:umay@127.0.0.1:5433/umay npm run db:apply
+DATABASE_URL=postgres://umay:umay@127.0.0.1:5433/umay npm run db:smoke
+echo $?                                           # must be 0; read it directly
+docker compose down -v
+```
+
+**Never point this at production.** It inserts rows and it runs the real
+eight-table retention sweep — `sweepAll()`, the same call the scheduler makes —
+against whatever database `DATABASE_URL` names. On a scratch box that is the
+point; on production it would delete real rows on a cutoff computed from the
+moment you ran it.
+
+Why it is a step and not a nicety:
+
+- `src/privacy/retention.ts` schedules **eight DELETEs every six hours**
+  (`SWEEP_INTERVAL_MS`), starting at boot. They erase a child's zone crossings,
+  a mother's sign-in history, her SOS record and the audit trail that proves
+  nobody read her file unexplained. Every vitest test of them runs against the
+  **in-memory** repository. `pgRepository.ts` is what actually deletes.
+- `sweepOne()` never throws — a failing sweep is recorded in
+  `RetentionResult.error` and logged, so a DELETE naming a column that does not
+  exist looks exactly like a quiet, healthy, six-hourly no-op. Nothing on the
+  box goes red.
+- The full unit suite stays **green** with a wrong column in the
+  `geofence_events` sweep. `db:smoke` reports
+  `✗ geofence_events: the DELETE executed against real Postgres — column
+  "created_at" does not exist`. That is the entire reason this step exists.
+- It also proves the survivors: a row **exactly** at the cutoff must live
+  (the predicate is `<`, never `<=`), a support thread with a recent reply must
+  live with its replies, `phone_codes` must sweep on `created_at` and not on
+  `expires_at`, and a five-year-old `shop_orders` row must be untouched by all
+  eight (`RETENTION_KEPT` — accounting records have no period an engineer may
+  invent).
+- It builds the schema **from scratch**, which is the only way the
+  `schema.sql`-only path gets exercised at all. That path was broken —
+  `shop_product_photos` referenced `staff_accounts` forty tables before it
+  exists, so `db/apply.mjs` aborted on step 1 and no fresh install could be
+  built. Every migrated server was fine, which is why it went unnoticed.
+
 ---
 
 ## 4. Backend service
@@ -365,6 +412,10 @@ the define is required for a real build.
 ---
 
 ## 10. Smoke test after deploy
+
+This section is HTTP only. The database half — `npm run db:smoke`, including the
+eight retention DELETEs — runs **before** the deploy, against a throwaway
+Postgres, never against this box. See §3a.
 
 `deploy/landing-takeover.sh` prints a verification block of its own after every
 apply. This is the wider sweep — public surface, the app API staying shut, the

@@ -1,4 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts"]
+  "//": "db/ is in the check as well as src/: db/smoke.ts is the ONLY thing in this repo that runs pgRepository against a real Postgres, and it sat outside `npm run typecheck` entirely. A script nobody type-checks and nobody runs is a script that quietly rots — three of its assertions had gone stale against shipped code before anyone noticed.",
+  "include": ["src/**/*.ts", "db/**/*.ts"]
 }

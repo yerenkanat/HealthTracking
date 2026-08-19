@@ -386,4 +386,50 @@ describe('pgRepository against db/schema.sql', () => {
       `never reads — move them to db/migrations/: ${stray.join(', ')}`,
     ).toEqual([]);
   });
+
+  it('schema.sql can be run top to bottom — no table references one declared later', () => {
+    // Postgres has no forward references: `REFERENCES staff_accounts(id)` in a
+    // CREATE TABLE forty tables above CREATE TABLE staff_accounts aborts the
+    // whole file with «relation "staff_accounts" does not exist».
+    //
+    // shop_product_photos did exactly that. Migration 044 could write the
+    // reference inline because on a LIVE server migration 019 had created
+    // staff_accounts long before — so every migrated server was fine, and
+    // `node db/apply.mjs` against an EMPTY database failed on step 1. No fresh
+    // install could be built at all, and nothing noticed, because nothing in
+    // this suite ever built one. It was found by trying to run db/smoke.ts.
+    //
+    // Forward-referencing a table is legal Postgres when the constraint is
+    // added afterwards with ALTER TABLE, which is what the fix does; this guard
+    // therefore looks only at inline REFERENCES inside CREATE TABLE bodies.
+    const created = new Map<string, number>();
+    for (const m of schema.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)) {
+      const name = m[1].toLowerCase();
+      if (!created.has(name)) created.set(name, m.index ?? 0);
+    }
+
+    const bodies = /create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)\s*\(([\s\S]*?)\n\s*\);/gi;
+    const late: string[] = [];
+    for (const m of schema.matchAll(bodies)) {
+      const table = m[1].toLowerCase();
+      const bodyStart = (m.index ?? 0);
+      // Comments carry prose like "REFERENCES the order" — strip them first.
+      const body = m[2].replace(/--.*$/gm, ' ');
+      for (const r of body.matchAll(/\breferences\s+([a-z_][a-z0-9_]*)/gi)) {
+        const target = r[1].toLowerCase();
+        if (target === table) continue;            // self-reference is fine
+        const declaredAt = created.get(target);
+        if (declaredAt === undefined) { late.push(`${table} -> ${target} (never created)`); continue; }
+        if (declaredAt > bodyStart) late.push(`${table} -> ${target} (created later in the file)`);
+      }
+    }
+
+    // Guards the guard: an extraction that matched nothing would pass silently.
+    expect(created.size, 'parsed no CREATE TABLE at all — the extraction broke').toBeGreaterThan(50);
+    expect(
+      late,
+      `schema.sql references a table before it exists, so a FRESH database ` +
+      `cannot be built from it: ${late.join('; ')}`,
+    ).toEqual([]);
+  });
 });
