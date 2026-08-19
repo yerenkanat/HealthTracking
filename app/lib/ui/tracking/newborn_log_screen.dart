@@ -209,6 +209,29 @@ class NewbornLogScreen extends StatelessWidget {
 String _avgNum(double v) =>
     v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
+/// The week card's header line — the numbers a check-up asks for.
+///
+/// Sleep is the THIRD average [weekAverages] computes, and the card printed two
+/// of them: a mother logging naps to answer «сколько она спит» got a weekly
+/// summary with her own question missing from it. Same divisor as the other two
+/// (days with any activity), which the card already names in `nb_week_over`, so
+/// adding it implies nothing new about the window.
+///
+/// Sleep appears only when timed sleep was actually recorded. `sleepMinutes`
+/// counts only stretches that HAVE a duration, so a week of untimed naps
+/// averages to zero and «Сна в день: 0 мин» would assert she did not sleep —
+/// a number nobody entered. The day tally above dodges the same trap by showing
+/// a stretch count at zero minutes; here there is no per-day count to fall back
+/// on, so the honest move is to say nothing rather than to say zero.
+String _headline(dynamic l, NewbornWeekAverages avg) {
+  final sleepMin = avg.sleepMinutesPerDay.round();
+  return [
+    l.t('nb_week_feeds_avg', {'n': _avgNum(avg.feedsPerDay)}),
+    l.t('nb_week_wet_avg', {'n': _avgNum(avg.wetDiapersPerDay)}),
+    if (sleepMin > 0) l.t('nb_week_sleep_avg', {'v': _formatDuration(l, sleepMin)}),
+  ].join('   ·   ');
+}
+
 /// The last seven days, collapsed. The header carries the two numbers a clinic
 /// asks for; expanding shows the per-day shape behind them.
 class _WeekRecall extends StatelessWidget {
@@ -249,8 +272,7 @@ class _WeekRecall extends StatelessWidget {
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              '${l.t('nb_week_feeds_avg', {'n': _avgNum(avg.feedsPerDay)})}   ·   '
-              '${l.t('nb_week_wet_avg', {'n': _avgNum(avg.wetDiapersPerDay)})}',
+              _headline(l, avg),
               style: const TextStyle(color: Palette.textDim, fontSize: 12, height: 1.4),
             ),
           ),

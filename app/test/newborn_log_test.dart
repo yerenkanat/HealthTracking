@@ -16,6 +16,19 @@ NewbornEvent diaper(int hour, String kind) =>
     NewbornEvent(at: DateTime(2026, 7, 22, hour), kind: NewbornEventKind.diaper, detail: kind);
 NewbornEvent feedOn(int day, int hour, [String? side]) =>
     NewbornEvent(at: DateTime(2026, 7, day, hour), kind: NewbornEventKind.feed, detail: side);
+NewbornEvent napOn(int day, int hour, {int? minutes}) =>
+    NewbornEvent(at: DateTime(2026, 7, day, hour), kind: NewbornEventKind.sleep, durationMin: minutes);
+
+/// The week card's collapsed header, exactly as it is painted.
+///
+/// Read off the widget rather than asserted with `findsNothing`, because the
+/// question here is what the line SAYS: a missing clause and a clause reading
+/// «0 мин» both satisfy "the sleep text is not present" for different reasons,
+/// and only one of them is correct.
+String weekHeadline(WidgetTester t) {
+  final tile = t.widget<ExpansionTile>(find.byType(ExpansionTile));
+  return ((tile.subtitle! as Padding).child! as Text).data!;
+}
 
 Future<void> pump(WidgetTester tester, List<NewbornEvent> events,
     {void Function(NewbornEvent)? onLog, void Function(NewbornEvent)? onDelete}) async {
@@ -107,6 +120,47 @@ void main() {
     expect(find.text(ru.t('nb_week_over', {'n': 2})), findsOneWidget);
     // An empty day in the window shows "none", not a blank.
     expect(find.text(ru.t('nb_week_none')), findsWidgets);
+  });
+
+  testWidgets('the week recall answers «how much is she sleeping?»', (tester) async {
+    // The screen logs sleep and summarises it per day, and the weekly card
+    // computed sleepMinutesPerDay and threw it away — so the one question naps
+    // are logged to answer was the one number missing from the check-up line.
+    //
+    // 90 + 150 minutes over 2 active days = 120 a day. Pinned as «2 ч 0 мин»
+    // rather than a range: divided by a fixed 7 instead of by active days this
+    // reads «34 мин», so the assertion also fixes the divisor.
+    await pump(tester, [
+      feed(8), feed(11), napOn(22, 13, minutes: 90),
+      feedOn(20, 9), napOn(20, 13, minutes: 150),
+    ]);
+    expect(
+      weekHeadline(tester),
+      '${ru.t('nb_week_feeds_avg', {'n': '1.5'})}   ·   '
+      '${ru.t('nb_week_wet_avg', {'n': '0'})}   ·   '
+      '${ru.t('nb_week_sleep_avg', {'v': ru.t('nb_dur_hm', {'h': 2, 'm': 0})})}',
+    );
+
+    // And the divisor it was averaged over is the one the card already names.
+    await tester.tap(find.text(ru.t('nb_week_title')));
+    await tester.pumpAndSettle();
+    expect(find.text(ru.t('nb_week_over', {'n': 2})), findsOneWidget);
+  });
+
+  testWidgets('untimed naps do not become «0 мин» of sleep', (tester) async {
+    // sleepMinutes counts only stretches that carry a duration. Tapping «Сон»
+    // logs one without: a week of those averages to zero, and printing that
+    // would tell a mother her baby did not sleep — from data she entered to
+    // record that the baby DID.
+    await pump(tester, [feed(8), feed(11), napOn(22, 13), feedOn(20, 9), napOn(20, 13)]);
+    final line = weekHeadline(tester);
+    expect(
+      line,
+      '${ru.t('nb_week_feeds_avg', {'n': '1.5'})}   ·   ${ru.t('nb_week_wet_avg', {'n': '0'})}',
+    );
+    // Belt and braces: not the label under any value, and no bare zero minutes.
+    expect(line, isNot(contains(ru.t('nb_week_sleep_avg', {'v': ''}))));
+    expect(line, isNot(contains(ru.t('nb_dur_m', {'m': 0}))));
   });
 
   testWidgets('no week recall until something is logged', (tester) async {

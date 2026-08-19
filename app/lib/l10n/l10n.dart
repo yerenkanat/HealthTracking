@@ -850,6 +850,17 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Деректеріңіз сақталған. Басты бетке оралып, қайта көріңіз.',
     AppLocale.en: 'Your data is safe. Go back to the main screen and try again.'
   },
+  // When the failure is at the app root there is no route to pop and no button,
+  // so the body must not instruct one. Closing and reopening is the only thing
+  // she can still do, and it is the only thing this claims.
+  //
+  // KAZAKH SECOND SENTENCE WRITTEN BY A NON-GATE AGENT — see docs/TODO.md §9.12.
+  // The first sentence is `err_body`'s, unchanged and already reviewed.
+  'err_body_restart': {
+    AppLocale.ru: 'Ваши данные на месте. Закройте приложение и откройте его снова.',
+    AppLocale.kk: 'Деректеріңіз сақталған. Қолданбаны жауып, қайта ашыңыз.',
+    AppLocale.en: 'Your data is safe. Close the app and open it again.'
+  },
   'err_back': {
     AppLocale.ru: 'На главный экран',
     AppLocale.kk: 'Басты бетке',
@@ -2513,6 +2524,10 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'nb_week_title': {AppLocale.ru: 'Последние 7 дней', AppLocale.kk: 'Соңғы 7 күн', AppLocale.en: 'Last 7 days'},
   'nb_week_feeds_avg': {AppLocale.ru: 'Кормлений в день: {n}', AppLocale.kk: 'Күніне тамақтандыру: {n}', AppLocale.en: 'Feeds per day: {n}'},
   'nb_week_wet_avg': {AppLocale.ru: 'Мокрых подгузников в день: {n}', AppLocale.kk: 'Күніне дымқыл жаялық: {n}', AppLocale.en: 'Wet diapers per day: {n}'},
+  // KAZAKH WRITTEN BY A NON-GATE AGENT — see docs/TODO.md §9.12. Built as an
+  // exact structural clone of the two keys above («Күніне» + noun + ': {v}'),
+  // so what needs review is the noun choice for logged sleep, not the frame.
+  'nb_week_sleep_avg': {AppLocale.ru: 'Сна в день: {v}', AppLocale.kk: 'Күніне ұйқы: {v}', AppLocale.en: 'Sleep per day: {v}'},
   'nb_week_over': {AppLocale.ru: 'В среднем по {n} дн. с записями', AppLocale.kk: 'Жазбасы бар {n} күн бойынша орташа', AppLocale.en: 'Averaged over {n} days with entries'},
   'nb_week_none': {AppLocale.ru: 'нет', AppLocale.kk: 'жоқ', AppLocale.en: 'none'},
   'nb_delete_title': {AppLocale.ru: 'Удалить запись?', AppLocale.kk: 'Жазбаны жою керек пе?', AppLocale.en: 'Delete this entry?'},
