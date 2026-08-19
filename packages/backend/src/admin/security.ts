@@ -23,6 +23,14 @@ export const PROTECTED_ACTIONS: Readonly<Record<string, 'health' | 'location'>> 
   view_wellness: 'health',
   view_user_detail: 'health',
   view_children_stats: 'health',
+  // How much she moved, how she slept and how stressed the watch thinks she
+  // was, for a NAMED woman — special-category data, guarded by `health` and
+  // gated on a reason exactly like /wellness (routes/admin.ts). It was written
+  // to the log and counted by nothing: fifty opens of her heart rate, SpO2,
+  // blood pressure, stress and breathing left this page reporting zero, her
+  // name never appeared in `recent`, and `withoutReason` — the number this
+  // page exists to make non-zero — structurally could not see the route.
+  view_wearable: 'health',
   // A child's position and the fleet list that carries her name beside it.
   view_safety_feed: 'location',
   view_devices: 'location',

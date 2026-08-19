@@ -64,8 +64,18 @@ export interface ReturnsBlock {
   writtenOffUnits: number;
   /** Units sold in the window, for a rate that means something. */
   soldUnits: number;
-  /** returned ÷ sold, 0 when nothing was sold. */
-  returnRate: number;
+  /**
+   * returned ÷ sold, 0 when nothing was sold — and NULL when the stock moves
+   * behind it do not cover the whole window.
+   *
+   * The route reads a fixed number of the newest moves, and a sale writes one
+   * per order line, so an older window can fall entirely off the end of that
+   * slice. Every count in this block was then 0, this rate was 0 ÷ 0 = 0, and
+   * the CSV printed «Доля возвратов, % — 0,0» for a February nobody had looked
+   * at. That is not a low return rate, it is no data, and the two must not
+   * render the same. Null means «неизвестно» and the screens print that word.
+   */
+  returnRate: number | null;
   /** What the write-offs cost us, where cost is known. */
   writeOffCostMinor: number;
   /** The individual events, newest first, for the table. */
@@ -91,6 +101,27 @@ export interface FinanceReport {
    * to know which figures to trust.
    */
   caveats: string[];
+  /**
+   * Whether the rows behind the figures actually reach back to `from`.
+   *
+   * The route reads the newest N orders and the newest M stock moves and then
+   * asks for any window it likes. Ask for last February and the answer was
+   * computed over rows that all post-date it — silently, with three confident
+   * caveats on screen, none of them the true one.
+   *
+   * The mother's card already had the answer to this shape of problem
+   * (`ordersTruncated`, routes/admin.ts): when the slice is full, SAY the
+   * figures are a slice rather than presenting a partial total as the whole.
+   */
+  slice: {
+    /** The orders behind «заработано», «обещано», «маржа» cover the window. */
+    ordersComplete: boolean;
+    /** The stock moves behind returns and write-offs cover the window. */
+    movesComplete: boolean;
+    /** How many rows the caller asked for, for a message that names it. */
+    ordersWindow: number | null;
+    movesWindow: number | null;
+  };
 }
 
 export interface FinanceInput {
@@ -102,6 +133,38 @@ export interface FinanceInput {
   from: string;
   /** Inclusive ISO date, YYYY-MM-DD. */
   to: string;
+  /**
+   * How many rows the caller asked its repository for, and whether it got that
+   * many — i.e. whether there is very likely older data it did not fetch.
+   *
+   * Absent means "everything there is", which is what the pure tests pass and
+   * what a caller reading the whole table would pass. A caller that reads a
+   * window and does NOT say so gets a report that cannot know it is partial,
+   * which is the bug: /admin/finance read the newest 1 000 orders and 2 000
+   * stock moves and reported on any window at all.
+   */
+  ordersWindow?: number;
+  ordersTruncated?: boolean;
+  movesWindow?: number;
+  movesTruncated?: boolean;
+}
+
+/**
+ * Does the fetched slice reach back past the start of the window?
+ *
+ * A full slice does not by itself mean the report is partial — 1 000 orders
+ * that all fall inside the window answer the question completely. What makes it
+ * partial is a full slice whose OLDEST row is still newer than `from`: there is
+ * then data before it that was never read, and it is exactly the data the
+ * window asked about. A full slice that fetched nothing at all cannot cover
+ * anything, so it is not complete either.
+ */
+function sliceCovers(dates: string[], truncated: boolean, from: string): boolean {
+  if (!truncated) return true;
+  if (dates.length === 0) return false;
+  let oldest = dates[0];
+  for (const d of dates) if (d < oldest) oldest = d;
+  return oldest.slice(0, 10) <= from;
 }
 
 const inWindow = (iso: string, from: string, to: string) => {
@@ -111,6 +174,12 @@ const inWindow = (iso: string, from: string, to: string) => {
 
 export function buildFinanceReport(input: FinanceInput): FinanceReport {
   const { from, to } = input;
+  // Decided before anything is counted, because it decides which of the
+  // numbers below are answers and which are «неизвестно».
+  const ordersComplete = sliceCovers(
+    input.orders.map((o) => o.createdAt ?? ''), Boolean(input.ordersTruncated), from);
+  const movesComplete = sliceCovers(
+    input.moves.map((m) => m.at ?? ''), Boolean(input.movesTruncated), from);
   const orders = input.orders.filter((o) => inWindow(o.createdAt, from, to));
   const costByName = new Map<string, number | null>();
   for (const p of input.products) costByName.set(p.name, p.costMinor ?? null);
@@ -182,7 +251,10 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
     returnedUnits,
     writtenOffUnits: units(writeoffs),
     soldUnits,
-    returnRate: soldUnits > 0 ? returnedUnits / soldUnits : 0,
+    // Unknown, not zero, when the moves behind it do not reach the window.
+    // «Возвратов было 0 %» and «мы не смотрели» are different sentences, and
+    // the first one is the one that gets quoted.
+    returnRate: !movesComplete ? null : soldUnits > 0 ? returnedUnits / soldUnits : 0,
     writeOffCostMinor,
     events: [...returns, ...writeoffs]
       .sort((a, b) => b.at.localeCompare(a.at))
@@ -209,6 +281,21 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
     caveats.push(
       'Заказы в статусах «новый» и «подтверждён» в выручку не входят — это обещание, а не деньги.');
   }
+  // First in the list would be better still, but the payment-method line is
+  // structural and always present; these two are conditional and rare, and a
+  // reader who sees them must not be able to mistake them for the usual pair.
+  if (!ordersComplete) {
+    caveats.push(
+      `Прочитаны только последние ${input.ordersWindow ?? 0} заказов, и они не покрывают начало ` +
+      'периода: выручка, обещано, отмены, скидки и маржа — НЕ ПОЛНЫЕ, это нижняя граница. ' +
+      'Возьмите период короче.');
+  }
+  if (!movesComplete) {
+    caveats.push(
+      `Прочитаны только последние ${input.movesWindow ?? 0} движений склада, и они не покрывают ` +
+      'начало периода: возвраты, списания и продажи в штуках — НЕ ПОЛНЫЕ, а доля возвратов ' +
+      'неизвестна. Возьмите период короче.');
+  }
 
   return {
     from, to, money, margin,
@@ -218,6 +305,12 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
       ? money.earnedMinor / input.planMinor
       : null,
     caveats,
+    slice: {
+      ordersComplete,
+      movesComplete,
+      ordersWindow: input.ordersWindow ?? null,
+      movesWindow: input.movesWindow ?? null,
+    },
   };
 }
 
@@ -231,22 +324,34 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
  */
 export function financeCsv(r: FinanceReport): string {
   const money = (minor: number) => (minor / 100).toFixed(2).replace('.', ',');
+  /**
+   * A floor, marked as one.
+   *
+   * A cell is read on its own, long after the caveat rows have been scrolled
+   * past or deleted. «не менее 12» survives being pasted into a message;
+   * «12» computed over an unknown fraction of the period does not.
+   */
+  const atLeast = (v: string, partial: boolean) => (partial ? `не менее ${v}` : v);
   const rows: string[][] = [
     ['Показатель', 'Значение'],
     ['Период', `${r.from} — ${r.to}`],
-    ['Заработано, ₸', money(r.money.earnedMinor)],
-    ['Обещано (не оплачено), ₸', money(r.money.promisedMinor)],
-    ['Потеряно на отменах, ₸', money(r.money.lostMinor)],
-    ['Скидки, ₸', money(r.money.discountMinor)],
-    ['Заказов', String(r.money.orders)],
+    ['Заработано, ₸', atLeast(money(r.money.earnedMinor), !r.slice.ordersComplete)],
+    ['Обещано (не оплачено), ₸', atLeast(money(r.money.promisedMinor), !r.slice.ordersComplete)],
+    ['Потеряно на отменах, ₸', atLeast(money(r.money.lostMinor), !r.slice.ordersComplete)],
+    ['Скидки, ₸', atLeast(money(r.money.discountMinor), !r.slice.ordersComplete)],
+    ['Заказов', atLeast(String(r.money.orders), !r.slice.ordersComplete)],
     ['Средний чек, ₸', money(r.money.averageCheckMinor)],
-    ['Себестоимость, ₸', money(r.margin.costMinor)],
-    ['Маржа, ₸', money(r.margin.marginMinor)],
+    ['Себестоимость, ₸', atLeast(money(r.margin.costMinor), !r.slice.ordersComplete)],
+    ['Маржа, ₸', atLeast(money(r.margin.marginMinor), !r.slice.ordersComplete)],
     ['Маржа посчитана по, % выручки', String(Math.round(r.margin.coverage * 100))],
-    ['Возвратов, шт', String(r.returns.returnedUnits)],
-    ['Списано, шт', String(r.returns.writtenOffUnits)],
-    ['Списано на сумму, ₸', money(r.returns.writeOffCostMinor)],
-    ['Доля возвратов, %', (r.returns.returnRate * 100).toFixed(1).replace('.', ',')],
+    ['Возвратов, шт', atLeast(String(r.returns.returnedUnits), !r.slice.movesComplete)],
+    ['Списано, шт', atLeast(String(r.returns.writtenOffUnits), !r.slice.movesComplete)],
+    ['Списано на сумму, ₸', atLeast(money(r.returns.writeOffCostMinor), !r.slice.movesComplete)],
+    // «неизвестно», never 0,0. A fabricated zero in a spreadsheet outlives
+    // every caveat around it: the cell gets pasted into a message on its own.
+    ['Доля возвратов, %', r.returns.returnRate == null
+      ? 'неизвестно'
+      : (r.returns.returnRate * 100).toFixed(1).replace('.', ',')],
   ];
   // The caveats travel WITH the file. A number pasted into a message loses its
   // footnote otherwise, and the margin one is load-bearing.

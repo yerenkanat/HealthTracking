@@ -18,7 +18,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { JSDOM, VirtualConsole } from 'jsdom';
+import { JSDOM, VirtualConsole, type DOMWindow } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -207,6 +207,13 @@ async function openPanel() {
   return { window, errors, asked, quiet: settle.quiet };
 }
 
+/** Click the mother's row again, as a person would to reopen her card. */
+function clickRow(window: DOMWindow) {
+  const row = window.document.querySelector('#usersBody tr[data-user="u1"]');
+  expect(row, 'the user row is gone, so nothing below was exercised').not.toBeNull();
+  row!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+}
+
 describe('the panel asks before it fetches', () => {
   it('raises the prompt and requests nothing until it is answered', async () => {
     const { window, asked, errors } = await openPanel();
@@ -240,6 +247,91 @@ describe('the panel asks before it fetches', () => {
     text.value = 'ok';
     text.dispatchEvent(new window.Event('input', { bubbles: true }));
     expect(ok.disabled).toBe(true);
+  });
+
+  it('reuses the answer for the requests of ONE opening', async () => {
+    // The reason the cache exists: her card fires detail, wearable and wellness
+    // in a row, and prompting three times teaches everyone to click through the
+    // prompt without reading it.
+    const { window, asked, quiet } = await openPanel();
+    await answerReasonPrompt(window, 'Разбор жалобы №14', { settled: quiet });
+    const before = asked.length;
+
+    clickRow(window);
+    await quiet('the second open of the same card');
+    expect(
+      (window.document.querySelector('#reasonWrap') as HTMLElement).hidden,
+      'the same card, still open, asked again mid-work',
+    ).toBe(true);
+    expect(asked.length, 'the second open fetched nothing at all').toBeGreaterThan(before);
+  });
+
+  it('asks again when the card is closed and reopened', async () => {
+    /**
+     * The 09:03 / 17:40 case.
+     *
+     * The answer was kept in a Map that was never cleared — not on close, not
+     * on view change, not on sign-out — so against a 12-hour staff session it
+     * lasted a shift. An operator opened Айгерім's card at 09:03 under «Разбор
+     * жалобы», closed it, reopened it at 17:40 for something unrelated, and
+     * three fresh audit rows were written at 17:40 carrying the 09:03 sentence.
+     *
+     * legal_priv_staff_b, live in ru/kk/en: «Мы не подставляем "не указана"
+     * автоматически: журнал, заполненный машиной, выглядит проверенным, будучи
+     * непроверяемым.» A reason carried forward by the machine is machine-filled
+     * for every read after the first.
+     */
+    const { window, asked, quiet } = await openPanel();
+    await answerReasonPrompt(window, 'Разбор жалобы №14', { settled: quiet });
+
+    (window.document.querySelector('#dClose') as HTMLElement)
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await quiet('the drawer closing');
+
+    const mark = asked.length;
+    clickRow(window);
+    await quiet('the reopen');
+    expect(
+      (window.document.querySelector('#reasonWrap') as HTMLElement).hidden,
+      'the card reopened on this morning\'s reason without asking',
+    ).toBe(false);
+    // And nothing was read while it was asking.
+    expect(asked.slice(mark).some((p) => p.includes('/detail'))).toBe(false);
+
+    // The new answer is the one that reaches the log, not the old one.
+    await answerReasonPrompt(window, 'Проверка тревоги вечером', { settled: quiet });
+    const after = asked.slice(mark).filter((p) => p.includes('/detail') || p.includes('/wellness'));
+    expect(after.length, 'the reopened card fetched nothing').toBeGreaterThan(0);
+    for (const p of after) {
+      expect(decodeURIComponent(p), p).toContain('reason=Проверка тревоги вечером');
+      expect(decodeURIComponent(p), 'the morning reason was written to an evening read')
+        .not.toContain('Разбор жалобы №14');
+    }
+  });
+
+  it('asks again when the card was left open past the expiry', async () => {
+    // The card nobody closes. Without an expiry that is the same shift-long
+    // reuse with one extra step: the drawer sits behind other work and every
+    // later read inherits a sentence typed hours ago.
+    const { window, asked, quiet } = await openPanel();
+    await answerReasonPrompt(window, 'Разбор жалобы №14', { settled: quiet });
+
+    const realNow = window.Date.now;
+    try {
+      // Twenty minutes later, same open card. Not a sleep: the panel reads the
+      // clock, so the test moves the clock.
+      window.Date.now = () => realNow.call(window.Date) + 20 * 60 * 1000;
+      const mark = asked.length;
+      clickRow(window);
+      await quiet('the open after the expiry');
+      expect(
+        (window.document.querySelector('#reasonWrap') as HTMLElement).hidden,
+        'a reason typed twenty minutes ago was reused without asking',
+      ).toBe(false);
+      expect(asked.slice(mark).some((p) => p.includes('/detail'))).toBe(false);
+    } finally {
+      window.Date.now = realNow;
+    }
   });
 
   it('cancelling opens nothing', async () => {

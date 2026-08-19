@@ -1696,6 +1696,12 @@
       <section class="view" id="security">
         <div class="kpis" id="secKpis"></div>
 
+        <!-- Said out loud when the count stopped at the row cap. The figures
+             above are then a FLOOR, not a total, and the difference is the
+             whole value of this page: a partial count printed as a year's
+             total is how somebody concludes that nothing happened. -->
+        <div class="note" id="secTruncated" hidden></div>
+
         <div class="card">
           <div class="sec-h">
             <h3>Журнал доступа</h3>
@@ -4994,12 +5000,31 @@
     // «Без основания» is the number that should be zero, so it is coloured only
     // when it is not — a permanently red tile stops being read.
     const bad=d.withoutReason>0;
+    // A count that stopped at the server's row cap is a FLOOR, and it is
+    // printed as one. «12» and «не менее 12» are different claims, and the
+    // person reading this page is usually being asked to stand behind it.
+    const cut=!!d.truncated;
+    const floor=(n)=>cut?"≥ "+n:String(n);
+    const trunc=$("#secTruncated");
+    if(trunc){
+      trunc.hidden=!cut;
+      trunc.innerHTML=cut
+        ?`<b>Показан не весь период.</b> Сервер вернул максимум ${esc(String(d.rowCap||0))} записей `
+          +`о просмотрах защищённых данных, и записей больше. Цифры выше — нижняя граница `
+          +`за ${esc(String(d.windowDays))} дн., а не итог: выберите период короче, чтобы получить точный ответ.`
+        :"";
+    }
     kpis.innerHTML=[
-      ["Просмотров защищённых данных",d.protectedReads,"за "+d.windowDays+" дн.",""],
-      ["Здоровье",d.health,"показатели, дневник, дети",""],
-      ["Геолокация",d.location,"устройства и SOS",""],
-      ["Без основания",d.withoutReason,bad?"нужно разобраться":"как и должно быть",
-        bad?"var(--crit-text)":"var(--good-text)"],
+      ["Просмотров защищённых данных",floor(d.protectedReads),
+        cut?"за "+d.windowDays+" дн. — срез оборван":"за "+d.windowDays+" дн.",""],
+      ["Здоровье",floor(d.health),"показатели, дневник, дети, браслет",""],
+      ["Геолокация",floor(d.location),"устройства и SOS",""],
+      // «Без основания» stays uncoloured-green only when the slice was whole:
+      // a zero counted over an unknown fraction of the period is not the same
+      // statement as «как и должно быть», and this is the tile people quote.
+      ["Без основания",floor(d.withoutReason),
+        bad?"нужно разобраться":(cut?"по неполному срезу":"как и должно быть"),
+        bad?"var(--crit-text)":(cut?"":"var(--good-text)")],
     ].map(([lbl,val,sub,col])=>`<div class="card kpi">
         <div class="lbl">${esc(lbl)}</div>
         <div class="val"${col?` style="color:${col}"`:""}>${esc(String(val))}</div>
@@ -5217,14 +5242,54 @@
   ];
 
   /**
-   * Asked once per person per session, not once per click.
+   * Asked once per OPEN of a card, not once per click and not once per tab.
    *
-   * Her card fires three requests — detail, wellness, health — and re-asking on
-   * each would teach everyone to click through the prompt without reading it,
-   * which is worse than not asking. One deliberate answer, reused for as long
-   * as that card stays open in this session.
+   * Her card fires several requests — detail, wearable, wellness — and
+   * re-asking on each would teach everyone to click through the prompt without
+   * reading it, which is worse than not asking. One deliberate answer, reused
+   * for the requests of that one opening.
+   *
+   * WHAT THIS USED TO BE, AND WHY IT WAS WRONG. A Map keyed by person, never
+   * cleared: not on close, not on view change, not on sign-out. Against a
+   * 12-hour staff session that is a shift. An operator opened Айгерім's card at
+   * 09:03 under «Разбор жалобы», closed it, reopened it at 17:40 for something
+   * unrelated — and three fresh audit rows were written at 17:40 carrying the
+   * 09:03 sentence. The log then reads as reviewed and is not, which is exactly
+   * what legal_priv_staff_b promises we do not do: «Мы не подставляем "не
+   * указана" автоматически: журнал, заполненный машиной, выглядит проверенным,
+   * будучи непроверяемым.» A reason carried forward by the machine is machine-
+   * filled for every read after the first.
+   *
+   * ONE SLOT, NOT A MAP: one card is open at a time, so opening a different
+   * mother's record asks again by construction rather than by remembering to
+   * evict. Cleared when the card closes (the obvious boundary — the answer
+   * described THAT opening) and on sign-out.
+   *
+   * PLUS AN EXPIRY, for the card that is never closed: a drawer left open
+   * behind other work is otherwise the same shift-long reuse with one extra
+   * step. Fifteen minutes is a piece of work on one record — long enough that
+   * reading a long card and coming back to it does not re-prompt, short enough
+   * that it cannot span a lunch break, let alone 09:03 to 17:40.
+   *
+   * Deliberately NOT eager beyond that. The prompt is raised on OPENING a card
+   * and nowhere else; a prompt that interrupts mid-scroll is how staff learn to
+   * type «.», which is the failure the 8-character minimum exists to catch.
    */
-  const reasonFor = new Map();
+  const REASON_TTL_MS = 15 * 60 * 1000;
+  /** {id, reason, at} for the card currently open, or null. */
+  let openReason = null;
+
+  /** The card closed, or the session ended: the answer described that opening. */
+  function forgetReason(){ openReason = null; }
+
+  /** The stated reason for THIS card, if it is still this card and still fresh. */
+  function rememberedReason(id){
+    if(!openReason || openReason.id !== id) return null;
+    // Measured from when it was typed, not from last use: a sliding window
+    // renews itself forever on a card somebody keeps touching.
+    if(Date.now() - openReason.at > REASON_TTL_MS){ forgetReason(); return null; }
+    return openReason.reason;
+  }
 
   function askReason(personName){
     return new Promise((resolve)=>{
@@ -5301,11 +5366,11 @@
     if(LIVE){
       // Asked BEFORE the first request, not after: a reason collected once the
       // record is already on screen is a record already read.
-      let reason=reasonFor.get(id);
+      let reason=rememberedReason(id);
       if(!reason){
         reason=await askReason(u.displayName);
         if(reason==null) return;      // cancelled — nothing opened, nothing logged
-        reasonFor.set(id,reason);
+        openReason={id,reason,at:Date.now()};
       }
       const withReason=(path)=>`${path}?reason=${encodeURIComponent(reason)}`;
       try{
@@ -5958,7 +6023,9 @@
     // existed nowhere but this browser tab. Re-read the real one instead.
     renderAudit();
   }
-  function closeDrawer(){$("#drawer").classList.remove("open");$("#scrim").classList.remove("open");}
+  // Closing the card forgets why it was opened. The next open is a new
+  // decision and gets its own sentence in the log — see openReason above.
+  function closeDrawer(){$("#drawer").classList.remove("open");$("#scrim").classList.remove("open");forgetReason();}
 
   // Navigation
   const titles={
@@ -6076,6 +6143,10 @@
     // Picking a destination closes the menu. Leaving it open would cover the
     // thing she just asked to see.
     setNav(false);
+    // Leaving the screen ends the reason too. Going off to the orders tab and
+    // coming back to a card is a new decision, and it gets its own sentence in
+    // the log rather than inheriting the one typed before the detour.
+    forgetReason();
     $$(".view").forEach(s=>s.classList.toggle("active",s.id===v));
     // Replay the entrance animation for the view just opened (nav only, not on
     // live refresh). Restarting requires a reflow between remove and add.
@@ -11176,6 +11247,10 @@
   }
 
   document.getElementById("logoutBtn").addEventListener("click",async()=>{
+    // Before the request, not after it: a reason typed by the person leaving
+    // must not be reusable by the person who sits down next, whatever the
+    // logout call does.
+    forgetReason();
     try{ await fetch("/admin/logout",{method:"POST",credentials:"same-origin"}); }
     catch(e){ /* the cookie may outlive this, so say nothing reassuring */ }
     // Reload rather than just showing the gate: the panel holds loaded rows,
@@ -12582,9 +12657,16 @@
     renderFinMissing(r);
 
     const ret = r.returns;
+    // «неизвестно», not «0,0%». The rate is null when the stock moves behind it
+    // do not reach the start of the period, and a fabricated zero on this line
+    // reads as "почти не возвращают" — the opposite of "мы не смотрели".
+    const partial = r.slice && r.slice.movesComplete === false;
     $("#finRetSub").textContent =
-      `${fmt(ret.returnedUnits)} возвратов из ${fmt(ret.soldUnits)} продаж · ` +
-      `${(ret.returnRate * 100).toFixed(1).replace(".", ",")}%`;
+      `${partial ? "не менее " : ""}${fmt(ret.returnedUnits)} возвратов из ` +
+      `${partial ? "не менее " : ""}${fmt(ret.soldUnits)} продаж · ` +
+      (ret.returnRate == null
+        ? "доля возвратов неизвестна: период глубже прочитанных движений склада"
+        : `${(ret.returnRate * 100).toFixed(1).replace(".", ",")}%`);
     $("#finReturns").innerHTML = ret.events.length
       ? `<table><thead><tr><th>Когда</th><th>Товар</th><th>Шт</th><th>Что было</th><th>Примечание</th></tr></thead>
          <tbody>${ret.events.slice(0, 50).map((e) => `<tr>

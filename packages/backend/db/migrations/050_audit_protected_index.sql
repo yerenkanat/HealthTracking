@@ -1,0 +1,21 @@
+-- Frame 22 asked a question the log could not answer inside a query.
+--
+-- «Сколько раз за год кто-то открывал карту здоровья, и сколько из этих раз без
+-- основания?» was answered by pulling the newest 5 000 rows of the WHOLE log
+-- and filtering them in the API. audit_log is dominated by ordinary traffic —
+-- every open of the user list, of the support tab, and the throttled emergency
+-- feed from every open tab — so 5 000 rows covers days. Asked for twelve
+-- months, the security page reported «Защищённых просмотров: 12 · без причины:
+-- 0» over last week and said nothing about the difference. A regulator read
+-- that as a year.
+--
+-- The query became WHERE action = ANY($1) AND at >= $2 (Repository
+-- .listProtectedAudit). This index is what keeps that affordable: without it,
+-- every open of the page is a filtered sequential scan of an append-only table
+-- with no upper bound.
+--
+-- (action, at DESC) in that order: the action set is the selective half — the
+-- protected actions are a small minority of rows — and `at DESC` then serves
+-- the ORDER BY at DESC that follows, so the newest matching rows come off the
+-- index in order instead of being sorted afterwards.
+CREATE INDEX IF NOT EXISTS idx_audit_action_at ON audit_log (action, at DESC);

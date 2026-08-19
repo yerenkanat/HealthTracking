@@ -67,7 +67,7 @@ const REPORT = buildFinanceReport({
 
 interface Rendered { text(s: string): string; count(s: string): number; errors: string[]; }
 
-async function boot(): Promise<Rendered> {
+async function boot(report: unknown = REPORT): Promise<Rendered> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -91,7 +91,7 @@ async function boot(): Promise<Rendered> {
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
         }
-        const body = p.includes('/admin/finance') ? REPORT
+        const body = p.includes('/admin/finance') ? report
           : p.includes('/admin/stats')
             ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 }
             : null;
@@ -172,5 +172,28 @@ describe('frame 05a — Возвраты и брак', () => {
   it('gives the rate against sales, not a bare count', () => {
     expect(page.text('#finRetSub')).toContain('из 4 продаж');
     expect(page.text('#finRetSub')).toContain('25,0%');
+  });
+});
+
+describe('a return rate the stock moves cannot support', () => {
+  /**
+   * Ask for a month older than the slice the route reads.
+   *
+   * A sale writes one stock move per order line, so the 2 000 newest moves run
+   * out long before the 1 000 newest orders. For an older window every move in
+   * it was missing, the rate was 0 ÷ 0 = 0, and this line read «0,0%» —
+   * "почти не возвращают", which is the opposite of "мы не смотрели".
+   */
+  it('prints the word, never 0,0%', async () => {
+    const page = await boot(buildFinanceReport({
+      orders: [], products, moves,
+      planMinor: null, from: '2026-02-01', to: '2026-02-28',
+      movesTruncated: true, movesWindow: 2000,
+    }));
+    expect(page.errors, page.errors.join('\n')).toEqual([]);
+    expect(page.text('#finRetSub')).toContain('неизвестна');
+    expect(page.text('#finRetSub'), 'a fabricated zero reached the screen').not.toContain('0,0%');
+    // And it says why, so the reader knows the fix is a shorter period.
+    expect(page.text('#finRetSub')).toContain('движений склада');
   });
 });

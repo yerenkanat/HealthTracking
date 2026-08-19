@@ -329,6 +329,9 @@ CREATE TABLE audit_log (
   at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_audit_at ON audit_log (at DESC);
+-- Frame 22 counts protected reads over a window of up to a year:
+-- WHERE action = ANY(...) AND at >= ... ORDER BY at DESC. See migration 050.
+CREATE INDEX idx_audit_action_at ON audit_log (action, at DESC);
 
 -- Nightly sleep summaries from the band (one row per wake-day per user).
 -- Baby cry-analysis results (parent-recorded). Newest-first history, pushed so

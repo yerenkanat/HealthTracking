@@ -67,7 +67,11 @@ interface Rendered {
   window: JSDOM['window'];
 }
 
-async function render(view: string, down: string[] = []): Promise<Rendered> {
+async function render(
+  view: string,
+  down: string[] = [],
+  security: Record<string, unknown> = SECURITY,
+): Promise<Rendered> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
   const vc = new VirtualConsole();
@@ -100,7 +104,7 @@ async function render(view: string, down: string[] = []): Promise<Rendered> {
         if (down.some((d) => p.includes(d))) {
           return { ok: false, status: 500, json: async () => ({}) };
         }
-        const body = p.includes('/admin/security') ? SECURITY
+        const body = p.includes('/admin/security') ? security
           : p.includes('/admin/roles') ? ROLES
             : {};
         return { ok: true, status: 200, json: async () => body };
@@ -292,5 +296,52 @@ describe('the two security tabs do not collide with the SOS feed', () => {
       .map((n) => (n.textContent ?? '').replace(/\s+/g, ' ').trim())
       .filter(Boolean);
     expect(new Set(labels).size).toBe(labels.length);
+  });
+});
+
+/** «Hidden vs painted»: a display rule beats the hidden attribute. */
+function painted(p: Rendered, sel: string): boolean {
+  const el = p.window.document.querySelector(sel) as HTMLElement | null;
+  if (!el) return false;
+  for (let n: HTMLElement | null = el; n; n = n.parentElement) {
+    if (n.hasAttribute('hidden')) return false;
+    if (n.classList.contains('view') && !n.classList.contains('active')) return false;
+  }
+  return true;
+}
+
+describe('a count that stopped at the row cap says so', () => {
+  /**
+   * The figure a regulator is shown must never be a floor presented as a total.
+   *
+   * The server now filters the window in SQL, but any query has a ceiling; when
+   * it is reached the answer carries `truncated`, and this screen is where that
+   * has to become a sentence. «Защищённых просмотров: 12» over an unknown slice
+   * of twelve months is the original defect with a different number in it.
+   */
+  it('shows the warning and prints the tiles as floors', async () => {
+    // withoutReason: 0 deliberately — the reassuring zero, counted over a slice
+    // of unknown size. That pair is the whole reason this warning exists.
+    const page = await render('security', [], {
+      ...SECURITY, withoutReason: 0, truncated: true, rowCap: 20000,
+    });
+    expect(page.errors, page.errors.join('\n')).toEqual([]);
+    expect(painted(page, '#secTruncated'), 'a truncated count was drawn as a total').toBe(true);
+    expect(page.text('#secTruncated')).toContain('Показан не весь период');
+    // The cap is named, because «слишком много» without a number is not
+    // something anybody can act on.
+    expect(page.text('#secTruncated')).toContain('20000');
+    // ≥, not a bare integer.
+    expect(page.text('#secKpis')).toContain('≥');
+    // And «без основания: 0» must stop reading as «как и должно быть».
+    expect(page.text('#secKpis')).toContain('по неполному срезу');
+  });
+
+  it('and stays out of the way when the slice was whole', async () => {
+    // A warning shown always is a warning read never.
+    const page = await render('security', [], { ...SECURITY, withoutReason: 0 });
+    expect(painted(page, '#secTruncated')).toBe(false);
+    expect(page.text('#secKpis')).not.toContain('≥');
+    expect(page.text('#secKpis')).toContain('как и должно быть');
   });
 });

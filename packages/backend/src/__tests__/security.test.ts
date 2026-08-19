@@ -13,6 +13,9 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve, join } from 'node:path';
 import { PROTECTED_ACTIONS, summarizeSecurity, type AuditRow } from '../admin/security';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
@@ -30,6 +33,84 @@ const row = (over: Partial<AuditRow> = {}): AuditRow => ({
   reason: 'Обращение клиента',
   at: daysAgo(1),
   ...over,
+});
+
+const ROUTES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../routes');
+
+/**
+ * Every audit action written by a route that ASKS WHY — read out of the routes
+ * themselves, not re-typed here.
+ *
+ * A hand-written list of memberships is a list that goes stale silently, and
+ * the way it goes stale is the worst one available: `view_wearable` shipped
+ * demanding the `health` capability and a mandatory reason, wrote its row to
+ * the log, and was absent from PROTECTED_ACTIONS — so the security page counted
+ * every open of a named woman's heart rate, SpO2, blood pressure, stress and
+ * breathing as nothing at all. Frame 22 could report `protectedReads: 0` while
+ * a clinician read her vitals all month, and `withoutReason` — the one number
+ * the page exists to make non-zero — structurally could not see the route.
+ *
+ * The gate IS the definition: `readReason` refuses the request unless the
+ * person says why, and nothing is made to say why except a read of somebody's
+ * record. So every action written under it is by construction a protected read,
+ * and the NEXT such route fails this test on the day it is written rather than
+ * vanishing from the security page for a year.
+ *
+ * One direction only. PROTECTED_ACTIONS legitimately holds more than this —
+ * the feeds (`view_safety_feed`, `view_devices`, `view_device_registry`) are
+ * polled lists that are audited WITHOUT a reason on purpose, because prompting
+ * on a poll trains everyone to click through the prompt, and `view_health` is
+ * kept for rows written before that route was deleted. Requiring the reverse
+ * would delete those.
+ */
+function reasonGatedActions(): Array<{ file: string; route: string; action: string }> {
+  const found: Array<{ file: string; route: string; action: string }> = [];
+  for (const file of readdirSync(ROUTES_DIR).filter((f) => f.endsWith('.ts'))) {
+    const src = readFileSync(join(ROUTES_DIR, file), 'utf8');
+    const heads = [...src.matchAll(/app\.(?:get|post|put|patch|delete)\(\s*'([^']+)'/g)];
+    for (let i = 0; i < heads.length; i++) {
+      const start = heads[i].index!;
+      const end = i + 1 < heads.length ? heads[i + 1].index! : src.length;
+      // Declaring the gate is not passing through it.
+      const body = src.slice(start, end).replace(/function\s+readReason\s*\(/g, 'function DEFINITION(');
+      if (!/readReason\(/.test(body)) continue;
+      for (const m of body.matchAll(/action:\s*'([a-z0-9_]+)'/g)) {
+        found.push({ file, route: heads[i][1], action: m[1] });
+      }
+    }
+  }
+  return found;
+}
+
+describe('every reason-gated route is counted as a protected read', () => {
+  it('finds the routes at all', () => {
+    // Non-vacuity. If the scan silently matched nothing — a refactor to
+    // `app.route({...})`, a rename of `readReason` — the check below would
+    // pass over an empty list and this whole guard would be decoration.
+    const actions = reasonGatedActions().map((a) => a.action);
+    expect(actions.length, 'the route scan found no reason-gated reads at all').toBeGreaterThanOrEqual(3);
+    // The three that exist today, named, so a scan that drifts to matching
+    // something else is caught rather than accepted.
+    expect(new Set(actions)).toEqual(
+      new Set(['view_wellness', 'view_wearable', 'view_user_detail']),
+    );
+  });
+
+  it('and every one of them is in PROTECTED_ACTIONS', () => {
+    const missing = reasonGatedActions().filter((a) => !(a.action in PROTECTED_ACTIONS));
+    expect(
+      missing,
+      missing.map((m) => `${m.file} ${m.route} writes '${m.action}' under a mandatory reason ` +
+        'but PROTECTED_ACTIONS does not list it, so frame 22 counts that read as nothing — ' +
+        `add ${missing.map((x) => x.action).join(', ')} to src/admin/security.ts`).join(' | '),
+    ).toEqual([]);
+  });
+
+  it('the wearable route is one of them', () => {
+    // The regression this class of check was written for: it demanded the health capability
+    // and a reason from the day it shipped, and counted for nothing.
+    expect(PROTECTED_ACTIONS.view_wearable).toBe('health');
+  });
 });
 
 describe('what counts as a protected read', () => {
@@ -167,6 +248,140 @@ describe('GET /admin/security', () => {
   it('bounds the window rather than trusting the query', async () => {
     const body = (await app.inject({ method: 'GET', url: '/admin/security?days=99999' })).json();
     expect(body.windowDays).toBeLessThanOrEqual(365);
+    await app.close();
+  });
+});
+
+describe('the window is asked of the database, not of the newest few thousand rows', () => {
+  /**
+   * The regulator's question, and the answer this page used to give.
+   *
+   * It fetched the newest 5 000 rows of the WHOLE log and filtered them here
+   * against a window of up to a year. audit_log is dominated by ordinary
+   * traffic — `list_users` and `view_support` on every open, the throttled
+   * emergency feed from every open tab — so 5 000 rows is days. Ask for twelve
+   * months and the page answered «Защищённых просмотров: 0» over last week,
+   * with nothing on screen to say the query had never looked further.
+   *
+   * One protected read, buried under more ordinary rows than the old slice
+   * could hold. Every row is written at the same instant, so nothing here
+   * depends on a clock: the ONLY reason to miss the read is slicing the log by
+   * row count before filtering it.
+   */
+  it('finds a protected read buried under more traffic than the old slice held', async () => {
+    const repo = createMemoryRepository();
+    await repo.writeAudit({
+      staffId: 's1', action: 'view_wellness', target: 'u1', reason: 'Разбор жалобы',
+    });
+    for (let i = 0; i < 5200; i++) {
+      await repo.writeAudit({ staffId: 's1', action: 'list_users' });
+    }
+
+    const server = buildServer(
+      {
+        repo,
+        guardrail: { callLLM: async () => 'ok' },
+        ingest: {
+          cacheLocation: async () => {}, resolveTransition: async () => null,
+          sendEmergencyPush: async () => {}, sendGeofencePush: async () => {},
+        },
+        cacheLastLocation: async () => null,
+        setBpCalibration: async () => {},
+        authUser: async () => ({ userId: DEMO_USER }),
+        authAdmin: async () => ({ staffId: 's1', role: 'owner' as const }),
+      },
+      { logger: false },
+    );
+
+    const body = (await server.inject({ method: 'GET', url: '/admin/security?days=365' })).json();
+    expect(body.protectedReads, 'a year was asked for and only the newest rows were read').toBe(1);
+    expect(body.health).toBe(1);
+    // And she is named, which is what the page is for.
+    expect(body.recent[0].action).toBe('view_wellness');
+    expect(body.recent[0].reason).toBe('Разбор жалобы');
+    await server.close();
+  });
+
+  it('says so on the answer when the count stopped at the row cap', async () => {
+    // Even a filtered query has a ceiling. What must never happen is the
+    // ceiling being hit silently — that is the original bug with a smaller
+    // number. `hasMore` came back from the repository before this fix too, and
+    // was discarded at the call site.
+    const repo = createMemoryRepository();
+    const capped = {
+      ...repo,
+      listProtectedAudit: async () => ({
+        entries: [{
+          staffId: 's1', staffName: 'Ерен', staffPhone: null, action: 'view_wellness',
+          target: 'u1', targetName: 'Айгерім', reason: 'Разбор жалобы',
+          at: new Date().toISOString(),
+        }],
+        hasMore: true,
+      }),
+    } as unknown as ReturnType<typeof createMemoryRepository>;
+
+    const server = buildServer(
+      {
+        repo: capped,
+        guardrail: { callLLM: async () => 'ok' },
+        ingest: {
+          cacheLocation: async () => {}, resolveTransition: async () => null,
+          sendEmergencyPush: async () => {}, sendGeofencePush: async () => {},
+        },
+        cacheLastLocation: async () => null,
+        setBpCalibration: async () => {},
+        authUser: async () => ({ userId: DEMO_USER }),
+        authAdmin: async () => ({ staffId: 's1', role: 'owner' as const }),
+      },
+      { logger: false },
+    );
+
+    const body = (await server.inject({ method: 'GET', url: '/admin/security?days=365' })).json();
+    expect(body.truncated, 'a partial count was reported as a total').toBe(true);
+    expect(body.rowCap).toBeGreaterThan(0);
+    await server.close();
+  });
+
+  it("the owner's «что горит» sees an unexplained read behind the same traffic", async () => {
+    // Same defect, second call site: the signal was fed the newest 2 000 rows
+    // of the whole log filtered to 30 days. It only fires above zero, so a
+    // count that cannot rise is a permanently reassuring blank on the one card
+    // the owner actually reads.
+    const repo = createMemoryRepository();
+    // A protected read with no reason at all — the row this signal exists for.
+    await repo.writeAudit({ staffId: 's1', action: 'view_wellness', target: 'u1' });
+    for (let i = 0; i < 2200; i++) {
+      await repo.writeAudit({ staffId: 's1', action: 'list_users' });
+    }
+
+    const server = buildServer(
+      {
+        repo,
+        guardrail: { callLLM: async () => 'ok' },
+        ingest: {
+          cacheLocation: async () => {}, resolveTransition: async () => null,
+          sendEmergencyPush: async () => {}, sendGeofencePush: async () => {},
+        },
+        cacheLastLocation: async () => null,
+        setBpCalibration: async () => {},
+        authUser: async () => ({ userId: DEMO_USER }),
+        authAdmin: async () => ({ staffId: 's1', role: 'owner' as const }),
+      },
+      { logger: false },
+    );
+
+    const body = (await server.inject({ method: 'GET', url: '/admin/owner' })).json();
+    const fire = (body.burning as Array<{ key: string; count: number }>)
+      .find((b) => b.key === 'access_without_reason');
+    expect(fire, 'an unexplained read of a health record did not reach «что горит»').toBeDefined();
+    expect(fire!.count).toBe(1);
+    await server.close();
+  });
+
+  it('a whole slice is not labelled incomplete', async () => {
+    // The flag has to mean something. Always-true is as useless as always-false.
+    const body = (await app.inject({ method: 'GET', url: '/admin/security?days=365' })).json();
+    expect(body.truncated).toBe(false);
     await app.close();
   });
 });

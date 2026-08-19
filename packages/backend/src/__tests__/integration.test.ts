@@ -706,6 +706,23 @@ function makeDeps(
       }));
       return { entries: window.slice(0, limit), hasMore: window.length > limit };
     },
+    // Both filters honoured, for the same reason listAudit honours limit and
+    // offset: a fake that returns everything would let the security page pass
+    // here while asking the database for a window it never applies.
+    listProtectedAudit: async (actions, sinceIso, limit) => {
+      const wanted = new Set(actions);
+      const since = Date.parse(sinceIso);
+      const window = audit
+        .slice()
+        .reverse()
+        .filter((a) => wanted.has(a.action) && Date.parse(a.at) >= since)
+        .slice(0, limit + 1)
+        .map((a) => ({
+          ...a, staffName: null, staffPhone: null, targetName: null,
+          reason: (a as {reason?: string | null}).reason ?? null,
+        }));
+      return { entries: window.slice(0, limit), hasMore: window.length > limit };
+    },
   };
 
   const server = buildServer(

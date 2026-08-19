@@ -2370,6 +2370,34 @@ const UUID_RE =
       };
     },
 
+    // The same two filters the SQL applies, applied the same way.
+    //
+    // Reversed first and filtered after, rather than sorted by timestamp: the
+    // append order IS the stable total order here (see listAudit above), and a
+    // fake that paged by timestamp alone would hide the tiebreak bug the real
+    // query is written to avoid. hasMore is one row past the page here too,
+    // never a count of the matches.
+    listProtectedAudit: async (actions, sinceIso, limit) => {
+      const wanted = new Set(actions);
+      if (wanted.size === 0) return { entries: [], hasMore: false };
+      const byId = new Map([...staffAccounts.values()].map((a) => [a.id, a]));
+      const since = Date.parse(sinceIso);
+      const window = audit
+        .slice()
+        .reverse()
+        .filter((e) => wanted.has(e.action) && Date.parse(e.at) >= since)
+        .slice(0, limit + 1);
+      return {
+        hasMore: window.length > limit,
+        entries: window.slice(0, limit).map((e) => ({
+          ...e,
+          staffName: byId.get(e.staffId)?.displayName ?? null,
+          staffPhone: byId.get(e.staffId)?.phone ?? null,
+          targetName: e.target ? byId.get(e.target)?.displayName ?? null : null,
+        })),
+      };
+    },
+
     // ---- Shop ----
     // Bundles included, marked as such and carrying their parts: the storefront
     // has to be able to offer the комплект, and it has no colours of its own.

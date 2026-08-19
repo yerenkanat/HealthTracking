@@ -8,6 +8,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { buildFinanceReport, financeCsv } from '../admin/finance';
+import { buildServer } from '../server';
+import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 import type { InventoryProduct, ShopOrder, StockMove } from '../db/repository';
 
 const NO_CATALOGUE = {
@@ -168,6 +170,104 @@ describe('returns and write-offs (05a)', () => {
   });
 });
 
+describe('a period deeper than the rows it was given', () => {
+  /**
+   * Ask for last February.
+   *
+   * /admin/finance reads the newest 1 000 orders and the newest 2 000 stock
+   * moves and then reports on whatever window is asked for. A sale writes one
+   * stock move PER ORDER LINE, so the moves slice is exhausted first: for an
+   * older month every move in the window is missing, `soldUnits` is 0,
+   * `returnedUnits` is 0, and the rate was 0 ÷ 0 = 0. The CSV then printed
+   * «Доля возвратов, % — 0,0» under three confident caveats, none of which was
+   * the true one. A fabricated zero, in the file somebody forwards.
+   */
+  const FEB = { from: '2026-02-01', to: '2026-02-28' };
+  const truncatedToAugust = {
+    ...FEB,
+    moves: [move({ reason: 'sale', delta: -1, at: '2026-08-10T10:00:00.000Z' })],
+    movesTruncated: true,
+    movesWindow: 2000,
+  };
+
+  it('says the return rate is unknown rather than zero', () => {
+    const r = build(truncatedToAugust);
+    expect(r.returns.returnRate, 'a period nobody looked at reported a 0% return rate')
+      .toBeNull();
+    expect(r.slice.movesComplete).toBe(false);
+  });
+
+  it('and the CSV prints the word, not a number', () => {
+    // The cell outlives every caveat around it: it gets pasted on its own.
+    const csv = financeCsv(build(truncatedToAugust));
+    expect(csv).toContain('Доля возвратов, %;неизвестно');
+    expect(csv, 'a fabricated zero survived into the export').not.toContain('Доля возвратов, %;0,0');
+  });
+
+  it('names the truncation as a caveat, and says which way to fix it', () => {
+    const caveats = build(truncatedToAugust).caveats.join(' ');
+    expect(caveats).toContain('2000');
+    expect(caveats).toContain('период короче');
+  });
+
+  it('marks the counts it can only give a floor for', () => {
+    const csv = financeCsv(build({
+      ...truncatedToAugust,
+      moves: [
+        move({ reason: 'sale', delta: -1, at: '2026-08-10T10:00:00.000Z' }),
+        move({ reason: 'return', delta: 1, at: '2026-02-10T10:00:00.000Z' }),
+      ],
+    }));
+    expect(csv).toContain('Возвратов, шт;не менее 1');
+  });
+
+  it('a full slice that still reaches past the start is complete', () => {
+    // Truncation alone is not incompleteness. 2 000 moves whose oldest predates
+    // the window answer the question fully, and calling that «неизвестно» would
+    // train everyone to ignore the word.
+    const r = build({
+      ...FEB,
+      moves: [
+        move({ reason: 'sale', delta: -10, at: '2026-01-20T10:00:00.000Z' }),
+        move({ reason: 'return', delta: 2, at: '2026-02-10T10:00:00.000Z' }),
+        move({ reason: 'sale', delta: -10, at: '2026-02-11T10:00:00.000Z' }),
+      ],
+      movesTruncated: true,
+      movesWindow: 2000,
+    });
+    expect(r.slice.movesComplete).toBe(true);
+    expect(r.returns.returnRate).toBeCloseTo(0.2);
+  });
+
+  it('a truncated slice that fetched nothing at all covers nothing', () => {
+    const r = build({ ...FEB, moves: [], movesTruncated: true, movesWindow: 2000 });
+    expect(r.slice.movesComplete).toBe(false);
+    expect(r.returns.returnRate).toBeNull();
+  });
+
+  it('the money block says so too, and prints its totals as floors', () => {
+    const r = build({
+      ...FEB,
+      orders: [order({ status: 'delivered', createdAt: '2026-08-10T10:00:00.000Z' })],
+      ordersTruncated: true,
+      ordersWindow: 1000,
+    });
+    expect(r.slice.ordersComplete).toBe(false);
+    expect(r.caveats.join(' ')).toContain('1000');
+    expect(financeCsv(r)).toContain('Заработано, ₸;не менее 0,00');
+  });
+
+  it('an untruncated report claims nothing about slices', () => {
+    // The flags have to mean something: a report over everything is complete,
+    // and its numbers are printed plainly.
+    const r = build({ moves: [move({ reason: 'sale', delta: -5 })] });
+    expect(r.slice).toEqual({
+      ordersComplete: true, movesComplete: true, ordersWindow: null, movesWindow: null,
+    });
+    expect(financeCsv(r)).not.toContain('не менее');
+  });
+});
+
 describe('what the report refuses to claim', () => {
   it('always says the payment-method split is unavailable', () => {
     // shop_orders has no payment-method column. Guessing one on a screen where
@@ -221,5 +321,81 @@ describe('the CSV export (05b)', () => {
       const unquoted = line.replace(/"[^"]*"/g, '');
       expect(unquoted.split(';').length).toBeLessThanOrEqual(2);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('GET /admin/finance reports on the period it can actually see', () => {
+  /**
+   * The route reads a fixed number of newest rows and accepts any window.
+   *
+   * The report cannot know that on its own — it is pure, it sees a list. So the
+   * route has to tell it, exactly as the mother's card already tells
+   * buildMotherCard (`ordersTruncated`, routes/admin.ts). This drives the whole
+   * chain over HTTP because the wiring is the part that goes missing: the pure
+   * tests above all pass with the flags never sent.
+   */
+  const financeApp = (stockMoves: (limit: number) => Promise<StockMove[]>) => {
+    const repo = createMemoryRepository();
+    return buildServer(
+      {
+        repo: { ...repo, stockMoves } as unknown as ReturnType<typeof createMemoryRepository>,
+        guardrail: { callLLM: async () => 'ok' },
+        ingest: {
+          cacheLocation: async () => {}, resolveTransition: async () => null,
+          sendEmergencyPush: async () => {}, sendGeofencePush: async () => {},
+        },
+        cacheLastLocation: async () => null,
+        setBpCalibration: async () => {},
+        authUser: async () => ({ userId: DEMO_USER }),
+        authAdmin: async () => ({ staffId: 's1', role: 'owner' as const }),
+      },
+      { logger: false },
+    );
+  };
+
+  // More recent moves than the route will read, so the slice it gets back is
+  // full and every one of them post-dates the February it is asked about.
+  const AUGUST = Array.from({ length: 4000 }, () =>
+    move({ reason: 'sale', delta: -1, at: '2026-08-10T10:00:00.000Z' }));
+
+  it('says «неизвестно» for a month that fell off the end of the slice', async () => {
+    const app = financeApp(async (limit) => AUGUST.slice(0, limit));
+    const body = (await app.inject({
+      method: 'GET', url: '/admin/finance?from=2026-02-01&to=2026-02-28',
+    })).json();
+    expect(body.slice.movesComplete, 'the route never told the report its slice was full')
+      .toBe(false);
+    expect(body.returns.returnRate, 'a February nobody read reported a 0% return rate')
+      .toBeNull();
+    await app.close();
+  });
+
+  it('and the exported CSV carries the word rather than a zero', async () => {
+    const app = financeApp(async (limit) => AUGUST.slice(0, limit));
+    const res = await app.inject({
+      method: 'GET', url: '/admin/finance?from=2026-02-01&to=2026-02-28&format=csv',
+    });
+    expect(res.body).toContain('Доля возвратов, %;неизвестно');
+    expect(res.body).not.toContain('Доля возвратов, %;0,0');
+    // And the file says why, since a cell gets forwarded without the screen.
+    expect(res.body).toContain('движений склада');
+    await app.close();
+  });
+
+  it('a short slice reports a real rate', async () => {
+    // Non-vacuity: if this route answered «неизвестно» always, the word would
+    // stop being read the same week it shipped.
+    const app = financeApp(async () => [
+      move({ reason: 'sale', delta: -10, at: '2026-02-10T10:00:00.000Z' }),
+      move({ reason: 'return', delta: 2, at: '2026-02-12T10:00:00.000Z' }),
+    ]);
+    const body = (await app.inject({
+      method: 'GET', url: '/admin/finance?from=2026-02-01&to=2026-02-28',
+    })).json();
+    expect(body.slice.movesComplete).toBe(true);
+    expect(body.returns.returnRate).toBeCloseTo(0.2);
+    await app.close();
   });
 });

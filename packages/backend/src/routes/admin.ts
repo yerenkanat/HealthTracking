@@ -49,7 +49,7 @@ import {
   type BroadcastSegment,
 } from '../admin/broadcasts';
 import { HOLD_REASON_RU, NOTIFY_CATEGORIES } from '../notifications/gate';
-import { summarizeSecurity } from '../admin/security';
+import { PROTECTED_ACTIONS, summarizeSecurity } from '../admin/security';
 import { buildOwnerDashboard } from '../admin/ownerDashboard';
 import { buildMotherCard } from '../admin/motherCard';
 import { MAMA_COURSE } from './entitlements';
@@ -964,6 +964,27 @@ export function registerAdminRoutes(
   });
 
   /**
+   * How many protected reads one request will count over.
+   *
+   * A ceiling, not a window: the window itself is a SQL predicate now
+   * (Repository.listProtectedAudit), and this only bounds how many matching
+   * rows one request carries. Generous, because these rows are rare by
+   * construction — every one is somebody opening a named woman's record — so a
+   * busy year of them still fits.
+   *
+   * When it IS reached, the answer says so. The alternative is the bug it
+   * replaced: a partial count printed as a total, on the one screen whose job
+   * is to be believed by a regulator.
+   *
+   * Declared here rather than beside /admin/security because both readers of it
+   * are below, and the first is /admin/owner.
+   */
+  const SECURITY_ROW_CAP = 20_000;
+
+  /** The window the owner's «что горит» signal counts unexplained reads over. */
+  const OWNER_ACCESS_WINDOW_DAYS = 30;
+
+  /**
    * Frame 00 — «Дашборд владельца». The money, what is on fire, and one
    * decision.
    *
@@ -986,7 +1007,22 @@ export function registerAdminRoutes(
       repo.dashboardSnapshot(now.toISOString()).catch(() => null),
       repo.contentCatalog().catch(() => ({} as Record<string, ContentItemRow[]>)),
       repo.getShopSettings().catch(() => ({} as Record<string, string>)),
-      repo.listAudit(2000).catch(() => ({ entries: [], hasMore: false })),
+      // The unexplained-reads signal, over its own window and only over the
+      // protected actions — the same query frame 22 makes, for the same reason.
+      //
+      // This was the newest 2 000 rows of the whole log, filtered here to 30
+      // days. The log's ordinary traffic fills 2 000 rows in days, so the
+      // owner's «что горит» card could show nothing at all while a month's
+      // worth of unexplained reads sat just past the slice. A signal that only
+      // fires when the count is above zero, fed a count that cannot rise, is a
+      // reassuring blank.
+      repo
+        .listProtectedAudit(
+          Object.keys(PROTECTED_ACTIONS),
+          new Date(now.getTime() - OWNER_ACCESS_WINDOW_DAYS * 86_400_000).toISOString(),
+          SECURITY_ROW_CAP,
+        )
+        .catch(() => ({ entries: [], hasMore: false })),
     ]);
 
     // Medical cards published without a current signature — the same rule the
@@ -1026,7 +1062,9 @@ export function registerAdminRoutes(
             lowStock: snapshot?.commerce.lowStock ?? [],
             unreviewedMedical,
             unregisteredDevices: snapshot?.devices.unregistered ?? 0,
-            accessWithoutReason: summarizeSecurity(audit.entries, now, 30).withoutReason,
+            accessWithoutReason: summarizeSecurity(
+              audit.entries, now, OWNER_ACCESS_WINDOW_DAYS,
+            ).withoutReason,
             // Bought and never opened. Granted-minus-started, floored: a
             // negative would mean somebody is watching without access, which
             // is a different bug and must not show up here as a negative count.
@@ -1133,9 +1171,28 @@ export function registerAdminRoutes(
     const s = await requireCap(req, reply, 'staff');
     if (!s) return;
     const days = Math.min(365, Math.max(1, Number((req.query as { days?: string }).days) || 30));
-    // A wide slice, because the summary counts over it and the panel shows the
-    // hundred newest. Bounded so a year cannot pull the whole table.
-    const audit = (await repo.listAudit(5000).catch(() => ({ entries: [], hasMore: false }))).entries;
+    // The window is asked of the DATABASE, not applied to whatever the newest
+    // few thousand rows happened to be.
+    //
+    // This read the newest 5 000 rows of the whole log and filtered them here
+    // against a window of up to 365 days. audit_log is dominated by ordinary
+    // traffic — `list_users` and `view_support` on every open, the throttled
+    // emergency feed from every open tab — so 5 000 rows is DAYS. Whoever
+    // answered a regulator set the window to a year, read «Защищённых
+    // просмотров: 12 · без причины: 0», and concluded that no health record had
+    // been opened unexplained in twelve months, when the query had never looked
+    // past last week. And `hasMore` came back from listAudit already, saying
+    // exactly that, and was thrown away on this line.
+    //
+    // Filtered on both axes in SQL now (Repository.listProtectedAudit): only
+    // the protected actions, only inside the window. Those rows are a small
+    // minority of the table, so a year of them fits where a year of everything
+    // does not — one index scan on (action, at DESC), migration 050.
+    const since = new Date(Date.now() - days * 86_400_000).toISOString();
+    const page = await repo
+      .listProtectedAudit(Object.keys(PROTECTED_ACTIONS), since, SECURITY_ROW_CAP)
+      .catch(() => ({ entries: [], hasMore: false }));
+    const audit = page.entries;
     // This page lists patients by name — «кто открывал карту Айгерім и почему»
     // — so reading it is itself a read of special-category data and is
     // recorded. Unlike GET /admin/audit, which returns the raw log and is
@@ -1144,6 +1201,13 @@ export function registerAdminRoutes(
     await repo.writeAudit({ staffId: s.staffId, action: 'view_security' });
     return reply.send({
       ...summarizeSecurity(audit, new Date(), days),
+      // Even a filtered query has a ceiling, and a count that stopped at it is
+      // not a count. The page SAYS so rather than printing the partial total as
+      // if it were the whole one: a number that under-reports silently is worse
+      // than one labelled incomplete, and this is the number that exists to be
+      // over- rather than under-reported.
+      truncated: page.hasMore,
+      rowCap: SECURITY_ROW_CAP,
       // The retention promises this page reports on, from the one place each
       // is defined — so the screen cannot drift from what actually runs.
       retention: {
@@ -3409,6 +3473,21 @@ export function registerAdminRoutes(
   // roleAccess.test.ts had a case named «a seller sees no margin» that never
   // reached this route. It does now, along with /admin/owner, /admin/security
   // and /admin/entitlements, which the same gap admitted.
+  /**
+   * How many rows one finance report reads.
+   *
+   * Windows, not "everything": this route is opened casually and the tables
+   * grow forever. What they are NOT is a period — the caller picks that, and
+   * these two say how far back the answer can actually see. Both travel into
+   * buildFinanceReport so the report can tell when the period it was asked
+   * about starts before the rows it was given.
+   *
+   * The moves window is the binding one: a sale writes one stock move per order
+   * line, so 2 000 moves is reached long before 1 000 orders.
+   */
+  const FINANCE_ORDER_WINDOW = 1000;
+  const FINANCE_MOVE_WINDOW = 2000;
+
   app.get('/admin/finance', async (req, reply) => {
     const s = await requireCap(req, reply, 'finance');
     if (!s) return;
@@ -3423,9 +3502,9 @@ export function registerAdminRoutes(
     }
 
     const [orders, products, moves, settings] = await Promise.all([
-      repo.adminShopOrders(1000).catch(() => []),
+      repo.adminShopOrders(FINANCE_ORDER_WINDOW).catch(() => []),
       repo.adminProducts().catch(() => []),
-      repo.stockMoves(2000).catch(() => []),
+      repo.stockMoves(FINANCE_MOVE_WINDOW).catch(() => []),
       repo.getShopSettings().catch(() => ({} as Record<string, string>)),
     ]);
 
@@ -3434,6 +3513,16 @@ export function registerAdminRoutes(
       orders, products, moves,
       planMinor: /^\d+$/.test(planRaw) ? Number(planRaw) : null,
       from, to,
+      // The mother card's pattern, applied to the books: a full slice means
+      // there is very likely older data we did not read, and the report says so
+      // rather than reporting on a period it never reached. A sale writes one
+      // stock move PER LINE, so the moves slice is exhausted well before the
+      // orders one — ask for last February and every returns figure was 0,
+      // including the rate, printed as «Доля возвратов, % — 0,0».
+      ordersWindow: FINANCE_ORDER_WINDOW,
+      ordersTruncated: orders.length >= FINANCE_ORDER_WINDOW,
+      movesWindow: FINANCE_MOVE_WINDOW,
+      movesTruncated: moves.length >= FINANCE_MOVE_WINDOW,
     });
 
     // Reading the books is worth recording: it is the one screen that shows

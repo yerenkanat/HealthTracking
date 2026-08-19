@@ -1780,6 +1780,33 @@ export interface Repository {
    * That is not an acceptable failure in an audit log.
    */
   listAudit(limit: number, offset?: number): Promise<AuditPage>;
+  /**
+   * The reads of health and of a child's whereabouts inside a window.
+   *
+   * Frame 22 counted protected reads by pulling the newest 5 000 rows of the
+   * WHOLE log and filtering them in memory against a window of up to a year.
+   * The log is dominated by ordinary traffic — every open of the user list, of
+   * the support tab, and the throttled emergency feed from every open tab,
+   * writes to it — so 5 000 rows is days, not a year. Whoever answers a
+   * regulator set the window to twelve months, read «Защищённых просмотров: 12
+   * · без причины: 0», and concluded that no health record had been opened
+   * unexplained all year, when the query had never looked past last week.
+   * Silent under-reporting, on the one screen whose whole job is to report.
+   *
+   * Filtered in SQL on both axes instead. [actions] is PROTECTED_ACTIONS, so
+   * only special-category rows come back — a small fraction of the table — and
+   * a year of those fits where a year of everything cannot.
+   *
+   * COST: one index scan on (action, at DESC), added by migration 050. Without
+   * that index this is a filtered scan of an append-only table with no upper
+   * bound, which is why the index ships in the same change.
+   *
+   * [limit] still applies, and hasMore still means "there is at least one row
+   * past this page" — taken as one row past the page, never a count. A caller
+   * that discards it is back to the bug this replaced, so the callers SAY on
+   * screen when it is true rather than printing a partial count as a total.
+   */
+  listProtectedAudit(actions: readonly string[], sinceIso: string, limit: number): Promise<AuditPage>;
 
   // ---- Shop (device store) ----
   /// Active products with every colour variant (in- and out-of-stock), for the

@@ -1466,6 +1466,45 @@ export function createPgRepository(pool: Pool): Repository {
       };
     },
 
+    // Only the special-category actions, only inside the window — both in SQL.
+    //
+    // The same joins, the same total order and the same limit + 1 probe as
+    // listAudit, deliberately: frame 22 reads its rows out of this one, and two
+    // orderings would make the log read differently depending on which screen
+    // asked. See Repository.listProtectedAudit for what the in-memory filter it
+    // replaces was under-reporting, and what the index costs.
+    async listProtectedAudit(actions, sinceIso, limit) {
+      // No actions is an empty answer, not "every action": = ANY('{}') would be
+      // false for every row anyway, but a caller passing nothing must never be
+      // one typo away from selecting the whole log.
+      if (actions.length === 0) return { entries: [], hasMore: false };
+      const { rows } = await pool.query(
+        `SELECT l.staff_id, l.action, l.target, l.reason, l.at,
+                a.display_name AS staff_name, a.phone AS staff_phone,
+                t.display_name AS target_name, t.phone AS target_phone
+           FROM audit_log l
+           LEFT JOIN staff_accounts a ON a.id::text = l.staff_id
+           LEFT JOIN staff_accounts t ON t.id::text = l.target
+          WHERE l.action = ANY($1::text[]) AND l.at >= $2
+          ORDER BY l.at DESC, l.id DESC
+          LIMIT $3`,
+        [[...actions], sinceIso, limit + 1],
+      );
+      return {
+        hasMore: rows.length > limit,
+        entries: rows.slice(0, limit).map((r) => ({
+          staffId: r.staff_id,
+          staffName: r.staff_name ?? null,
+          staffPhone: r.staff_phone ?? null,
+          action: r.action,
+          target: r.target,
+          targetName: r.target_name ?? null,
+          reason: r.reason ?? null,
+          at: new Date(r.at).toISOString(),
+        })),
+      };
+    },
+
     // ---- Back-office drilldowns ----
     async adminUserDetail(userId) {
       const { rows: prof } = await pool.query(
