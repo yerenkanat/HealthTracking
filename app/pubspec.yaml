@@ -15,7 +15,6 @@ dependencies:
   intl: any
   flutter_blue_plus: ^1.32.0      # BLE band + beacon
   geolocator: ^12.0.0            # GPS/location fixes
-  sensors_plus: ^6.0.0          # accelerometer → AdaptiveScanController
   connectivity_plus: ^6.0.0     # flush batcher on reconnect
   flutter_local_notifications: ^17.2.3   # on-device alerts (geofence enter/exit)
   timezone: ^0.9.4              # tz-aware scheduling for reminder notifications
