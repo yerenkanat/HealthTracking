@@ -64,11 +64,27 @@ const _notActuallyDestructive = <String, String>{
 };
 
 /// Sites that are allowed to mention a destructive method without confirming
-/// beside it, because the confirmation demonstrably lives elsewhere. Each entry
-/// records WHERE, so a stale exemption is obvious on review.
+/// beside it, because the confirmation demonstrably lives elsewhere — or,
+/// rarely, because the call is not a user-facing delete at all and a
+/// confirmation would be the defect. Each entry records WHY and WHERE, so a
+/// stale exemption is obvious on review.
 const _exempt = <String, String>{
   'womens_health_screen.dart:onDelete':
       'handed to WeightHistoryScreen, which wraps it in its own _confirmDelete',
+  // The one entry here that is not "the confirmation is elsewhere".
+  //
+  // This removeChild is the UNDO half of «малыш родился»: the same handler had
+  // just called addChild itself, seconds earlier, and the undo bar is offered
+  // for exactly as long as that bar is on screen. Asking «удалить ребёнка?»
+  // after she taps «Отменить» would be asking her to confirm the cancellation
+  // of something she has not agreed to yet — and it would leave the due date
+  // cleared while the child stayed, which is the half-applied state the undo
+  // exists to prevent. The tap that CREATES the record is the one that is
+  // deliberate; this one only puts things back.
+  'womens_health_screen.dart:_undoBar(l.t(\'birth_done\')':
+      'undo of the birth transition this same handler just applied — it deletes '
+          'nothing she entered before this screen, it reverses addChild + '
+          'setDueDate(null) from a few lines above',
   'logging_drawer.dart:onResetKicks':
       '_KickCounter confirms with confirm_reset_kicks_title before invoking it',
   'womens_health_screen.dart:onClear':

@@ -19,6 +19,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fcs_app/data/api_client.dart';
 import 'package:fcs_app/data/vaccination_schedule_repository.dart';
 import 'package:fcs_app/domain/family.dart';
@@ -388,6 +389,49 @@ void main() {
       await pump(tester, childAged(6));
       expect(find.text(ru.t('vac_source_server')), findsOneWidget);
       expect(find.text(ru.t('vac_revision', {'d': scheduleRevision})), findsNothing);
+    });
+  });
+
+  // vaccination_schedule_repository.dart is compiled by tool/verify_*.dart in a
+  // plain `dart run` VM, so it may not import shared_preferences: doing so took
+  // dart:ui with it and stopped verify_persistence, verify_app, verify_alerts
+  // and verify_chat compiling at all — 379 assertions that ran zero times for
+  // five days while CI reported the job as the gate for all of them.
+  //
+  // So the prefs-backed cache lives in its own file now, chosen by a
+  // conditional export on `dart.library.ui`. Which means there are TWO classes
+  // called PrefsVaccinationScheduleCache and the non-Flutter one throws. If
+  // that condition ever resolved the wrong way in a real build, every launch
+  // would drop the cached calendar and fall back to the compiled-in one —
+  // silently, because primeVaccinationScheduleFromCache catches and logs, which
+  // is exactly the "a failure keeps what we have" behaviour that makes it
+  // invisible. Every other test here injects _MemoryCache and would not notice.
+  group('a Flutter build gets the prefs-backed cache, not the stub', () {
+    setUp(() {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('it reads and writes shared_preferences rather than throwing', () async {
+      const cache = PrefsVaccinationScheduleCache();
+      expect(await cache.read(), isNull, reason: 'first launch: nothing cached');
+
+      final raw = payload(movedTo: {'pcv/2': 9});
+      await cache.write(raw);
+      // The exact bytes, under the key the rest of the app looks at.
+      expect(await cache.read(), raw);
+      expect((await SharedPreferences.getInstance())
+          .getString(vaccinationScheduleCacheKey), raw);
+    });
+
+    test('so a cold launch with no signal applies what it kept', () async {
+      const cache = PrefsVaccinationScheduleCache();
+      await cache.write(payload(movedTo: {'pcv/2': 9}, dueWindowMonths: 2));
+
+      await primeVaccinationScheduleFromCache(cache);
+      // The stub throws on read, prime swallows it, and this stays false.
+      expect(vaccinationScheduleIsFromServer(), isTrue);
+      expect(servedDueWindowMonths(), 2);
     });
   });
 }

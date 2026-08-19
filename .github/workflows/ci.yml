@@ -11,11 +11,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
+      # This used to be dart-lang/setup-dart with the comment "the verify_*
+      # scripts have no package: imports, so they run without pub get". That
+      # stopped being true: verify_datemath and verify_reminder_schedule import
+      # package:timezone, verify_transport imports package:http (and so does
+      # lib/data/http_transport.dart, which it pulls in). A clean checkout has
+      # no .dart_tool/, and `dart run` does NOT resolve dependencies for you —
+      # it only skips resolution for scripts that need no package. Those three
+      # would have died with "Not found: 'package:timezone/timezone.dart'" and
+      # exit 254, i.e. zero assertions, reported by verify_all as ERROR.
+      #
+      # And pub get here needs Flutter, not bare Dart: pubspec.yaml depends on
+      # `flutter: sdk: flutter`, which a standalone Dart SDK cannot resolve at
+      # all. So the job takes the Flutter SDK even though nothing it runs is a
+      # Flutter program.
+      - uses: subosito/flutter-action@v2
         with:
-          sdk: stable
-      # The verify_* scripts have no package: imports, so they run without pub get.
+          channel: stable
+      - run: flutter pub get
+        working-directory: app
       # verify_all discovers every runner, so adding one needs no CI change.
+      # It exits 1 if ANY runner fails or fails to compile — a runner that
+      # cannot compile prints no summary line and is reported as ERROR rather
+      # than skipped, which is the only reason four silently-dead runners were
+      # findable at all.
       - name: Verify all pure-Dart domain logic
         run: dart run tool/verify_all.dart
         working-directory: app

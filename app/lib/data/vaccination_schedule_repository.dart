@@ -22,16 +22,35 @@
 /// (admin frames 15/15a/15b) and no phone ever found out. Deliberately mirrors
 /// pregnancy_weeks_repository.dart: same ladder, same cache-the-exact-bytes
 /// rule, same "a failure keeps what we have".
+///
+/// PURE DART, DELIBERATELY. app/lib/app/app_controller.dart imports this file,
+/// and every `tool/verify_*.dart` runner that builds an AppController compiles
+/// it under a plain `dart run` VM. One `package:flutter` or
+/// `package:shared_preferences` import here takes `dart:ui` with it and those
+/// runners stop compiling — not failing an assertion, running none at all,
+/// which is how verify_persistence, verify_app, verify_alerts and verify_chat
+/// went silent for five days without anyone noticing. Hence `dart:developer`
+/// instead of `debugPrint`, and the conditional export at the foot of this file
+/// instead of a direct dependency on the prefs-backed cache.
 library;
 
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:shared_preferences/shared_preferences.dart';
+// Not package:flutter's debugPrint — see the library comment. `dart:developer`
+// is in the VM and in Flutter, so it logs from a verify_* runner too.
+import 'dart:developer' as developer;
 
 import '../domain/vaccination.dart';
 import 'api_client.dart';
+
+/// The real, shared_preferences-backed [VaccinationScheduleCache], for callers
+/// that already import this file (main.dart is the only one).
+///
+/// Conditional so that a non-Flutter compile — the verify_* runners — never
+/// pulls shared_preferences in. `dart.library.ui` is false in the `dart run`
+/// VM, which is exactly the case that must stay plugin-free.
+export 'vaccination_schedule_cache_unsupported.dart'
+    if (dart.library.ui) 'vaccination_schedule_cache.dart';
 
 /// Key under which the last good `/vaccination/schedule` response is cached.
 const vaccinationScheduleCacheKey = 'vaccination_schedule_json';
@@ -43,19 +62,13 @@ abstract class VaccinationScheduleCache {
   Future<void> write(String json);
 }
 
-/// [VaccinationScheduleCache] over shared_preferences — the same store the rest
-/// of the app's durable state uses.
-class PrefsVaccinationScheduleCache implements VaccinationScheduleCache {
-  const PrefsVaccinationScheduleCache();
-
-  @override
-  Future<String?> read() async =>
-      (await SharedPreferences.getInstance()).getString(vaccinationScheduleCacheKey);
-
-  @override
-  Future<void> write(String json) async =>
-      (await SharedPreferences.getInstance()).setString(vaccinationScheduleCacheKey, json);
-}
+/// Where a degraded schedule load is recorded.
+///
+/// Every call site below is a failure the user must not see: the bundled
+/// calendar stays on screen and the app says nothing. That is the right
+/// behaviour and it is also the reason a trace has to exist somewhere.
+void _log(String message) =>
+    developer.log(message, name: 'vaccination_schedule');
 
 /// One parsed answer: the calendar and the catch-up window that came with it.
 class ServedVaccinationSchedule {
@@ -116,7 +129,7 @@ Future<void> primeVaccinationScheduleFromCache(VaccinationScheduleCache cache) a
     _current = parsed;
     _fromServer = true;
   } catch (e) {
-    debugPrint('vaccination schedule: cached copy unusable, keeping the bundled calendar — $e');
+    _log('vaccination schedule: cached copy unusable, keeping the bundled calendar — $e');
   }
 }
 
@@ -149,7 +162,7 @@ Future<int?> refreshVaccinationScheduleFromApi({
     _fromServer = true;
     return parsed.vaccines.length;
   } catch (e) {
-    debugPrint('vaccination schedule: refresh failed, keeping what we have — $e');
+    _log('vaccination schedule: refresh failed, keeping what we have — $e');
     return null;
   }
 }
@@ -206,7 +219,7 @@ ServedVaccinationSchedule? parseServedVaccinationSchedule(String raw) {
       version: _asInt(map['version']) ?? 0,
     );
   } catch (e) {
-    debugPrint('vaccination schedule: could not parse a payload — $e');
+    _log('vaccination schedule: could not parse a payload — $e');
     return null;
   }
 }
