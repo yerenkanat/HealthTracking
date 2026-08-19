@@ -612,10 +612,26 @@ class _ImportDialogState extends State<_ImportDialog> {
                 maxLines: null,
                 minLines: null,
                 textAlignVertical: TextAlignVertical.top,
+                // Mono for the JSON — this is the one place in the app where a
+                // monospace face earns its keep on something other than digits.
                 style:
                     const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 12),
                 decoration: InputDecoration(
                   hintText: l.t('set_import_hint'),
+                  // The hint is a SENTENCE, and a TextField's `style` reaches
+                  // it: `InputDecorator` merges the field style into the hint
+                  // style, so «Мұнда JSON сақтық көшірмесін қойыңыз» was being
+                  // set in JetBrains Mono, which has no ұ қ ң — those three
+                  // letters came out of the Rubik fallback, proportional,
+                  // inside a monospace line. Naming the body face here puts the
+                  // whole sentence back in one typeface without taking mono off
+                  // the JSON.
+                  hintStyle: TextStyle(
+                    fontFamily: DsFont.bodyFor(l.locale),
+                    fontFamilyFallback: DsFont.fallback,
+                    fontSize: 12,
+                    color: Palette.textDim,
+                  ),
                   alignLabelWithHint: true,
                   border: const OutlineInputBorder(),
                 ),

@@ -102,10 +102,15 @@ class SleepCard extends StatelessWidget {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
+                    // The headline is a NUMBER AND ITS UNITS, and the units are
+                    // localized: «8 сағ 15 мин». JetBrains Mono has no ғ, so
+                    // the Kazakh «сағ» came out half in Rubik — invisible in
+                    // ru/en, and never a box. Nothing lines up under this
+                    // figure, so the mono face bought nothing to weigh against
+                    // that.
                     child: Text(l.duration(last.asleepMin),
                         maxLines: 1,
                         style: const TextStyle(
-                          fontFamily: 'JetBrainsMono',
                           fontSize: 30,
                           fontWeight: FontWeight.w700,
                           height: 1,

@@ -155,11 +155,16 @@ class _WeekDetailScreenState extends State<WeekDetailScreen> {
                               fontSize: 20, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 3),
+                        // No mono face here. The Kazakh of this line is
+                        // «≈ {cm} см ұзындық», and JetBrains Mono has neither ұ
+                        // nor қ: both would be drawn from the Rubik fallback,
+                        // two proportional glyphs inside a monospace word, in
+                        // Kazakh only. A monospace face lines up columns of
+                        // digits; this is one number inside a sentence.
                         Text(
                           l.t('bsize_length',
                               {'cm': size.lengthCm.toStringAsFixed(1)}),
                           style: const TextStyle(
-                              fontFamily: 'JetBrainsMono',
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: Palette.violet),

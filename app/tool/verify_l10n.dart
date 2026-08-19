@@ -3,7 +3,6 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 import '../lib/domain/child_development.dart';
 import '../lib/domain/vaccination.dart';
 import '../lib/domain/postpartum.dart';
@@ -20,6 +19,7 @@ import '../lib/domain/labour_signs.dart';
 import '../lib/domain/teething.dart';
 import '../lib/domain/antenatal_protocol.dart';
 import '../lib/l10n/l10n.dart';
+import 'font_cmap.dart';
 import '../lib/domain/child_tracker_state.dart';
 import '../lib/core/geofence.dart';
 
@@ -189,7 +189,7 @@ void main() {
   // renders, and the Kazakh of both uses › instead. Nothing enforced that. This
   // does — by reading Rubik's own cmap table, not by trusting the list above.
   {
-    final rubik = _cmapOf(File.fromUri(Platform.script.resolve('../assets/fonts/Rubik.ttf')));
+    final rubik = cmapOf(File.fromUri(Platform.script.resolve('../assets/fonts/Rubik.ttf')));
     _chk('read Rubik\'s cmap (${rubik.length} codepoints)', rubik.length > 500);
     // The nine letters the whole rule is about, asserted by codepoint.
     const kazakhOnly = 'ӘҒҚҢӨҰҮҺІәғқңөұүһі';
@@ -775,68 +775,6 @@ void main() {
 bool _sameSet(Set<String> a, Set<String> b) =>
     a.length == b.length && a.containsAll(b);
 
-/// Every Unicode codepoint a TrueType file can actually draw, read out of its
-/// `cmap` table. Formats 4 (BMP) and 12 (full range) only — those are the two
-/// the bundled families use, and an unrecognised subtable is skipped rather
-/// than guessed at. Throws if no subtable was usable, so a font this cannot
-/// parse fails loudly instead of reporting "no missing glyphs".
-Set<int> _cmapOf(File f) {
-  final bytes = f.readAsBytesSync();
-  final d = ByteData.sublistView(Uint8List.fromList(bytes));
-  final numTables = d.getUint16(4);
-  int? cmap;
-  for (var i = 0; i < numTables; i++) {
-    final rec = 12 + i * 16;
-    if (String.fromCharCodes(bytes.sublist(rec, rec + 4)) == 'cmap') {
-      cmap = d.getUint32(rec + 8);
-    }
-  }
-  if (cmap == null) throw StateError('no cmap table in ${f.path}');
-
-  final out = <int>{};
-  var usable = 0;
-  final n = d.getUint16(cmap + 2);
-  for (var i = 0; i < n; i++) {
-    final off = cmap + d.getUint32(cmap + 4 + i * 8 + 4);
-    switch (d.getUint16(off)) {
-      case 4:
-        usable++;
-        final segX2 = d.getUint16(off + 6);
-        final endO = off + 14;
-        final startO = endO + segX2 + 2;
-        final deltaO = startO + segX2;
-        final rangeO = deltaO + segX2;
-        for (var s = 0; s < segX2 ~/ 2; s++) {
-          final start = d.getUint16(startO + s * 2);
-          if (start == 0xFFFF) continue;
-          final end = d.getUint16(endO + s * 2);
-          final delta = d.getInt16(deltaO + s * 2);
-          final ro = d.getUint16(rangeO + s * 2);
-          for (var c = start; c <= end; c++) {
-            int g;
-            if (ro == 0) {
-              g = (c + delta) & 0xFFFF;
-            } else {
-              final gi = rangeO + s * 2 + ro + (c - start) * 2;
-              if (gi + 1 >= bytes.length) continue;
-              g = d.getUint16(gi);
-              if (g != 0) g = (g + delta) & 0xFFFF;
-            }
-            if (g != 0) out.add(c);
-          }
-        }
-      case 12:
-        usable++;
-        final groups = d.getUint32(off + 12);
-        for (var g = 0; g < groups; g++) {
-          final go = off + 16 + g * 12;
-          final sc = d.getUint32(go), ec = d.getUint32(go + 4);
-          for (var c = sc; c <= ec; c++) {
-            out.add(c);
-          }
-        }
-    }
-  }
-  if (usable == 0) throw StateError('no format 4 or 12 subtable in ${f.path}');
-  return out;
-}
+// The cmap reader that used to live here now sits in tool/font_cmap.dart, so
+// that the guard in test/localised_text_font_test.dart reads glyph coverage
+// through the same parser this runner does.

@@ -2408,12 +2408,15 @@ class _DigestStat extends StatelessWidget {
             // out against — "7h 19m" became "7 ч 19 мин" and wrapped mid-value
             // into "7 ч 19" / "МИН". Wrapping is legal layout, so nothing
             // failed; it just looked broken.
+            //
+            // Not monospaced, for the same reason: that localized duration is
+            // «7 сағ 19 мин» in Kazakh and JetBrains Mono has no ғ, so the unit
+            // was drawn from the Rubik fallback inside a mono word.
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(value,
                   maxLines: 1,
                   style: TextStyle(
-                      fontFamily: 'JetBrainsMono',
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: color)),

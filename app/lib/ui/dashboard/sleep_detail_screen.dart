@@ -157,7 +157,11 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontFamily: 'JetBrainsMono', fontSize: 19, fontWeight: FontWeight.w700)),
+        // `value` is `l.duration(...)` for two of the three stats — «7 сағ 40
+        // мин» in Kazakh — and JetBrains Mono has no ғ, so the unit came out of
+        // the Rubik fallback mid-word. Three stats in three Expandeds do not
+        // line up under each other anyway, so there is no column to keep.
+        Text(value, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
         const SizedBox(height: 3),
         Text(label, textAlign: TextAlign.center, style: const TextStyle(color: Palette.textDim, fontSize: 11.5)),
       ],

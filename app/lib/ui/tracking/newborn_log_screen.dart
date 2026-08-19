@@ -366,9 +366,13 @@ class _Tally extends StatelessWidget {
           children: [
             Text(label, style: const TextStyle(color: Palette.textDim, fontSize: 11.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
+            // No mono face: `value` is a count for feeds and nappies but a
+            // localized duration for sleep («0 сағ 0 мин»), and JetBrains Mono
+            // has no ғ — the unit was coming from the Rubik fallback mid-word,
+            // in Kazakh only.
             Text(value,
                 style: TextStyle(
-                    fontFamily: 'JetBrainsMono', fontSize: 22, fontWeight: FontWeight.w700, color: colour)),
+                    fontSize: 22, fontWeight: FontWeight.w700, color: colour)),
             if (sub.isNotEmpty) ...[
               const SizedBox(height: 2),
               Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Palette.textDim, fontSize: 11)),
