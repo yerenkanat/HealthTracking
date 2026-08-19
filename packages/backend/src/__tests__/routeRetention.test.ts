@@ -17,15 +17,43 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   ROUTE_RETENTION_DAYS,
+  RETENTION_SWEEPS,
   retentionCutoff,
-  scheduleRouteRetention,
-  sweepRoutes,
+  scheduleRetention,
+  sweepOne,
+  type RetentionDeps,
 } from '../privacy/retention';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 
 const NOW = new Date('2026-08-07T12:00:00.000Z');
 const daysAgo = (d: number) => new Date(NOW.getTime() - d * 86_400_000).toISOString();
+
+/**
+ * The route sweep, looked up rather than reconstructed.
+ *
+ * Taken from RETENTION_SWEEPS by table name, so if the entry is ever dropped
+ * from the schedule this file fails on the lookup instead of quietly testing a
+ * sweep nothing runs. That is the exact failure this suite exists for: the
+ * DELETE was never missing, the CALLER was.
+ */
+const ROUTE_SWEEP = RETENTION_SWEEPS.find((s) => s.table === 'location_history')!;
+
+/**
+ * A RetentionDeps whose other tables do nothing, so a test about routes is
+ * about routes. Anything not overridden returns 0 and deletes nothing.
+ */
+const deps = (over: Partial<RetentionDeps> = {}): RetentionDeps => ({
+  pruneLocationHistory: async () => 0,
+  pruneGeofenceEvents: async () => 0,
+  pruneSafetyAlerts: async () => 0,
+  pruneAuditLog: async () => 0,
+  prunePhoneCodes: async () => 0,
+  pruneLoginAttempts: async () => 0,
+  pruneShopLeads: async () => 0,
+  pruneSupportTickets: async () => 0,
+  ...over,
+});
 
 describe('the window is the one the app promises', () => {
   it('is 90 days, named once', () => {
@@ -51,17 +79,20 @@ describe('the window is the one the app promises', () => {
 describe('one sweep', () => {
   it('asks the repository to delete everything past the window', async () => {
     const prune = vi.fn(async () => 41);
-    const res = await sweepRoutes({ pruneLocationHistory: prune }, NOW);
+    const res = await sweepOne(ROUTE_SWEEP, deps({ pruneLocationHistory: prune }), NOW);
     expect(prune).toHaveBeenCalledWith(daysAgo(90));
-    expect(res).toEqual({ removed: 41, cutoff: daysAgo(90) });
+    // The table travels with the result: with eight sweeps on one schedule, a
+    // log line saying only "removed 41" cannot be checked against anything.
+    expect(res).toEqual({ table: 'location_history', removed: 41, cutoff: daysAgo(90) });
   });
 
   it('reports a failure instead of throwing', async () => {
     // A retention job that takes the process down on a transient database error
     // gets disabled by whoever is on call, and a disabled retention job is the
     // state this whole feature exists to end.
-    const res = await sweepRoutes(
-      { pruneLocationHistory: async () => { throw new Error('connection reset'); } },
+    const res = await sweepOne(
+      ROUTE_SWEEP,
+      deps({ pruneLocationHistory: async () => { throw new Error('connection reset'); } }),
       NOW,
     );
     expect(res.error).toBe('connection reset');
@@ -72,7 +103,7 @@ describe('one sweep', () => {
 
   it('a quiet run and a failed run do not look alike', async () => {
     // The other way this dies: nobody notices it stopped.
-    const quiet = await sweepRoutes({ pruneLocationHistory: async () => 0 }, NOW);
+    const quiet = await sweepOne(ROUTE_SWEEP, deps({ pruneLocationHistory: async () => 0 }), NOW);
     expect(quiet.error).toBeUndefined();
   });
 });
@@ -83,7 +114,7 @@ describe('it is scheduled, which is the part that was missing', () => {
     // sweep at all — and on one box, a deploy every few days against a
     // six-hour timer is exactly that shape.
     const prune = vi.fn(async () => 0);
-    const stop = scheduleRouteRetention({ pruneLocationHistory: prune }, { now: () => NOW });
+    const stop = scheduleRetention(deps({ pruneLocationHistory: prune }), { now: () => NOW });
     await vi.waitFor(() => expect(prune).toHaveBeenCalledTimes(1));
     stop();
   });
@@ -92,8 +123,8 @@ describe('it is scheduled, which is the part that was missing', () => {
     vi.useFakeTimers();
     try {
       const prune = vi.fn(async () => 0);
-      const stop = scheduleRouteRetention(
-        { pruneLocationHistory: prune },
+      const stop = scheduleRetention(
+        deps({ pruneLocationHistory: prune }),
         { now: () => NOW, intervalMs: 1000 },
       );
       expect(prune).toHaveBeenCalledTimes(1); // the immediate run
@@ -113,8 +144,8 @@ describe('it is scheduled, which is the part that was missing', () => {
     vi.useFakeTimers();
     try {
       const prune = vi.fn(async () => { throw new Error('down'); });
-      const stop = scheduleRouteRetention(
-        { pruneLocationHistory: prune },
+      const stop = scheduleRetention(
+        deps({ pruneLocationHistory: prune }),
         { now: () => NOW, intervalMs: 1000 },
       );
       await vi.advanceTimersByTimeAsync(2500);

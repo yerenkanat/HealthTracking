@@ -221,7 +221,18 @@ function makeDeps(
     stockMoves: async () => [],
     soldUnitsSince: async () => ({}),
     courseLessonWatchers: async () => 0,
+    // The retention sweeps. This fake serves the request flows below, none of
+    // which delete anything on a schedule; the sweeps are exercised against the
+    // real memory repository in retentionSweeps.test.ts, where a deletion can
+    // be read back and the rows next to it checked for survival.
     pruneLocationHistory: async () => 0,
+    pruneGeofenceEvents: async () => 0,
+    pruneSafetyAlerts: async () => 0,
+    pruneAuditLog: async () => 0,
+    prunePhoneCodes: async () => 0,
+    pruneLoginAttempts: async () => 0,
+    pruneShopLeads: async () => 0,
+    pruneSupportTickets: async () => 0,
     userByPhone: async () => null,
     createUserWithPhone: async (a: { phone: string; displayName: string }) =>
       ({ id: 'user-1', displayName: a.displayName }),

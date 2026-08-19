@@ -47,7 +47,7 @@ const ROWS: AuditRow[] = [
 
 const SECURITY = {
   ...summarizeSecurity(ROWS, NOW, 30),
-  retention: { routeDays: 90, auditSweep: null },
+  retention: { routeDays: 90, auditSweep: 3 },
 };
 
 const ROLES = {
@@ -191,11 +191,27 @@ describe('frame 22 · Безопасность', () => {
     expect(t).toContain('Маршруты детей');
     expect(t).toContain('90');
     expect(t).toContain('Журнал доступа');
-    // It must NOT quote a period for the audit log. This assertion used to be
-    // toContain('3'), which pinned the false claim: the panel printed «3 года»
-    // beside the real, scheduled 90-day route sweep, while nothing has ever
-    // deleted an audit_log row. A reviewer read two enforced periods where
-    // only one exists.
+    // The audit period is back, and now it is true: privacy/retention.ts sweeps
+    // audit_log at AUDIT_RETENTION_YEARS and the route serves that same
+    // constant. What this pins is that the panel PRINTS WHAT IT WAS GIVEN
+    // rather than a literal of its own — the original defect was a hard-coded 3
+    // in this HTML with no sweep anywhere. That the sweep exists is asserted
+    // where it can be, against the schedule itself: security.test.ts.
+    expect(t).toContain('3 года');
+    expect(t).toContain('удаляется автоматически');
+    expect(t).not.toContain('срок не задан');
+  });
+
+  it('says the period is unset when the server says so', async () => {
+    // The other branch, still reachable and still honest: if a period is ever
+    // withdrawn, the card must go back to naming no number rather than keeping
+    // the last one it saw. b8aac0c added this branch; nothing would exercise it
+    // once a number came back.
+    const p = await render('security', [], {
+      ...SECURITY,
+      retention: { routeDays: 90, auditSweep: null },
+    });
+    const t = p.text('#secRetention');
     expect(t).toContain('срок не задан');
     expect(t).not.toContain('года');
   });

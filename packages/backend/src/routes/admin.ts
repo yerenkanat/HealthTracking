@@ -54,7 +54,7 @@ import { buildOwnerDashboard } from '../admin/ownerDashboard';
 import { buildMotherCard } from '../admin/motherCard';
 import { MAMA_COURSE } from './entitlements';
 import { normalizePhone } from '../phone';
-import { ROUTE_RETENTION_DAYS } from '../privacy/retention';
+import { AUDIT_RETENTION_YEARS, ROUTE_RETENTION_DAYS } from '../privacy/retention';
 import {
   carryReview, reviewIsCurrent, reviewMessage, textFingerprint, unreviewed,
   type ReviewableItem,
@@ -1210,19 +1210,22 @@ export function registerAdminRoutes(
       rowCap: SECURITY_ROW_CAP,
       // The retention promises this page reports on, from the one place each
       // is defined — so the screen cannot drift from what actually runs.
-      // auditYears used to sit here as a bare literal 3, directly beneath a
-      // comment claiming the screen «cannot drift from what actually runs» —
-      // and nothing has ever deleted an audit_log row. So the page told a
-      // reviewer, on the screen whose entire job is accountability, that the
-      // record is kept three years, when it is kept for ever.
       //
-      // Reported as unset rather than as a number. What the period SHOULD be
-      // is the owner's call (TODO §9.6): the audit log is the evidence that
-      // nobody read a mother's record unexplained, so deleting it early is its
-      // own harm and a sweep must not be invented by an engineer.
+      // The audit period has been round this loop twice. It began as a bare
+      // literal 3 directly beneath this comment, with nothing anywhere
+      // deleting an audit_log row: the screen whose entire job is
+      // accountability told a reviewer the record is kept three years when it
+      // was kept for ever, and the fiction was credible precisely because it
+      // sat beside the real 90-day route sweep. b8aac0c took the number away
+      // and printed «срок не задан» instead, which was honest and useless.
+      //
+      // The owner has now set it, and privacy/retention.ts sweeps audit_log on
+      // that period. So the number is back — read from AUDIT_RETENTION_YEARS,
+      // which is the same constant the sweep's cutoff is derived from. It
+      // cannot be true here and false there.
       retention: {
         routeDays: ROUTE_RETENTION_DAYS,
-        auditSweep: null,
+        auditSweep: AUDIT_RETENTION_YEARS,
       },
     });
   });

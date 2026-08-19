@@ -19,6 +19,12 @@ import { dirname, resolve, join } from 'node:path';
 import { PROTECTED_ACTIONS, summarizeSecurity, type AuditRow } from '../admin/security';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
+import {
+  AUDIT_RETENTION_YEARS,
+  RETENTION_SWEEPS,
+  ROUTE_RETENTION_DAYS,
+  retentionCutoff,
+} from '../privacy/retention';
 import type { StaffRole } from '../auth/capabilities';
 
 const NOW = new Date('2026-08-08T12:00:00.000Z');
@@ -231,15 +237,40 @@ describe('GET /admin/security', () => {
     // The screen reports these to a regulator. Re-typing 90 here is how the
     // page ends up claiming something the sweep does not do.
     const body = (await app.inject({ method: 'GET', url: '/admin/security' })).json();
-    expect(body.retention.routeDays).toBe(90);
-    // The audit log has NO sweep — nothing has ever deleted a row. The page
-    // printed «3 года» beside the real, scheduled 90-day route sweep, so a
-    // reviewer read an enforced period where none exists. Unset until the
-    // owner sets one: deleting the evidence that nobody read a mother's record
-    // unexplained is its own harm, so an engineer must not invent the number.
-    expect(body.retention.auditSweep).toBeNull();
-    expect(body.retention).not.toHaveProperty('auditYears');
+    expect(body.retention.routeDays).toBe(ROUTE_RETENTION_DAYS);
+    expect(body.retention.auditSweep).toBe(AUDIT_RETENTION_YEARS);
     await app.close();
+  });
+
+  it('the audit period is a SWEEP, not a number on a screen', async () => {
+    // This is the assertion that matters, and the one that was missing when
+    // the page printed «3 года» for months with nothing deleting a row. A
+    // number is cheap; the scheduled DELETE behind it is the claim.
+    //
+    // b8aac0c corrected the page to «срок не задан» and pinned that with the
+    // inverse assertion. The period exists now, so the pin moves to where it
+    // should always have been: the entry in RETENTION_SWEEPS, the cutoff it
+    // computes, and a row actually disappearing.
+    const sweep = RETENTION_SWEEPS.find((s) => s.table === 'audit_log');
+    expect(sweep, 'audit_log is not on the retention schedule').toBeDefined();
+    expect(sweep!.days).toBe(AUDIT_RETENTION_YEARS * 365);
+
+    // And it deletes. An old row goes; a row inside the window stays, which is
+    // the half that matters more — a sweep that over-deletes cannot be undone,
+    // and this table is the evidence that nobody read a record unexplained.
+    const repo = createMemoryRepository();
+    const now = new Date('2026-08-19T12:00:00.000Z');
+    const cutoff = retentionCutoff(now, sweep!.days);
+    await repo.writeAudit({ staffId: 's1', action: 'view_user_detail', target: 'u1', reason: 'Разбор жалобы' });
+    const before = (await repo.listAudit(50)).entries.length;
+    expect(before).toBeGreaterThan(0);
+    // Nothing in this fresh repository is three years old.
+    expect(await repo.pruneAuditLog(cutoff)).toBe(0);
+    expect((await repo.listAudit(50)).entries.length).toBe(before);
+    // Everything is, once the cutoff moves past today.
+    expect(await repo.pruneAuditLog(new Date(now.getTime() + 86_400_000).toISOString()))
+      .toBe(before);
+    expect((await repo.listAudit(50)).entries).toEqual([]);
   });
 
   it('is the `staff` capability, not `health`', async () => {

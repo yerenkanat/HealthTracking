@@ -174,11 +174,19 @@ void main() {
   group('the retention card at the bottom', () {
     // TODO §9.9. The card used to read «Маршруты хранятся 90 дней, потом
     // удаляются автоматически» on every state, directly under a list of zone
-    // crossings and SOS events. That sentence is true about location_history,
+    // crossings and SOS events. That sentence was true about location_history,
     // which really is swept every six hours, and false about everything the
-    // list contains: geofence_events and safety_alerts have no sweep at all and
-    // live until the account is deleted. A mother reading it over her
-    // daughter's SOS was told the opposite of what happens to it.
+    // list contains. A mother reading it over her daughter's SOS was told the
+    // opposite of what happens to it.
+    //
+    // 2026-08-19 (§9.6): geofence_events and safety_alerts now HAVE sweeps —
+    // 90 days and 12 months. So the second half of the card changed for the
+    // opposite reason: «хранятся, пока существует ваш аккаунт» became the false
+    // sentence. It still names no period, and the test below still forbids one,
+    // because this line renders on a FAILED load where the server has answered
+    // nothing — a number here could only be a literal in the catalogue, which
+    // is the drift day_retention_route avoids by interpolating {n} from the
+    // payload. It points at the policy, which states both periods in full.
 
     testWidgets('says what happens to the crossings and the SOS, on every state',
         (tester) async {
@@ -206,9 +214,8 @@ void main() {
       // A real day as the server answers it today: SOS rows arrive over
       // POST /alerts, and no route does — nothing in app/lib calls
       // TelemetryBatcher.enqueueLocation, so location_history stays empty and
-      // its 90-day sweep governs nothing that is on this screen. Printing a
-      // number here would be a retention promise over the two tables beneath
-      // it, neither of which is ever deleted.
+      // its 90-day sweep governs nothing that is on this screen. Printing the
+      // ROUTE period here would be a promise about a line that was not drawn.
       await pumpHistory(
         tester,
         load: (_) async => history(
@@ -239,9 +246,12 @@ void main() {
     test('the sentence about the events names no period, in any language', () {
       for (final locale in AppLocale.values) {
         final s = L10n(locale).t('day_retention_events');
-        // §9.6: nobody has chosen a period for geofence_events or
-        // safety_alerts, and none may be printed before there is code that
-        // deletes. A digit in this string is that invented number.
+        // The periods exist now (§9.6: 90 days for a crossing, 12 months for
+        // an alert) — but this string is printed on states where the server has
+        // answered nothing, so any digit in it is a literal typed into the
+        // catalogue rather than one read from the constant the sweep uses.
+        // That is precisely the drift this pair of lines was split to avoid.
+        // The numbers belong in the policy, which is where it now sends her.
         expect(RegExp(r'\d').hasMatch(s), isFalse,
             reason: '$locale: «$s» names a period for data nothing deletes');
         // It has to be recognisable as being about what is listed above it.

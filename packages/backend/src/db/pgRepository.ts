@@ -543,6 +543,84 @@ export function createPgRepository(pool: Pool): Repository {
       return rowCount ?? 0;
     },
 
+    // ---- The rest of the retention sweeps -----------------------------------
+    //
+    // Every period lives in src/privacy/retention.ts; nothing here knows a
+    // number. Every predicate is strictly "< cutoff", never "<=", so a row on
+    // the boundary is still inside its window — deleting a day early is the
+    // safe direction, but a period that is wrong by a day is still wrong.
+    //
+    // All of these are indexed: idx_gfevents_child_time, idx_safety_alerts_at,
+    // idx_audit_at, phone_codes_expiry (created_at is scanned, but the table is
+    // one row per number and tiny), user_login_attempts_phone_at,
+    // staff_login_attempts_phone_at, idx_shop_leads_created, idx_support_open.
+
+    async pruneGeofenceEvents(cutoffIso) {
+      const { rowCount } = await pool.query(
+        'DELETE FROM geofence_events WHERE occurred_at < $1', [cutoffIso]);
+      return rowCount ?? 0;
+    },
+
+    async pruneSafetyAlerts(cutoffIso) {
+      // SOS rows included, deliberately. What survives twelve months is the
+      // parent's own memory of the event, not our record of where the child was.
+      const { rowCount } = await pool.query(
+        'DELETE FROM safety_alerts WHERE at < $1', [cutoffIso]);
+      return rowCount ?? 0;
+    },
+
+    async pruneAuditLog(cutoffIso) {
+      const { rowCount } = await pool.query(
+        'DELETE FROM audit_log WHERE at < $1', [cutoffIso]);
+      return rowCount ?? 0;
+    },
+
+    async prunePhoneCodes(cutoffIso) {
+      // created_at, not expires_at: a code expires in minutes, so sweeping on
+      // expiry would measure the thirty days from the wrong instant. This is
+      // the abandoned-sign-in case — a number that asked for a code and never
+      // came back, whose row otherwise lives for ever.
+      const { rowCount } = await pool.query(
+        'DELETE FROM phone_codes WHERE created_at < $1', [cutoffIso]);
+      return rowCount ?? 0;
+    },
+
+    async pruneLoginAttempts(cutoffIso) {
+      // Both tables, one period, one returned total — they are one decision,
+      // and two methods would let a later edit move one and forget the other.
+      const [users, staff] = await Promise.all([
+        pool.query('DELETE FROM user_login_attempts WHERE at < $1', [cutoffIso]),
+        pool.query('DELETE FROM staff_login_attempts WHERE at < $1', [cutoffIso]),
+      ]);
+      return (users.rowCount ?? 0) + (staff.rowCount ?? 0);
+    },
+
+    async pruneShopLeads(cutoffIso) {
+      const { rowCount } = await pool.query(
+        'DELETE FROM shop_leads WHERE created_at < $1', [cutoffIso]);
+      return rowCount ?? 0;
+    },
+
+    async pruneSupportTickets(cutoffIso) {
+      // Measured from the LAST activity on the thread, which is updated_at
+      // PLUS the newest reply — a thread that ran for two years must not lose
+      // its beginning while its end is still live. The NOT EXISTS is what
+      // makes that true even if some future write appends a reply without
+      // touching the ticket row.
+      //
+      // support_replies is ON DELETE CASCADE, so the thread goes with it. The
+      // count is TICKETS, matching the in-memory repository and the interface.
+      const { rowCount } = await pool.query(
+        `DELETE FROM support_tickets t
+           WHERE t.updated_at < $1
+             AND NOT EXISTS (
+               SELECT 1 FROM support_replies r
+                WHERE r.ticket_id = t.id AND r.at >= $1)`,
+        [cutoffIso],
+      );
+      return rowCount ?? 0;
+    },
+
     async lastLocation(childId) {
       const { rows } = await pool.query(
         `SELECT child_id, observed_at, lat, lng, source, accuracy_m

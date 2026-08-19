@@ -1157,6 +1157,47 @@ export interface Repository {
    */
   pruneLocationHistory(cutoffIso: string): Promise<number>;
   /**
+   * The rest of the retention sweeps — one method per period, all of them
+   * driven from src/privacy/retention.ts, which is the only place a number is
+   * written down.
+   *
+   * Each takes the cutoff rather than computing it, for the same reason
+   * pruneLocationHistory does: a window that reads the clock cannot be tested
+   * against a fixed set of rows, and over-deleting is the failure that cannot
+   * be undone. Each returns how many rows went, so a log line and a test can
+   * both check that a sweep did what it claims rather than trusting it.
+   *
+   * STRICTLY older than the cutoff, in every implementation. A row exactly at
+   * the boundary is still inside its window.
+   */
+  /// geofence_events older than the cutoff — the same 90 days as the trail that
+  /// produced them. A crossing is a coarse movement history under another name.
+  pruneGeofenceEvents(cutoffIso: string): Promise<number>;
+  /// safety_alerts older than the cutoff, SOS rows included. Twelve months.
+  pruneSafetyAlerts(cutoffIso: string): Promise<number>;
+  /// audit_log older than the cutoff. Three years — the period the security
+  /// panel printed for months before anything enforced it.
+  pruneAuditLog(cutoffIso: string): Promise<number>;
+  /// phone_codes created before the cutoff. A used code is deleted on use; this
+  /// is for the abandoned ones, which otherwise keep a phone number for ever.
+  prunePhoneCodes(cutoffIso: string): Promise<number>;
+  /// BOTH attempt tables — user_login_attempts and staff_login_attempts — at
+  /// one period, returning the total. They are one decision, so they are one
+  /// method: two would let a later edit move one and forget the other.
+  pruneLoginAttempts(cutoffIso: string): Promise<number>;
+  /// shop_leads older than the cutoff. A name and a phone from the landing form.
+  pruneShopLeads(cutoffIso: string): Promise<number>;
+  /**
+   * support_tickets whose LAST activity is older than the cutoff, together with
+   * the replies hanging off them (support_replies cascades in Postgres; the
+   * in-memory repository drops them by hand to match).
+   *
+   * Last activity, not creation: a thread that ran for two years must not lose
+   * its beginning while its end is still live. Returns tickets deleted, not
+   * tickets plus replies — one number for one thing, so it can be asserted.
+   */
+  pruneSupportTickets(cutoffIso: string): Promise<number>;
+  /**
    * Every fix for one child between two instants, oldest first.
    *
    * The read side of the trail. `insertLocation` has been writing to

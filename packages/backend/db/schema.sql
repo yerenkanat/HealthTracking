@@ -314,6 +314,12 @@ CREATE TABLE geofence_events (
   occurred_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_gfevents_child_time ON geofence_events (child_id, occurred_at DESC);
+-- Privacy retention: 90 days, the same window as the trail that produced them.
+-- A crossing says a named child left a named place at a named minute, which is
+-- a coarse movement history under another name; keeping it longer than the
+-- route it came from was never a decision, only an omission.
+-- Swept by src/privacy/retention.ts. Manually, it is:
+--   DELETE FROM geofence_events WHERE occurred_at < now() - INTERVAL '90 days';
 
 -- Staff audit log (every back-office access to PHI/location is recorded).
 CREATE TABLE audit_log (
@@ -332,6 +338,12 @@ CREATE INDEX idx_audit_at ON audit_log (at DESC);
 -- Frame 22 counts protected reads over a window of up to a year:
 -- WHERE action = ANY(...) AND at >= ... ORDER BY at DESC. See migration 050.
 CREATE INDEX idx_audit_action_at ON audit_log (action, at DESC);
+-- Retention: 3 years. The panel printed this period for months while nothing
+-- deleted a row (b8aac0c took the number off the screen rather than leave the
+-- fiction beside the real 90-day route sweep). The owner has since set it, so
+-- the claim is true: src/privacy/retention.ts sweeps this table on the same
+-- constant the screen prints. Manually:
+--   DELETE FROM audit_log WHERE at < now() - INTERVAL '1095 days';
 
 -- Nightly sleep summaries from the band (one row per wake-day per user).
 -- Baby cry-analysis results (parent-recorded). Newest-first history, pushed so
@@ -589,6 +601,11 @@ CREATE INDEX idx_safety_alerts_sos ON safety_alerts (at DESC) WHERE kind = 'sos'
 -- every live server and it was never copied back here, so a database built from
 -- this file was missing an index every migrated one had.
 CREATE INDEX idx_safety_alerts_child_at ON safety_alerts (child_id, at DESC);
+-- Privacy retention: 12 months, SOS rows included. Long enough that a parent can
+-- look back over a school year, short enough that this is not a permanent
+-- movement history of a child — what is kept is the record of the event.
+-- Swept by src/privacy/retention.ts. Manually:
+--   DELETE FROM safety_alerts WHERE at < now() - INTERVAL '365 days';
 
 -- Push tokens for FCM/APNS delivery.
 CREATE TABLE push_tokens (
@@ -835,6 +852,10 @@ CREATE TABLE IF NOT EXISTS shop_leads (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_shop_leads_created ON shop_leads (created_at DESC);
+-- Retention: 12 months. A name and a phone number typed into the landing form.
+-- If nobody has acted on it in a year, holding it is not a business need.
+-- Swept by src/privacy/retention.ts; the index above serves the DELETE.
+--   DELETE FROM shop_leads WHERE created_at < now() - INTERVAL '365 days';
 
 -- Staff accounts for the back office: phone number + password, the same two
 -- fields the app asks a mother for. See migration 019 — this block and that one
@@ -868,6 +889,10 @@ CREATE TABLE IF NOT EXISTS staff_login_attempts (
 );
 CREATE INDEX IF NOT EXISTS staff_login_attempts_phone_at
   ON staff_login_attempts (phone, at DESC);
+-- Retention: 90 days, the same as user_login_attempts below — one decision over
+-- two tables. Rate-limiting reads minutes and intrusion review reads weeks;
+-- neither reads years, and phone + timestamp is personal data.
+--   DELETE FROM staff_login_attempts WHERE at < now() - INTERVAL '90 days';
 
 -- ---------------------------------------------------------------------------
 -- App sign-in with a phone number (migration 020).
@@ -897,6 +922,9 @@ CREATE TABLE IF NOT EXISTS user_login_attempts (
 );
 CREATE INDEX IF NOT EXISTS user_login_attempts_phone_at
   ON user_login_attempts (phone, at DESC);
+-- Retention: 90 days. See staff_login_attempts above; swept together, by
+-- src/privacy/retention.ts.
+--   DELETE FROM user_login_attempts WHERE at < now() - INTERVAL '90 days';
 
 -- The one-time sign-in code (migration 027).
 --
@@ -915,6 +943,13 @@ CREATE TABLE IF NOT EXISTS phone_codes (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS phone_codes_expiry ON phone_codes (expires_at);
+-- Retention: 30 days, on CREATED_AT and not on expires_at. A used code is
+-- deleted the moment it is used; an ABANDONED one — a number that asked for a
+-- code and never came back — lived here for ever, a phone number beside a hash.
+-- This index implied a sweep that nobody had written. Now written, in
+-- src/privacy/retention.ts. A live code expires in minutes, so thirty days can
+-- never take one that still works.
+--   DELETE FROM phone_codes WHERE created_at < now() - INTERVAL '30 days';
 
 -- ---------------------------------------------------------------------------
 -- What a purchase unlocks in the app (migration 023).
@@ -1137,6 +1172,16 @@ CREATE TABLE IF NOT EXISTS support_replies (
 );
 CREATE INDEX IF NOT EXISTS idx_support_replies_ticket
   ON support_replies (ticket_id, at);
+-- Retention: 3 years for support_tickets, matching audit_log — a dispute about
+-- an order can surface long after the order. Measured from the LAST activity on
+-- the thread (updated_at, plus a NOT EXISTS over newer replies), never from
+-- created_at: a conversation that ran for two years must not lose its beginning
+-- while its end is still live. support_replies goes with the ticket through the
+-- CASCADE above. Swept by src/privacy/retention.ts.
+--
+-- shop_orders next door has NO sweep, deliberately: it is an accounting record,
+-- and the exact term RK requires is a question for a lawyer, not a number an
+-- engineer may put behind a DELETE.
 
 -- Canned answers. «Шаблоны» in the spec: the same six questions arrive every
 -- day and retyping them is how an answer drifts.

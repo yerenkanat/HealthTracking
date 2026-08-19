@@ -191,7 +191,15 @@ export function createMemoryRepository(): Repository {
   /// serial -> what we know about that unit. Mirrors device_registry.
   const registry = new Map<string, DeviceRegistryRow>();
   /// phone -> the one live sign-in code, hashed. Mirrors the phone_codes table.
-  const phoneCodes = new Map<string, { codeHash: string; expiresAt: Date; attempts: number }>();
+  ///
+  /// createdAt is here because phone_codes.created_at is there and the sweep
+  /// reads it: an ABANDONED code — asked for and never used — is what the
+  /// 30-day period exists for, and without the instant this fake could not be
+  /// swept at all while Postgres could.
+  const phoneCodes = new Map<
+    string,
+    { codeHash: string; expiresAt: Date; attempts: number; createdAt: string }
+  >();
 
   /** Staff sign-in, keyed by normalised phone. */
   const staffAccounts = new Map<string, StaffAccount>();
@@ -841,6 +849,7 @@ const UUID_RE =
 
     putPhoneCode: async (c) => void phoneCodes.set(c.phone, {
       codeHash: c.codeHash, expiresAt: c.expiresAt, attempts: 0,
+      createdAt: new Date().toISOString(),
     }),
 
     /// Mirrors the SQL exactly, including the order of the checks: a code that
@@ -1044,6 +1053,111 @@ const UUID_RE =
       }
       return removed;
     },
+
+    // ---- The rest of the retention sweeps -----------------------------------
+    //
+    // Faithful to pgRepository row for row and count for count. A fake that
+    // deleted MORE than production is the worse defect of the two — a sweep
+    // that over-deletes cannot be undone — so every one of these is strictly
+    // "older than the cutoff", never "at or older", and every one of them
+    // leaves the rows next to it alone.
+    //
+    // Every period lives in src/privacy/retention.ts. Nothing here knows a
+    // number; each takes the cutoff it is given.
+
+    /// A crossing is the route that produced it, so it goes on the same clock.
+    pruneGeofenceEvents: async (cutoffIso) => {
+      const before = events.length;
+      for (let i = events.length - 1; i >= 0; i--) {
+        if (events[i].at < cutoffIso) events.splice(i, 1);
+      }
+      return before - events.length;
+    },
+
+    /// Twelve months of alerts, SOS included. The alert feed, the day history
+    /// and the dashboard counters all read this array, and all of them are
+    /// windowed well inside a year.
+    pruneSafetyAlerts: async (cutoffIso) => {
+      const before = alerts.length;
+      for (let i = alerts.length - 1; i >= 0; i--) {
+        if (alerts[i].at < cutoffIso) alerts.splice(i, 1);
+      }
+      return before - alerts.length;
+    },
+
+    /// Three years of the accountability record.
+    pruneAuditLog: async (cutoffIso) => {
+      const before = audit.length;
+      for (let i = audit.length - 1; i >= 0; i--) {
+        if (audit[i].at < cutoffIso) audit.splice(i, 1);
+      }
+      return before - audit.length;
+    },
+
+    /// Abandoned sign-in codes. Keyed by phone, so the row IS a phone number.
+    /// Compared on createdAt, like the column: expires_at would delete a code
+    /// thirty days after it stopped working rather than after it was asked for,
+    /// which is a different and longer window than the one that was decided.
+    prunePhoneCodes: async (cutoffIso) => {
+      let removed = 0;
+      for (const [phone, row] of [...phoneCodes]) {
+        if (row.createdAt < cutoffIso) { phoneCodes.delete(phone); removed++; }
+      }
+      return removed;
+    },
+
+    /// BOTH attempt tables at one period: phoneClaims is user_login_attempts
+    /// and loginAttempts is staff_login_attempts. The total is returned, as the
+    /// interface says, because it is one decision over two tables.
+    pruneLoginAttempts: async (cutoffIso) => {
+      const cutoff = Date.parse(cutoffIso);
+      let removed = 0;
+      for (const rows of [phoneClaims, loginAttempts]) {
+        for (let i = rows.length - 1; i >= 0; i--) {
+          if (rows[i].at.getTime() < cutoff) { rows.splice(i, 1); removed++; }
+        }
+      }
+      return removed;
+    },
+
+    /// A name and a phone from the landing form, after twelve months.
+    pruneShopLeads: async (cutoffIso) => {
+      const before = shopLeads.length;
+      for (let i = shopLeads.length - 1; i >= 0; i--) {
+        if (shopLeads[i].createdAt < cutoffIso) shopLeads.splice(i, 1);
+      }
+      return before - shopLeads.length;
+    },
+
+    /**
+     * Three years, measured from the LAST thing that happened on the thread.
+     *
+     * A ticket updated inside the window stays whole, and so does one whose
+     * ticket row is old but whose thread was replied to recently — the same
+     * NOT EXISTS the SQL uses. Without that second condition a live
+     * conversation would lose its opening message and keep its answers, which
+     * is the shape of over-deletion this whole file is careful about.
+     *
+     * The replies go with the ticket, as support_replies ON DELETE CASCADE
+     * does. The count returned is TICKETS, not tickets plus replies, so the
+     * number a test asserts means one thing.
+     */
+    pruneSupportTickets: async (cutoffIso) => {
+      const doomed = new Set<string>();
+      for (const t of tickets) {
+        if (t.updatedAt >= cutoffIso) continue;
+        if (replies.some((r) => r.ticketId === t.id && r.at >= cutoffIso)) continue;
+        doomed.add(t.id);
+      }
+      for (let i = replies.length - 1; i >= 0; i--) {
+        if (doomed.has(replies[i].ticketId)) replies.splice(i, 1);
+      }
+      for (let i = tickets.length - 1; i >= 0; i--) {
+        if (doomed.has(tickets[i].id)) tickets.splice(i, 1);
+      }
+      return doomed.size;
+    },
+
     // Push / AI / emergency
     guardianPushTokens: async () => ({ tokens: [], childName: children[0]?.name ?? '', locale: profile?.locale ?? null }),
     guardianPushTokensForUser: async () => ({ tokens: [], locale: profile?.locale ?? null }),

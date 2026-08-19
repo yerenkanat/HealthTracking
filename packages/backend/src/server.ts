@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { phoneCodeWarning } from './authPosture';
 import { grantCovers } from './family/access';
 import { checkGeofenceBoundary } from './geofence/geofence';
-import { scheduleRouteRetention, type RetentionResult } from './privacy/retention';
+import { scheduleRetention, type RetentionResult } from './privacy/retention';
 import { handleIngestBatch, type IngestDeps } from './routes/ingestHandler';
 import {
   processWithGuardrails,
@@ -554,19 +554,26 @@ export function buildServer(
   if (typeof sweeper.unref === 'function') sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));
 
-  // «Маршруты хранятся 90 дней» — the one promise this product makes that has
+  // «Маршруты хранятся 90 дней» — the first promise this product made that has
   // to be kept by DOING something on a schedule. db/schema.sql has carried the
   // DELETE as a comment since the Timescale retention policy was dropped, with
   // a note to run it from pg_cron "or an app cron". This is that app cron: a
-  // note is not a job, and every child's trail has been kept since the first
-  // fix. See privacy/retention.ts.
-  const stopRetention = scheduleRouteRetention(deps.repo, {
+  // note is not a job, and every child's trail had been kept since the first
+  // fix.
+  //
+  // It is no longer one table. Every period the owner has set — crossings,
+  // alerts, the audit log, sign-in codes, login attempts, leads, support
+  // threads — runs from the same schedule and is named in one place. See
+  // privacy/retention.ts, which also records what is deliberately NOT swept.
+  const stopRetention = scheduleRetention(deps.repo, {
     log: (r: RetentionResult) => {
-      // Logged either way. A retention sweep that stops running is invisible
-      // unless success is as loud as failure.
-      if (r.error) app.log.error({ err: r.error, cutoff: r.cutoff }, 'route retention sweep failed');
-      else if (r.removed > 0) app.log.info({ removed: r.removed, cutoff: r.cutoff }, 'pruned location history');
-      else app.log.debug({ cutoff: r.cutoff }, 'route retention: nothing older than the window');
+      // Logged either way, per table. A retention sweep that stops running is
+      // invisible unless success is as loud as failure — and with eight of
+      // them, a single failing table must be nameable in the log rather than
+      // hidden behind "the sweep ran".
+      if (r.error) app.log.error({ err: r.error, table: r.table, cutoff: r.cutoff }, 'retention sweep failed');
+      else if (r.removed > 0) app.log.info({ table: r.table, removed: r.removed, cutoff: r.cutoff }, 'retention sweep pruned rows');
+      else app.log.debug({ table: r.table, cutoff: r.cutoff }, 'retention sweep: nothing older than the window');
     },
   });
   app.addHook('onClose', async () => stopRetention());
