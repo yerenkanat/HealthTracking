@@ -9,6 +9,7 @@ import type { FastifyRequest } from 'fastify';
 import { buildServer } from './server';
 import type { ServerDeps } from './server';
 import { authPosture, phoneCodePosture } from './authPosture';
+import { CryUpstreamError } from './cry/upstream';
 import { isStaffRole } from './auth/capabilities';
 import { createMemoryRepository } from './db/memoryRepository';
 import { logOnlySmsSender, type SmsSender } from './routes/phoneAuth';
@@ -139,7 +140,8 @@ async function productionDeps(): Promise<ServerDeps> {
   const { announcementCopy, emergencyCopy, geofenceCopy, sendPush, sosCopy, supportReplyCopy, toPushLocale } =
     await import('./notifications/push');
   const { createPushDispatch } = await import('./notifications/dispatch');
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const { poolOptions } = await import('./db/poolConfig');
+  const pool = new Pool(poolOptions(process.env.DATABASE_URL));
   const repo = createPgRepository(pool);
   // One call, so the effective flag and the warning can never disagree — and so
   // it is impossible to read `requirePhoneCode` below without also carrying
@@ -391,6 +393,7 @@ async function productionDeps(): Promise<ServerDeps> {
         calibratedAt: offsets.calibratedAt,
       }),
     cryAnalyze: forwardCry,
+    cryAvailable,
     // Photo → vitals / medication need the vision model; without a key the
     // routes 503 and the app falls back to manual entry rather than erroring.
     extractVitals: process.env.ANTHROPIC_API_KEY ? createAnthropicVitalsExtractor() : undefined,
@@ -418,17 +421,43 @@ async function productionDeps(): Promise<ServerDeps> {
   };
 }
 
+/** The internal cry-classifier service. Same base for the forward and the
+ * availability probe, so they can never disagree about which service they
+ * are describing. */
+const cryBase = () => process.env.CRY_API_URL ?? 'http://localhost:8000';
+
 /** Forward a recorded cry clip to the internal cry-classifier service
- * (CRY_API_URL) verbatim and return its JSON. Used by POST /cry/analyze. */
+ * (CRY_API_URL) verbatim and return its JSON. Used by POST /cry/analyze.
+ *
+ * The upstream STATUS is preserved in the throw. A 503 from the classifier
+ * means it cannot analyse at all (no trained model.pkl); a refused connection
+ * or a timeout means we never found out. server.ts tells those apart, and the
+ * app shows a different screen for each — see ./cry/upstream. */
 async function forwardCry(audio: Buffer, contentType: string): Promise<unknown> {
-  const base = process.env.CRY_API_URL ?? 'http://localhost:8000';
-  const res = await fetch(`${base}/api/v1/predict-cry`, {
+  const res = await fetch(`${cryBase()}/api/v1/predict-cry`, {
     method: 'POST',
     headers: { 'content-type': contentType },
     body: new Uint8Array(audio), // fetch's BodyInit doesn't accept Buffer directly
+    // A classifier that never answers must not hold the phone open forever;
+    // the abort surfaces as "nothing answered", not as "it cannot analyse".
+    signal: AbortSignal.timeout(20_000),
   });
-  if (!res.ok) throw new Error(`cry-classifier ${res.status}`);
+  if (!res.ok) throw new CryUpstreamError(res.status);
   return res.json();
+}
+
+/** Can the classifier answer right now? Its own /health says whether a model
+ * is loaded, which is the only honest signal: the service is up on this
+ * deployment TODAY and has no model.pkl, so "the process is listening" would
+ * report a working feature that answers 503 to every recording.
+ *
+ * Throws when we could not ask — deliberately not folded into false, so the
+ * app can tell "the analyser says no" from "we have no connection". */
+async function cryAvailable(): Promise<boolean> {
+  const res = await fetch(`${cryBase()}/health`, { signal: AbortSignal.timeout(4_000) });
+  if (!res.ok) throw new CryUpstreamError(res.status);
+  const body = (await res.json()) as { model_loaded?: unknown };
+  return body.model_loaded === true;
 }
 
 /** In-memory deps: no external services — for `npm run dev` on test data. */
@@ -460,6 +489,7 @@ function memoryDeps(): ServerDeps {
     cacheLastLocation: async (childId) => lastLoc.get(childId) ?? null,
     setBpCalibration: async () => {},
     cryAnalyze: forwardCry, // works in dev too if a CRY_API_URL is reachable
+    cryAvailable,
     contentApiKey: process.env.CONTENT_API_KEY,
     sms: smsSender(),
     // Off unless explicitly switched on WITH a gateway. Both, because turning
