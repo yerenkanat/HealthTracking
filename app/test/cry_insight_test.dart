@@ -19,15 +19,29 @@ const _okBody = '''
  "recommendation_ru":"Покормите малыша."}
 ''';
 
-CryClassifierClient _client({String body = _okBody, bool throwing = false, void Function(Map<String, String>)? onHeaders}) =>
+CryClassifierClient _client({
+  String body = _okBody,
+  bool throwing = false,
+  /// Which failure the upload raises when [throwing]. Named, not left to a
+  /// default: the screen shows a different state for each, and a test that
+  /// does not say which one it means is testing nothing in particular.
+  CryFailure failure = CryFailure.unreachable,
+  void Function(Map<String, String>)? onHeaders,
+  bool available = true,
+}) =>
     CryClassifierClient(
       baseUrl: Uri.parse('http://test.local'),
       authToken: () async => 'tok-123',
       uploader: (url, bytes, name, headers) async {
         onHeaders?.call(headers);
-        if (throwing) throw const CryClassifierException('boom');
+        if (throwing) throw CryClassifierException('boom', failure: failure);
         return body;
       },
+      // The availability probe the screen fires before it opens a
+      // microphone. Answered explicitly so the test drives a KNOWN state
+      // rather than whatever flutter_test's HTTP stub happens to return.
+      prober: (url, headers) async =>
+          (status: 200, body: '{"available":$available}'),
     );
 
 /// A recorder that never touches hardware.
@@ -117,9 +131,13 @@ void main() {
       expect(find.text(_en.t('cry_mic_denied')), findsOneWidget);
     });
 
-    testWidgets('a service error is explained', (tester) async {
+    testWidgets('audio the analyser could not read is explained', (tester) async {
+      // cry_error is now ONLY this: a failure another recording may fix.
+      // The two failures it used to be confused with have states of their
+      // own — see cry_service_state_test.dart.
       await tester.pumpWidget(_wrap(CryInsightScreen(
-        recorder: _FakeRecorder(), client: _client(throwing: true))));
+        recorder: _FakeRecorder(),
+        client: _client(throwing: true, failure: CryFailure.unreadable))));
       await tester.tap(find.text(_en.t('cry_record')));
       await tester.pump();
       await tester.pump(const Duration(seconds: cryRecordSeconds));

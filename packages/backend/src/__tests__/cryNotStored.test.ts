@@ -18,6 +18,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
+import { CryUpstreamError } from '../cry/upstream';
 import type { Repository } from '../db/repository';
 
 const AUDIO = Buffer.from('fake m4a bytes, but bytes all the same');
@@ -121,6 +122,22 @@ describe('POST /cry/analyze keeps nothing', () => {
     const res = await post(app);
     expect(res.statusCode).toBe(502);
     expect(calls.filter((c) => c.args.some((a) => carriesAudio(a)))).toEqual([]);
+    await app.close();
+  });
+
+  it('keeps nothing when the classifier says it has no model either', async () => {
+    // The 503 branch is new: the proxy now preserves "the analyser cannot
+    // analyse" instead of flattening it to 502. It is also the branch that most
+    // invites a "hold the clip until the model is trained" cache, which would
+    // be a permanent store of other people's babies crying.
+    const { repo, calls } = watchedRepo();
+    const app = makeApp(repo, async () => { throw new CryUpstreamError(503); });
+
+    const res = await post(app);
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error).toBe('cry_service_unavailable');
+    expect(calls.filter((c) => c.args.some((a) => carriesAudio(a)))).toEqual([]);
+    expect(carriesAudio(res.body)).toBe(false);
     await app.close();
   });
 

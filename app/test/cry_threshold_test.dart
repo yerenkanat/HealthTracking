@@ -46,6 +46,10 @@ String _body({int pct = 84}) => jsonEncode({
 CryClassifierClient _client({int pct = 84}) => CryClassifierClient(
       baseUrl: Uri.parse('http://test.local'),
       uploader: (url, bytes, name, headers) async => _body(pct: pct),
+      // The availability probe the screen fires before it opens a microphone.
+      // Answered explicitly so this test drives a KNOWN state rather than
+      // whatever flutter_test's HTTP stub happens to return.
+      prober: (url, headers) async => (status: 200, body: '{"available":true}'),
     );
 
 class _FakeRecorder implements CryRecorder {

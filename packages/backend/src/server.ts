@@ -38,6 +38,7 @@ import { antenatalProtocol } from './antenatal/protocol';
 import { servedCalendar, weekOf } from './pregnancy/served';
 import { servedEmergencyHelp } from './emergency/served';
 import { servedCryThreshold } from './cry/settings';
+import { cryFailureFor, cryFailureReply } from './cry/upstream';
 import { childDevCalendar, devWeekContent } from './child/development';
 import { appVersionInfo } from './app/version';
 import { servedVaccinationSchedule } from './vaccination/served';
@@ -76,6 +77,11 @@ export interface ServerDeps {
    * service and return its JSON. Injected so the route is testable without the
    * Python service; omitted = the feature is unavailable (route 503s). */
   cryAnalyze?: (audio: Buffer, contentType: string) => Promise<unknown>;
+  /** Can the classifier answer at all right now? Resolves false when it is up
+   * and has no trained model — the state this deployment is in today — and
+   * THROWS when we could not ask it, which is a different answer and must not
+   * be flattened into `false`. Injected like cryAnalyze; omitted = unavailable. */
+  cryAvailable?: () => Promise<boolean>;
   /** Read vitals off a photo of a device/lab slip (Claude vision). Injected so
    * the route is testable without the network; omitted (no API key) = the
    * feature is unavailable and /vitals/extract returns 503. */
@@ -786,8 +792,39 @@ export function buildServer(
     try {
       const result = await deps.cryAnalyze(body, String(req.headers['content-type'] ?? 'application/octet-stream'));
       return reply.send(result);
+    } catch (err) {
+      // NOT a flat 502. "The analyser says it cannot analyse" (503 — no trained
+      // model), "it could not read this clip" (400) and "nothing answered" are
+      // three different things to a mother holding a crying baby: only one of
+      // them is worth recording again for. See ./cry/upstream.
+      //
+      // Nothing is stored on any of these branches — there is no retry queue
+      // here and a retry queue is a store of recordings under another name.
+      const { status, body: payload } = cryFailureReply(cryFailureFor(err));
+      return reply.code(status).send(payload);
+    }
+  });
+
+  // Can the cry analyser answer at all? Asked by the app BEFORE it opens a
+  // microphone, because recording and uploading into a service that has
+  // already said it cannot answer spends her microphone, her mobile data and
+  // her child's voice on a guaranteed failure.
+  //
+  // Carries no audio and stores nothing, so it is cheap to ask and safe to
+  // repeat. Authenticated like /cry/analyze: the same caller, the same surface.
+  app.get('/cry/availability', async (req, reply) => {
+    const caller = await requireCaller(req, reply);
+    if (!caller) return;
+    // No forwarder wired at all — the feature is off in this deployment.
+    if (!deps.cryAnalyze || !deps.cryAvailable) {
+      return reply.send({ available: false, reason: 'not_configured' });
+    }
+    try {
+      const ready = await deps.cryAvailable();
+      return reply.send({ available: ready, reason: ready ? null : 'model_unavailable' });
     } catch {
-      // Upstream (the classifier) is down or errored — a clean 502, not a 500.
+      // We could not ASK. That is not the service saying no, and the app must
+      // not latch "permanently unavailable" onto a dropped Wi-Fi.
       return reply.code(502).send({ error: 'cry_upstream_unavailable' });
     }
   });

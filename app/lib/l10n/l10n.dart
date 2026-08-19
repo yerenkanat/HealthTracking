@@ -1073,6 +1073,43 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.kk: 'Кеңес шықпады, жазба телефонда қалмады. Қайталау көмектеспесе — жылауды талдау қазір қолжетімсіз, мәселе сізде емес.',
     AppLocale.en: 'No hint this time, and nothing is left on your phone. If trying again does not help, cry analysis is unavailable right now — it is not something you did.',
   },
+  // THE 502/503 SPLIT — frames 15a–15e, docs/TODO.md §9.13.
+  //
+  // cry_error above stays the message for a failure another recording may fix.
+  // The two below are the states it used to be confused with:
+  //
+  //  * cry_unavailable — the analyser told us it cannot analyse. That is
+  //    production TODAY: there is no trained model.pkl, the classifier answers
+  //    503 and the proxy now preserves it. "Try again in a moment" is insulting
+  //    here, so this string says the opposite — do not retry, it is not you.
+  //  * cry_not_sent — nothing reached us. «Не отправилось», not «не
+  //    разобралось»: the difference decides whether she checks her signal or
+  //    gives up on the feature.
+  //
+  // None of them may say the audio is analysed on the phone or does not leave
+  // it — both are false and cry_privacy_test.dart forbids them.
+  //
+  // KAZAKH NOT GATE-REVIEWED — see docs/TODO.md §9.12.
+  'cry_unavailable': {
+    AppLocale.ru: 'Разбор плача сейчас недоступен — это на нашей стороне, не у вас. Повторная запись не поможет, пока сервис не заработает.',
+    AppLocale.kk: 'Жылауды талдау қазір қолжетімсіз — бұл біздің жақта, сізде емес. Қызмет қалпына келгенше қайта жазу көмектеспейді.',
+    AppLocale.en: 'Cry analysis is unavailable right now — that is on our side, not yours. Recording again will not help until the service is back.',
+  },
+  // Only shown when a recording was actually made before we found out. The
+  // recorder deletes the clip in a finally-block before the upload can fail
+  // (data/cry_recorder.dart), so this is true on every branch that prints it.
+  'cry_clip_deleted': {
+    AppLocale.ru: 'Запись на телефоне не осталась.',
+    AppLocale.kk: 'Жазба телефонда қалмады.',
+    AppLocale.en: 'Nothing is left on your phone.',
+  },
+  'cry_not_sent': {
+    AppLocale.ru: 'Запись не ушла на разбор — похоже, нет связи. На телефоне она тоже не осталась. Проверьте интернет и попробуйте ещё раз.',
+    AppLocale.kk: 'Жазба талдауға жіберілмеді — байланыс жоқ сияқты. Телефонда да қалмады. Интернетті тексеріп, қайта көріңіз.',
+    AppLocale.en: 'The recording never reached the analyser — the connection seems to be down. Nothing is left on your phone either. Check your internet and try again.',
+  },
+  'cry_checking': {AppLocale.ru: 'Проверяем, доступен ли разбор…', AppLocale.kk: 'Талдау қолжетімді ме, тексеріп жатырмыз…', AppLocale.en: 'Checking whether analysis is available…'},
+  'cry_recheck': {AppLocale.ru: 'Проверить ещё раз', AppLocale.kk: 'Қайта тексеру', AppLocale.en: 'Check again'},
   'cry_reason_hungry': {AppLocale.ru: 'Голод', AppLocale.kk: 'Аштық', AppLocale.en: 'Hunger'},
   'cry_reason_tired': {AppLocale.ru: 'Усталость', AppLocale.kk: 'Шаршау', AppLocale.en: 'Tiredness'},
   'cry_reason_belly_pain': {AppLocale.ru: 'Боль в животе', AppLocale.kk: 'Іш ауруы', AppLocale.en: 'Belly pain'},

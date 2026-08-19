@@ -21,7 +21,30 @@ import '../theme.dart';
 /// How long a clip we capture. The classifier is trained on ~5s windows.
 const cryRecordSeconds = 5;
 
-enum _Phase { idle, recording, analyzing, done, micDenied, error }
+/// The screen's whole state machine.
+///
+/// [error], [notSent] and [unavailable] used to be one state showing one
+/// string. They are three different situations for the person holding the
+/// baby: try again, check your signal, and stop trying — see [CryFailure].
+enum _Phase {
+  idle,
+
+  /// Asking whether the analyser can answer, before the microphone opens.
+  checking,
+  recording,
+  analyzing,
+  done,
+  micDenied,
+
+  /// The clip could not be read (or nothing was captured). Another go may work.
+  error,
+
+  /// It never reached the analyser. Not «не разобралось» — «не отправилось».
+  notSent,
+
+  /// The analyser says it cannot analyse. No recording is offered at all.
+  unavailable,
+}
 
 class CryInsightScreen extends StatefulWidget {
   final CryRecorder recorder;
@@ -80,6 +103,75 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
   /// rating that silently failed is worse than one never asked for.
   bool _verdictFailed = false;
 
+  /// What the analyser last said about itself. Starts as
+  /// [CryServiceStatus.unknown] — we have not asked yet, which is not the
+  /// same as knowing it is fine.
+  CryServiceStatus _service = CryServiceStatus.unknown;
+
+  /// A probe in flight, so a tap during one waits for it instead of starting
+  /// a second. Cleared when it completes, so the next tap asks again.
+  Future<CryServiceStatus>? _probing;
+
+  /// Whether a recording was actually made in this session. Decides whether
+  /// the unavailable card repeats the deletion promise: telling somebody who
+  /// never pressed record that nothing is left on her phone is noise.
+  bool _attempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Asked BEFORE the microphone opens, not after a five-second upload comes
+    // back refused. With no trained model on the server — production today,
+    // docs/INTEGRATION_STATUS.md — recording spends her microphone, her mobile
+    // data and her child's voice leaving the phone on a failure that was
+    // knowable in advance.
+    _refreshAvailability();
+  }
+
+  /// Ask the service whether it can answer, and move the screen if it cannot.
+  ///
+  /// Never throws and never hangs: [CryClassifierClient.checkAvailability]
+  /// bounds itself and answers [CryServiceStatus.unknown] rather than failing,
+  /// so this cannot leave a spinner that does not resolve.
+  Future<CryServiceStatus> _refreshAvailability() {
+    final inflight = _probing;
+    if (inflight != null) return inflight;
+    final probe = widget.client.checkAvailability();
+    _probing = probe;
+    probe.whenComplete(() {
+      if (identical(_probing, probe)) _probing = null;
+    });
+    probe.then((status) {
+      if (!mounted) return;
+      setState(() {
+        _service = status;
+        if (status == CryServiceStatus.unavailable) {
+          // Do not stamp over a recording in progress or a result on screen.
+          if (_phase == _Phase.idle || _phase == _Phase.checking) {
+            _phase = _Phase.unavailable;
+          }
+        } else if (_phase == _Phase.unavailable) {
+          // It came back. Offer the microphone again.
+          _phase = _Phase.idle;
+        }
+      });
+    });
+    return probe;
+  }
+
+  /// «Проверить ещё раз» — the one control the unavailable state offers, so
+  /// it is not a dead end. It re-asks, and can flip the screen back to idle.
+  Future<void> _recheck() async {
+    setState(() => _phase = _Phase.checking);
+    final status = await _refreshAvailability();
+    if (!mounted) return;
+    // A probe we could not send tells us nothing about the service, so it
+    // leaves the recording on offer rather than inventing a verdict.
+    if (status != CryServiceStatus.unavailable && _phase == _Phase.checking) {
+      setState(() => _phase = _Phase.idle);
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -98,6 +190,22 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
   }
 
   Future<void> _start() async {
+    // The gate. If the analyser has already said it cannot answer, or has
+    // not been asked yet, settle that BEFORE the microphone opens: uploading
+    // a recording of somebody’s baby into a service that is guaranteed to
+    // refuse it is pure cost.
+    if (_service != CryServiceStatus.available) {
+      setState(() => _phase = _Phase.checking);
+      final status = await _refreshAvailability();
+      if (!mounted) return;
+      if (status == CryServiceStatus.unavailable) {
+        setState(() => _phase = _Phase.unavailable);
+        return;
+      }
+      // CryServiceStatus.unknown: we could not ask. That is not evidence the
+      // service is down, so she still gets her recording.
+    }
+    _attempted = true;
     setState(() {
       _phase = _Phase.recording;
       _result = null;
@@ -133,6 +241,21 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
       setState(() {
         _result = result;
         _phase = _Phase.done;
+      });
+    } on CryClassifierException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        switch (e.failure) {
+          case CryFailure.unavailable:
+            // Latched, so the next tap cannot open the microphone again for
+            // the same guaranteed refusal.
+            _service = CryServiceStatus.unavailable;
+            _phase = _Phase.unavailable;
+          case CryFailure.unreachable:
+            _phase = _Phase.notSent;
+          case CryFailure.unreadable:
+            _phase = _Phase.error;
+        }
       });
     } catch (_) {
       if (!mounted) return;
@@ -176,12 +299,22 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
                 ],
               ),
               const SizedBox(height: 22),
-              _MicButton(
-                  phase: _phase,
-                  onTap:
-                      _phase == _Phase.recording || _phase == _Phase.analyzing
-                          ? null
-                          : _start),
+              // When the analyser has said it cannot analyse, the microphone
+              // is not offered at all. A big coral record button she is
+              // welcome to press is exactly the invitation this state has to
+              // withdraw — and a greyed-out one would be a dead control. In
+              // its place: the reason, and the one action that can change it.
+              if (_phase == _Phase.unavailable)
+                _UnavailableCard(
+                    clipDeleted: _attempted, onRecheck: _recheck)
+              else
+                _MicButton(
+                    phase: _phase,
+                    onTap: _phase == _Phase.recording ||
+                            _phase == _Phase.analyzing ||
+                            _phase == _Phase.checking
+                        ? null
+                        : _start),
               const SizedBox(height: 14),
               _statusLine(l),
               if (_phase == _Phase.done && _result != null) ...[
@@ -230,10 +363,19 @@ class _CryInsightScreenState extends State<CryInsightScreen> {
 
   Widget _statusLine(L10n l) {
     final (text, colour) = switch (_phase) {
+      _Phase.checking => (l.t('cry_checking'), Palette.violet),
       _Phase.recording => (l.t('cry_recording'), Palette.roseDeep),
       _Phase.analyzing => (l.t('cry_analyzing'), Palette.violet),
       _Phase.micDenied => (l.t('cry_mic_denied'), Palette.danger),
+      // Only for a failure another recording may actually fix: unreadable
+      // audio, or a capture the phone never made.
       _Phase.error => (l.t('cry_error'), Palette.danger),
+      // Nothing reached the analyser. «Не отправилось», not «не разобралось»
+      // — the difference decides whether she checks her signal or concludes
+      // the feature is broken.
+      _Phase.notSent => (l.t('cry_not_sent'), Palette.danger),
+      // _Phase.unavailable prints nothing here: the card above says it, with
+      // the re-check action next to it.
       _ => ('', Palette.textDim),
     };
     if (text.isEmpty) return const SizedBox.shrink();
@@ -253,9 +395,12 @@ class _MicButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L10nScope.of(context);
     final recording = phase == _Phase.recording;
-    final busy = phase == _Phase.analyzing;
+    // Both are bounded: the analysis by the request, the availability probe
+    // by CryClassifierClient.probeTimeout. Neither can spin forever.
+    final busy = phase == _Phase.analyzing || phase == _Phase.checking;
     final label = switch (phase) {
       _Phase.idle => l.t('cry_record'),
+      _Phase.checking => l.t('cry_checking'),
       _Phase.recording => l.t('cry_recording'),
       _Phase.analyzing => l.t('cry_analyzing'),
       _ => l.t('cry_again'),
@@ -295,6 +440,62 @@ class _MicButton extends StatelessWidget {
                     const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The analyser cannot answer — said plainly, with the retry withdrawn.
+///
+/// Frames 15a–15e ask for a state of its own here rather than one more red
+/// line under the microphone: «разбор плача сейчас недоступен, повтор не
+/// поможет», and explicitly NOT «попробуйте ещё раз в тишине», which blames
+/// a mother’s room for a missing model file on our server.
+class _UnavailableCard extends StatelessWidget {
+  /// True once a recording was actually made and thrown away, which is the
+  /// only case where repeating the deletion promise says anything.
+  final bool clipDeleted;
+
+  final VoidCallback onRecheck;
+
+  const _UnavailableCard({required this.clipDeleted, required this.onRecheck});
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L10nScope.of(context);
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Palette.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.cloud_off_rounded,
+                  size: 20, color: Palette.textDim),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(l.t('cry_unavailable'),
+                    style: const TextStyle(fontSize: 14, height: 1.5)),
+              ),
+            ],
+          ),
+          if (clipDeleted) ...[
+            const SizedBox(height: 8),
+            Text(l.t('cry_clip_deleted'),
+                style: const TextStyle(
+                    color: Palette.textDim, fontSize: 12.5, height: 1.45)),
+          ],
+          const SizedBox(height: 14),
+          // The state has to lead somewhere. This re-asks the service and
+          // puts the microphone back the moment it can answer.
+          _Chip(label: l.t('cry_recheck'), onTap: onRecheck),
+        ],
       ),
     );
   }

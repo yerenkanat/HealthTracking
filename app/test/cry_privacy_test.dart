@@ -37,6 +37,10 @@ CryClassifierClient _stubClient() => CryClassifierClient(
       authToken: () async => 'tok',
       uploader: (url, bytes, name, headers) async =>
           '{"reason":"hunger","confidence":0.8}',
+      // The availability probe the screen fires before it opens a microphone.
+      // Answered explicitly so this test drives a KNOWN state rather than
+      // whatever flutter_test's HTTP stub happens to return.
+      prober: (url, headers) async => (status: 200, body: '{"available":true}'),
     );
 
 void main() {
