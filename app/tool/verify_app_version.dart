@@ -67,6 +67,35 @@ void main() {
   _chk('an unset dismissal (never closed) nudges',
       nudge(dismissedBuild: 0, dismissedAt: null));
 
+  // -- currentAppBuild must equal the build number in pubspec.yaml --------
+  //
+  // Nothing else checks this. app_version.dart carries a doc comment saying
+  // to bump both together on every release, and docs/RELEASE.md -- the
+  // document a release engineer actually opens -- never mentions
+  // currentAppBuild at all. One instruction, in a place nobody reads.
+  //
+  // What happens when they drift: ship 0.1.0+2 with currentAppBuild still 1,
+  // then raise the server floor to 2 to retire release 1.
+  // appUpdateRequired(1, 2) is then true on EVERY phone, including the ones
+  // that just updated. ForceUpdateScreen renders before onboarding and before
+  // the emergency screen, with no way past it, so the whole user base is
+  // locked out of the current build and the only remedy is another release.
+  //
+  // Read from pubspec rather than restated here, so this guard cannot drift
+  // from the thing it guards.
+  final pubspec = File('pubspec.yaml').existsSync()
+      ? File('pubspec.yaml')
+      : File('app/pubspec.yaml');
+  final versionLine = pubspec
+      .readAsLinesSync()
+      .firstWhere((l) => l.startsWith('version:'), orElse: () => '');
+  final pubspecBuild = int.tryParse(versionLine.split('+').last.trim());
+  _chk('pubspec.yaml has a readable build number', pubspecBuild != null);
+  _chk(
+      'currentAppBuild ($currentAppBuild) matches pubspec.yaml ($pubspecBuild)'
+      ' -- if this fails, raising the server floor locks out every phone,'
+      ' including the ones that just updated',
+      pubspecBuild == currentAppBuild);
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

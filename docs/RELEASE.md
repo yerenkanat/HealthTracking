@@ -43,8 +43,18 @@ a key.
 
 ```bash
 export GOOGLE_MAPS_API_KEY=AIza…
-flutter build appbundle --release --dart-define=MAPS_ENABLED=true
+flutter build appbundle --release \
+  --dart-define=API_BASE=https://ana-bala.kz \
+  --dart-define=MAPS_ENABLED=true
 ```
+
+> **`API_BASE` is not optional.** `main.dart` defaults it to
+> `http://localhost:8080`, which on a handset *is* the handset. An `.aab`
+> built without it reaches the Play Store and then talks to itself: no
+> sign-in, no sync, no shop catalogue — and no `/app/version`, so the
+> force-update gate and the update nudge are both permanently silent.
+> Nothing in the build output says so, and the app looks like it launched.
+
 
 `MAPS_ENABLED` is separate on purpose: the manifest key makes the map *able* to
 draw, and the dart-define is what turns the real `GoogleMap` on instead of the
@@ -109,14 +119,18 @@ flutter pub get
 flutter test                       # 1300+ tests; CI runs these too
 flutter analyze                    # must be zero errors
 export GOOGLE_MAPS_API_KEY=AIza…
-flutter build appbundle --release --dart-define=MAPS_ENABLED=true
+flutter build appbundle --release \
+  --dart-define=API_BASE=https://ana-bala.kz \
+  --dart-define=MAPS_ENABLED=true
 ```
 
 The bundle lands at `build/app/outputs/bundle/release/app-release.aab`.
 
-Bump `version:` in `app/pubspec.yaml` before every upload — the Play Store
+Bump `version:` in `app/pubspec.yaml` **and `currentAppBuild` in `app/lib/domain/app_version.dart` together** before every upload — the Play Store
 refuses a build whose `versionCode` it has already seen, and the code is
 derived from that line.
+
+> The two must match. If `currentAppBuild` lags and the server floor is then raised to retire the old release, `appUpdateRequired` is true on **every** phone — including the ones that just updated — and `ForceUpdateScreen` renders before onboarding and before the emergency screen with no way past. `dart run tool/verify_app_version.dart` fails if they drift, and that runner is in CI.
 
 ## 6. After uploading
 
