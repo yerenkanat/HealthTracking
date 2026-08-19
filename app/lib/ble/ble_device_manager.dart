@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
+import '../app/app_foreground.dart';
 import '../core/triage.dart';
 import 'parsers/band_parser.dart';
 import 'parsers/beacon_parser.dart';
@@ -25,10 +26,30 @@ class BleManagerConfig {
   final String bandRemoteId;
   final String childBeaconUuid;
   final BpCalibration? Function() getBpCalibration;
+
+  /// Whether the app is in front of her. The beacon scan follows it: low
+  /// latency while she is looking, low power once she is not. Defaults to the
+  /// app-wide [AppForeground.instance] that `_LifecycleHooks` writes to.
+  final AppForeground? foreground;
+
+  /// Seams over the three flutter_blue_plus statics the beacon scan touches.
+  ///
+  /// They exist so a test can assert WHICH [AndroidScanMode] reached the radio,
+  /// which is the whole behaviour here — `startScan` was called is not the
+  /// claim, `startScan` was called with `lowLatency` is. The statics go through
+  /// a platform channel, so nothing else would run under `flutter test`.
+  final Future<void> Function(AndroidScanMode mode)? startScan;
+  final Future<void> Function()? stopScan;
+  final Stream<List<ScanResult>> Function()? scanResults;
+
   const BleManagerConfig({
     required this.bandRemoteId,
     required this.childBeaconUuid,
     required this.getBpCalibration,
+    this.foreground,
+    this.startScan,
+    this.stopScan,
+    this.scanResults,
   });
 }
 
@@ -79,6 +100,12 @@ class BleDeviceManager {
 
   BleDeviceManager(this.cfg);
 
+  AppForeground get _foreground => cfg.foreground ?? AppForeground.instance;
+
+  /// What the running scan was started for, or null when nothing is scanning.
+  /// Only used to skip a restart that would change nothing — see [setScanMode].
+  bool? _scanningForeground;
+
   Future<void> start() async {
     if (_disposed) return;
     // Watch the adapter for the life of the manager rather than awaiting it
@@ -86,23 +113,46 @@ class BleDeviceManager {
     // hung for ever and the caller's `await ble.start()` never returned — the
     // beacon scan below was never reached either, taking child tracking down
     // with it. Now a radio switched on at any point resumes the band.
-    _adapterSub ??= FlutterBluePlus.adapterState.listen((s) {
-      if (_disposed) return;
-      if (s == BluetoothAdapterState.on) {
-        _reconnectAttempts = 0;
-        unawaited(_connectBand());
-      } else {
-        _setStatus(BandLinkState.waitingForBluetooth);
-      }
-    });
+    _adapterSub ??= FlutterBluePlus.adapterState.listen(
+      (s) {
+        if (_disposed) return;
+        if (s == BluetoothAdapterState.on) {
+          _reconnectAttempts = 0;
+          unawaited(_connectBand());
+        } else {
+          _setStatus(BandLinkState.waitingForBluetooth);
+        }
+      },
+      // `adapterState` is `async*` and asks the platform for the current state
+      // on first listen. With no onError that failure — an unsupported host, a
+      // plugin not registered — left the zone as an unhandled async error, and
+      // it must not take the beacon scan below down with it: the band is one
+      // of two things this manager does.
+      onError: (Object e) {
+        if (_disposed) return;
+        _setStatus(classifyLinkError(e).state);
+      },
+    );
 
     if (FlutterBluePlus.adapterStateNow == BluetoothAdapterState.on) {
       await _connectBand();
     } else {
       _setStatus(BandLinkState.waitingForBluetooth);
     }
-    _startBeaconScan(foreground: false);
+    // The beacon scan follows the app's lifecycle from here on, and starts at
+    // whatever the app is right now — which at launch is foreground, so the
+    // first scan of the session is lowLatency.
+    //
+    // It was hard-coded `foreground: false`, and the only thing that could ever
+    // have raised it (setScanMode) had no caller, so the scan that notices a
+    // child's tag arriving has only ever run on lowPower's long duty cycle,
+    // including while she was watching the map.
+    _foreground.addListener(_onForegroundChanged);
+    _startBeaconScan(foreground: _foreground.value);
   }
+
+  void _onForegroundChanged() =>
+      unawaited(setScanMode(foreground: _foreground.value));
 
   // ---- Smart band: connect + notify, with capped-backoff reconnect ----
   Future<void> _connectBand() async {
@@ -238,8 +288,10 @@ class BleDeviceManager {
   // ---- Child beacon: passive advertisement scan ----
   void _startBeaconScan({required bool foreground}) {
     if (_disposed) return;
+    _scanningForeground = foreground;
     unawaited(_scanSub?.cancel());
-    _scanSub = FlutterBluePlus.scanResults.listen((results) {
+    final results$ = cfg.scanResults?.call() ?? FlutterBluePlus.scanResults;
+    _scanSub = results$.listen((results) {
       for (final r in results) {
         final md = r.advertisementData.manufacturerData; // {companyId: [bytes]}
         if (md.isEmpty) continue;
@@ -270,29 +322,65 @@ class BleDeviceManager {
     // startScan throws when Android denies BLUETOOTH_SCAN. Unawaited, that
     // became an unhandled async error and the scan simply never happened —
     // child proximity dead, with nothing said. Caught, it reaches onStatus.
-    unawaited(FlutterBluePlus.startScan(
-      continuousUpdates: true,
-      androidScanMode:
-          foreground ? AndroidScanMode.lowLatency : AndroidScanMode.lowPower,
-    ).catchError((Object e) => _setStatus(classifyLinkError(e).state)));
+    final mode =
+        foreground ? AndroidScanMode.lowLatency : AndroidScanMode.lowPower;
+    final start = cfg.startScan ?? _startPlatformScan;
+    unawaited(start(mode).catchError((Object e) {
+      // The radio is not scanning after all. Say so, and forget the mode we
+      // thought we were in, so the next lifecycle change retries rather than
+      // deciding it has nothing to do.
+      _scanningForeground = null;
+      _setStatus(classifyLinkError(e).state);
+    }));
   }
 
-  /// Code Optimizer hook: called by AdaptiveScanController.apply.
+  static Future<void> _startPlatformScan(AndroidScanMode mode) =>
+      FlutterBluePlus.startScan(continuousUpdates: true, androidScanMode: mode);
+
+  /// Follow the app in or out of the foreground.
+  ///
+  /// Wired to [AppForeground] in [start]; `_LifecycleHooks` in app/app.dart is
+  /// what writes to that. Two properties this must hold, both safety and not
+  /// battery:
+  ///
+  ///   * **A no-op is a no-op.** Restarting the scan means stopping the radio
+  ///     and starting it again, and an advertisement that lands in the gap is
+  ///     an arrival nobody saw. `inactive`/`resumed` flickers on every pulled
+  ///     notification shade, so without this guard the gap would open dozens of
+  ///     times a day for no change of mode at all.
+  ///   * **A failed stop must not end the scan.** `stopScan` throwing used to
+  ///     abandon the method before the restart, leaving the beacon scan off for
+  ///     the rest of the session with nothing said. Whatever the stop did, a
+  ///     scan is started afterwards.
   Future<void> setScanMode({required bool foreground}) async {
     if (_disposed) return;
-    await FlutterBluePlus.stopScan();
+    if (_scanningForeground == foreground) return;
+    final stop = cfg.stopScan ?? FlutterBluePlus.stopScan;
+    try {
+      await stop();
+    } catch (_) {
+      // Nothing to salvage here, and nothing worth reporting: the start below
+      // is what decides whether we are scanning.
+    }
+    if (_disposed) return;
     _startBeaconScan(foreground: foreground);
   }
 
   Future<void> dispose() async {
     _disposed = true;
+    _foreground.removeListener(_onForegroundChanged);
     _flushTimer?.cancel();
     _reconnectTimer?.cancel();
     await _scanSub?.cancel();
     await _connSub?.cancel();
     await _valueSub?.cancel();
     await _adapterSub?.cancel();
-    await FlutterBluePlus.stopScan();
+    _scanningForeground = null;
+    try {
+      await (cfg.stopScan ?? FlutterBluePlus.stopScan)();
+    } catch (_) {
+      // The radio is going away with us either way.
+    }
     // Leaving the band connected kept the radio link (and its battery cost)
     // alive for a manager nobody holds any more.
     try {

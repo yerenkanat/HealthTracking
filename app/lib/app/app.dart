@@ -14,6 +14,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'app_controller.dart';
+import 'app_foreground.dart';
 import '../ble/band_scan.dart';
 import '../l10n/l10n.dart';
 import '../l10n/l10n_scope.dart';
@@ -42,6 +43,11 @@ import '../ui/force_update_screen.dart';
 /// runs once per cold launch, which on Android can be weeks apart. Resuming is
 /// the moment she is looking at the app again, so it is the moment the bell
 /// badge has to be true.
+///
+/// **Either way:** publish which of the two it is to [AppForeground], because
+/// this is the only place in the app that observes `AppLifecycleState` and it
+/// stays that way. The BLE beacon scan reads it and runs at low latency while
+/// she is looking — it had no way to know before, so it never left low power.
 class _LifecycleHooks extends StatefulWidget {
   final AppController controller;
   final Widget child;
@@ -69,6 +75,9 @@ class _LifecycleHooksState extends State<_LifecycleHooks> with WidgetsBindingObs
     final leaving = state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden;
+    // The same classification, reused rather than re-derived: `inactive` is a
+    // shade pull or an incoming call over a screen she is still looking at.
+    AppForeground.instance.value = !leaving;
     if (leaving) widget.controller.flushPendingSave();
     if (state == AppLifecycleState.resumed) {
       widget.controller.refreshAnnouncements();
