@@ -465,6 +465,47 @@ void main() {
       expect(p.isApproximate, isFalse);
     });
   });
+
+  group('the comparison can be approximate while the set price is not', () {
+    // isApproximate answers «is the комплект's own price confirmed». It was
+    // being read as «is anything on this card confirmed», and those two come
+    // apart in exactly one state: an operator deactivates the watch and leaves
+    // the set on sale. The catalogue then carries the комплект row and not the
+    // watch, so bundleIsLive is true and isApproximate is false — while the
+    // struck-through «отдельно» figure and the «Выгода» chip beside it are
+    // built from a 24 900 ₸ nobody confirmed, on the buying path, with no
+    // caveat anywhere on the screen.
+
+    test('a withdrawn part leaves the set live and the comparison guessed', () {
+      final c = ShopCatalogue.fromJson({
+        'products': [
+          _product('tracker', 'Трекер', 500000),
+          _product('combo', 'Комплект', 3900000, kind: 'bundle'),
+        ],
+      }, fetchedAt: DateTime(2026, 8, 19));
+      final p = coursePricesFrom(c);
+
+      expect(p.isApproximate, isFalse,
+          reason: 'the комплект price IS live — that getter is about the set');
+      expect(p.comparisonIsApproximate, isTrue,
+          reason: 'the watch fell back to a constant and nothing said so');
+      expect(p.watchMinor, coursePrices.watchMinor);
+    });
+
+    test('both parts live means the comparison is confirmed too', () {
+      final c = ShopCatalogue.fromJson({
+        'products': [
+          _product('watch', 'Часы', 2000000),
+          _product('tracker', 'Трекер', 500000),
+          _product('combo', 'Комплект', 3900000, kind: 'bundle'),
+        ],
+      }, fetchedAt: DateTime(2026, 8, 19));
+      final p = coursePricesFrom(c);
+
+      expect(p.comparisonIsApproximate, isFalse);
+      expect(p.isApproximate, isFalse);
+    });
+  });
 }
 
 /// A 200 whose body is not JSON — a captive-portal login page, typically.
@@ -478,4 +519,5 @@ class _BrokenBodyTransport implements HttpTransport {
   Future<HttpResponse> put(String path, Object b) async => const HttpResponse(200, '{}');
   @override
   Future<HttpResponse> delete(String path) async => const HttpResponse(204, '');
+
 }

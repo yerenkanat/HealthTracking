@@ -233,7 +233,7 @@ Everything below is new. Nothing here was in this document before.
 | 10.13 | **The whole battery-adaptive scan module has no caller** — four `ScanPlan`s, a debounced accelerometer gate, a foreground/background hook, and `BleDeviceManager.setScanMode` documented as "called by AdaptiveScanController.apply" and called by nothing. BLE and location never drop to low power when the phone is backgrounded and still. Battery, not safety. | Open. `adaptive_scan_controller.dart:35`. |
 | 10.14 | Five public `Ds*` components — `DsHeroMetric`, `DsStatTile`, `DsSegmented`, `DsScreenHeader` — are finished, styled, tested, and built by no screen. Inventory, not harm. | Open. |
 | 10.15 | **The Kazakh `upd_title` says the update is *required*** («Қолданбаны жаңарту қажет») on a build the server still supports; ru and en both read as optional. The key is shared by the hard block and the new soft strip. One key for the language gate. | Open — §9.12. |
-| 10.16 | «Выгода» can be computed from a compile-time watch or tracker price with `isApproximate` false and no freshness note, if an operator deactivates one product but leaves the комплект live. Reachability is inference. | Open. |
+| 10.16 | ~~«Выгода» can be computed from a compile-time watch or tracker price with `isApproximate` false and no freshness note.~~ `isApproximate` answers «is the КОМПЛЕКТ price confirmed»; it was being read as «is anything on this card confirmed». New `comparisonIsApproximate`, and the note fires only when the comparison is actually DRAWN — warning whenever a part is missing would fire on a shop that simply does not sell one. | **Fixed.** |
 
 ---
 

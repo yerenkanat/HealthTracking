@@ -235,6 +235,13 @@ String? _ageBandLabel(L10n l, CatalogueProduct p) {
 ///
 /// Nothing at all when the catalogue is live — a banner on every visit trains
 /// people to ignore banners, and there is nothing to warn about.
+/// True only when the «Выгода» / «отдельно» comparison is both SHOWN and partly
+/// built from a compile-time price. See [CoursePrices.comparisonIsApproximate].
+bool _comparisonIsGuessed(ShopCatalogue c) {
+  final p = coursePricesFrom(c);
+  return p.savingIsReal && p.comparisonIsApproximate;
+}
+
 class _FreshnessNote extends StatelessWidget {
   final ShopCatalogue catalogue;
   const _FreshnessNote({required this.catalogue});
@@ -249,6 +256,17 @@ class _FreshnessNote extends StatelessWidget {
       text = l.t('shop_prices_approx');
     } else if (catalogue.fromCache && at != null) {
       text = l.t('shop_prices_cached', {'date': _dmy(at)});
+    } else if (_comparisonIsGuessed(catalogue)) {
+      // The комплект is live but a part is not, so the struck-through
+      // «отдельно» figure and the «Выгода» beside it are partly built from a
+      // price nobody confirmed. The set's own price is fine, which is why this
+      // note does not suppress the card — it is about the comparison.
+      //
+      // Gated on that comparison actually being DRAWN. Warning whenever a part
+      // is missing would fire on a catalogue that simply does not sell one,
+      // and «a warning on every visit trains people to ignore warnings» is a
+      // rule this screen already keeps.
+      text = l.t('shop_prices_approx');
     } else {
       return const SizedBox.shrink();
     }

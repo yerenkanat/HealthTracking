@@ -74,7 +74,15 @@ class CoursePrices {
     this.fromCache = false,
     this.bundleIsLive = false,
     this.bundleAvailable = true,
+    this.partsAreLive = false,
   });
+
+  /// Whether the watch AND the tracker both came from the catalogue.
+  ///
+  /// Separate from [bundleIsLive] because they answer different questions.
+  /// [isApproximate] is about the комплект's own price — the number the card
+  /// leads with. This is about the number the card COMPARES it to.
+  final bool partsAreLive;
 
   /// The same three things, bought one at a time.
   int get separatelyMinor => watchMinor + trackerMinor + courseOnlyMinor;
@@ -102,6 +110,21 @@ class CoursePrices {
   /// screens lead with; the course-only figure is a constant by design and
   /// says so where it is printed.
   bool get isApproximate => !bundleIsLive;
+
+  /// Whether [separatelyMinor] — and therefore [savingMinor] — rests on a price
+  /// nobody confirmed.
+  ///
+  /// The комплект can be live while a part is not: an operator deactivates the
+  /// watch and leaves the set on sale, and the catalogue then has one row and
+  /// not the other. [isApproximate] is false in that state, because the
+  /// комплект's own price IS live — so the struck-through «separately» figure
+  /// and the «Выгода» chip quoted a 24 900 ₸ nobody had confirmed, on the
+  /// buying path, with no caveat anywhere on the screen.
+  ///
+  /// The course-only figure is excluded deliberately: it is a constant by
+  /// design and says so where it is printed, so it is disclosed rather than
+  /// silent.
+  bool get comparisonIsApproximate => !partsAreLive;
 }
 
 /// Kazakhstani tenge, in minor units (tiyn), matching ana-bala.kz.
@@ -146,5 +169,6 @@ CoursePrices coursePricesFrom(ShopCatalogue c) {
     fromCache: anyLive && c.fromCache,
     bundleIsLive: bundle != null,
     bundleAvailable: bundle != null || c.isEmpty,
+    partsAreLive: watch != null && tracker != null,
   );
 }
