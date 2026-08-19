@@ -11,6 +11,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../app/app_controller.dart';
 import '../ble/calibration.dart' show bpCalibrationIsStale;
 import '../core/geofence.dart';
+import '../domain/cycle_log.dart';
 import '../domain/appointment.dart' show nextAppointment;
 import '../domain/child_tracker_state.dart' show currentZone;
 import '../domain/geofence_alerts.dart';
@@ -811,17 +812,24 @@ class _HomeShellState extends State<HomeShell> {
     final picked = await showDatePicker(
       context: context,
       helpText: l.t('preg_lmp_help'),
-      initialDate: c.cycle.lastPeriodStart ?? now.subtract(const Duration(days: 42)),
+      initialDate: c.cycle.lastPeriodStart ?? addDays(now, -42),
       // A pregnancy runs 40 weeks from the last period; anything older than
       // that is not a start date, and a future one is a mis-set picker.
-      firstDate: now.subtract(const Duration(days: 280)),
+      firstDate: addDays(now, -280),
       lastDate: now,
     );
     if (picked == null || !context.mounted) return;
 
     // 280 days from the last period is the standard estimate — the same
     // arithmetic gestationFor already runs in reverse.
-    c.setDueDate(picked.add(const Duration(days: 280)));
+    //
+    // addDays, not Duration(days: 280): a Duration is 280 × 24 h of ELAPSED
+    // time, and across a DST change that is a different calendar day. This is
+    // the value every pregnancy week, every antenatal window and the labour
+    // date all anchor to, so an hour of drift here moves all of them.
+    // Kazakhstan has had no DST since 2005 — verify_datemath exists so nobody
+    // has to know that, and so the app survives a market that does.
+    c.setDueDate(addDays(picked, 280));
     if (!context.mounted) return;
     // Land her on the calendar, which is now the pregnancy one: the change is
     // large enough that showing it beats announcing it.
