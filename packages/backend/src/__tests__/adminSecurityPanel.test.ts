@@ -47,7 +47,7 @@ const ROWS: AuditRow[] = [
 
 const SECURITY = {
   ...summarizeSecurity(ROWS, NOW, 30),
-  retention: { routeDays: 90, auditYears: 3 },
+  retention: { routeDays: 90, auditSweep: null },
 };
 
 const ROLES = {
@@ -191,7 +191,13 @@ describe('frame 22 · Безопасность', () => {
     expect(t).toContain('Маршруты детей');
     expect(t).toContain('90');
     expect(t).toContain('Журнал доступа');
-    expect(t).toContain('3');
+    // It must NOT quote a period for the audit log. This assertion used to be
+    // toContain('3'), which pinned the false claim: the panel printed «3 года»
+    // beside the real, scheduled 90-day route sweep, while nothing has ever
+    // deleted an audit_log row. A reviewer read two enforced periods where
+    // only one exists.
+    expect(t).toContain('срок не задан');
+    expect(t).not.toContain('года');
   });
 
   it('ends on the open question rather than settling it quietly', () => {

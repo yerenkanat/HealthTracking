@@ -232,7 +232,13 @@ describe('GET /admin/security', () => {
     // page ends up claiming something the sweep does not do.
     const body = (await app.inject({ method: 'GET', url: '/admin/security' })).json();
     expect(body.retention.routeDays).toBe(90);
-    expect(body.retention.auditYears).toBe(3);
+    // The audit log has NO sweep — nothing has ever deleted a row. The page
+    // printed «3 года» beside the real, scheduled 90-day route sweep, so a
+    // reviewer read an enforced period where none exists. Unset until the
+    // owner sets one: deleting the evidence that nobody read a mother's record
+    // unexplained is its own harm, so an engineer must not invent the number.
+    expect(body.retention.auditSweep).toBeNull();
+    expect(body.retention).not.toHaveProperty('auditYears');
     await app.close();
   });
 

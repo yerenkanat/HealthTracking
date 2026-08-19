@@ -1210,9 +1210,19 @@ export function registerAdminRoutes(
       rowCap: SECURITY_ROW_CAP,
       // The retention promises this page reports on, from the one place each
       // is defined — so the screen cannot drift from what actually runs.
+      // auditYears used to sit here as a bare literal 3, directly beneath a
+      // comment claiming the screen «cannot drift from what actually runs» —
+      // and nothing has ever deleted an audit_log row. So the page told a
+      // reviewer, on the screen whose entire job is accountability, that the
+      // record is kept three years, when it is kept for ever.
+      //
+      // Reported as unset rather than as a number. What the period SHOULD be
+      // is the owner's call (TODO §9.6): the audit log is the evidence that
+      // nobody read a mother's record unexplained, so deleting it early is its
+      // own harm and a sweep must not be invented by an engineer.
       retention: {
         routeDays: ROUTE_RETENTION_DAYS,
-        auditYears: 3,
+        auditSweep: null,
       },
     });
   });

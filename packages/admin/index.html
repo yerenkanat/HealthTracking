@@ -5059,8 +5059,12 @@
           <span class="t" style="color:var(--muted)">удаляются автоматически</span>
           <span class="num">${esc(String(d.retention.routeDays))} дн.</span></div>
         <div class="tli"><span><b>Журнал доступа</b></span>
-          <span class="t" style="color:var(--muted)">хранится для проверок</span>
-          <span class="num">${esc(String(d.retention.auditYears))} года</span></div>`;
+          <span class="t" style="color:var(--muted)">${d.retention.auditSweep
+            ? 'удаляется автоматически'
+            : 'хранится бессрочно — срок не задан'}</span>
+          <span class="num">${d.retention.auditSweep
+            ? esc(String(d.retention.auditSweep)) + ' года'
+            : '—'}</span></div>`;
     }
   }
   // Changing the period re-asks the server rather than filtering what is drawn:
