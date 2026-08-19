@@ -5,17 +5,62 @@ import 'package:fcs_app/domain/health_series.dart';
 /// where the product is not judging). Thresholds must stay aligned with the
 /// advisor + triage layers.
 void main() {
+  // BLOOD PRESSURE GRADES AGAINST 140/90 AND NOTHING ELSE — clinical gate,
+  // 2026-08-19. The 135/85 watch tier was removed because neither number is in
+  // any source this product cites (docs/CLINICAL-REVIEW-WATCH.md, «135/85
+  // stopped grading»; docs/TODO.md §1.1, §2.1), and an amber tile announced as
+  // «вне безопасного диапазона» publishes a band to the reader exactly as a
+  // printed «135» would. These tests are written so that putting either number
+  // back fails here, whichever tier it is put back as.
   group('metricStatus — systolic', () {
-    test('normal below 135', () => expect(metricStatus('systolic', 118), MetricStatus.normal));
-    test('watch at the elevated band', () => expect(metricStatus('systolic', 136), MetricStatus.watch));
-    test('watch at the 135 boundary', () => expect(metricStatus('systolic', 135), MetricStatus.watch));
+    test('normal below the cited cutoff', () => expect(metricStatus('systolic', 118), MetricStatus.normal));
+    test('no watch tier where 135 used to be', () => expect(metricStatus('systolic', 136), MetricStatus.normal));
+    test('no watch tier at the old 135 boundary', () => expect(metricStatus('systolic', 135), MetricStatus.normal));
     test('danger at the emergency cutoff', () => expect(metricStatus('systolic', 140), MetricStatus.danger));
   });
 
   group('metricStatus — diastolic', () {
     test('normal', () => expect(metricStatus('diastolic', 76), MetricStatus.normal));
-    test('watch at 85', () => expect(metricStatus('diastolic', 85), MetricStatus.watch));
+    test('no watch tier at the old 85 boundary', () => expect(metricStatus('diastolic', 85), MetricStatus.normal));
+    test('no watch tier where 88 used to be amber', () => expect(metricStatus('diastolic', 88), MetricStatus.normal));
     test('danger at 90', () => expect(metricStatus('diastolic', 92), MetricStatus.danger));
+  });
+
+  group('no uncited band grades a blood pressure, from any source', () {
+    // Swept rather than probed at three points: a band re-added anywhere below
+    // the cited cutoff is caught wherever someone puts its edge.
+    test('nothing below 140 systolic is a warning', () {
+      for (var v = 80; v < 140; v++) {
+        for (final src in ReadingSource.values) {
+          expect(metricStatus('systolic', v.toDouble(), source: src).isWarning, isFalse,
+              reason: 'systolic $v (${src.name}) graded as a warning — on what cited band?');
+        }
+      }
+    });
+    test('nothing below 90 diastolic is a warning', () {
+      for (var v = 50; v < 90; v++) {
+        for (final src in ReadingSource.values) {
+          expect(metricStatus('diastolic', v.toDouble(), source: src).isWarning, isFalse,
+              reason: 'diastolic $v (${src.name}) graded as a warning — on what cited band?');
+        }
+      }
+    });
+
+    // The other half, and it is the one that keeps this from being a loosening:
+    // the CITED cutoff still fires, from a wrist estimate as well as a cuff.
+    // «Gate the positives, never the warnings» is unchanged.
+    test('140/90 is still danger from a device reading', () {
+      expect(metricStatus('systolic', 140, source: ReadingSource.sensor), MetricStatus.danger);
+      expect(metricStatus('diastolic', 90, source: ReadingSource.sensor), MetricStatus.danger);
+      expect(metricStatus('systolic', 165, source: ReadingSource.sensor), MetricStatus.danger);
+    });
+
+    // And a device reading below it is still not painted teal (refused #23).
+    test('a device reading below the cutoff is ungraded, not normal', () {
+      expect(metricStatus('systolic', 137, source: ReadingSource.sensor), MetricStatus.ungraded);
+      expect(metricStatus('diastolic', 88, source: ReadingSource.sensor), MetricStatus.ungraded);
+      expect(metricStatus('systolic', 118, source: ReadingSource.sensor), MetricStatus.ungraded);
+    });
   });
 
   group('metricStatus — heart rate (two-sided)', () {
@@ -122,7 +167,7 @@ void main() {
           MetricStatus.normal);
     });
 
-    test('and a wrist blood pressure may still be red, or amber', () {
+    test('and a wrist blood pressure may still be red', () {
       // «Gate the positives, never the warnings.» The product escalates a
       // device BP at 140/90 — triage.dart has no source check — so the estimate
       // must still be able to pull a grade DOWN.
@@ -130,8 +175,14 @@ void main() {
           MetricStatus.danger);
       expect(metricStatus('diastolic', 112, source: ReadingSource.sensor),
           MetricStatus.danger);
+      // «…or amber» USED TO BE THE THIRD LINE HERE: a wrist 137 graded
+      // `watch`. It came out on 2026-08-19 with the 135/85 band itself, which
+      // no cited source contains (docs/CLINICAL-REVIEW-WATCH.md, «135/85
+      // stopped grading»). The estimate can still pull the grade down — that is
+      // the two lines above, and they are the part of this test that carried
+      // the rule. What it can no longer do is pull it down to an uncited tier.
       expect(metricStatus('systolic', 137, source: ReadingSource.sensor),
-          MetricStatus.watch);
+          MetricStatus.ungraded);
     });
 
     test('a device temperature and a device blood sugar are ungraded at every '

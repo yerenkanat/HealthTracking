@@ -179,7 +179,13 @@ String fingerprint(String key) {
 ///   · The 72 entries carried over from the watch-vitals review have a VERDICT
 ///     behind them. Each was read in ru + kk + en and approved, and the
 ///     reasoning is in docs/CLINICAL-REVIEW-WATCH.md.
-///   · The 436 marked `// pinned 2026-08-18, UNREVIEWED` do NOT. They are the
+///   · The four marked `REVIEWED 2026-08-19` are the reduced-fetal-movement
+///     set, read as one item by the clinical gate against the RK MOH protocol
+///     «Антенатальный уход» (2025) — docs/CLINICAL-REVIEW-WATCH.md, «Reduced
+///     fetal movement — CLOSED, 2026-08-19». Three were approved unchanged;
+///     `kick_low_action` was rewritten, and its Kazakh is written but NOT
+///     language-gate reviewed (docs/TODO.md §9.12), which the line says.
+///   · The remainder marked `// pinned 2026-08-18, UNREVIEWED` do NOT. They are the
 ///     strings the old predicate never matched — labour, antenatal, postpartum,
 ///     EPDS, vaccination, solids, safe sleep, child illness, home safety,
 ///     emergency help. They are frozen at the wording that was ALREADY LIVE on
@@ -518,7 +524,7 @@ const reviewed = <String, String>{
  'ill_young_title': '229f5bdd2cbbd24e', // pinned 2026-08-18, UNREVIEWED
  'kick_goal_reached': 'f0f87b2a5e8b7ade', // pinned 2026-08-18, UNREVIEWED
  'kick_goal_reached_slow': '7331c5c534b66a1e', // pinned 2026-08-18, UNREVIEWED
- 'kick_low_action': '050b3c54e387cd8f', // pinned 2026-08-18, UNREVIEWED
+ 'kick_low_action': '00677ac9fd6a374c', // REVIEWED + REWRITTEN 2026-08-19 (ru/en); kk §9.12
  'kick_low_body': 'f9b753c88cc9fcdb', // pinned 2026-08-18, UNREVIEWED
  'kick_low_title': '53205632acef4748', // pinned 2026-08-18, UNREVIEWED
  'kick_method_note': 'd155042e2e0176d4', // pinned 2026-08-18, UNREVIEWED
@@ -527,7 +533,7 @@ const reviewed = <String, String>{
  'lab_go_five_one_one': 'cd3966cb6a5688e7', // pinned 2026-08-18, UNREVIEWED
  'lab_go_intro': '6e6d39e0d0d5f9a6', // pinned 2026-08-18, UNREVIEWED
  'lab_go_preterm': 'ccef88cc36018ea3', // pinned 2026-08-18, UNREVIEWED
- 'lab_go_reduced_movements': '6fe6751cb16adf1c', // pinned 2026-08-18, UNREVIEWED
+ 'lab_go_reduced_movements': '6fe6751cb16adf1c', // REVIEWED 2026-08-19, unchanged
  'lab_go_title': '9b2e311656851dea', // pinned 2026-08-18, UNREVIEWED
  'lab_go_unsure': '3c93e3451065ab15', // pinned 2026-08-18, UNREVIEWED
  'lab_go_waters_broke': '84678c997e2ab2e9', // pinned 2026-08-18, UNREVIEWED
@@ -578,7 +584,7 @@ const reviewed = <String, String>{
  'preg_note_first_movements': 'd58600f93b538a5e', // pinned 2026-08-18, UNREVIEWED
  'preg_note_hospital_bag': '91daa4495f0a0753', // pinned 2026-08-18, UNREVIEWED
  'preg_note_ligament': 'e246b513fa1e6c6d', // pinned 2026-08-18, UNREVIEWED
- 'preg_note_movement_pattern': 'ee9b59a8e6698efe', // pinned 2026-08-18, UNREVIEWED
+ 'preg_note_movement_pattern': 'ee9b59a8e6698efe', // REVIEWED 2026-08-19, unchanged
  'preg_note_nausea': '11cf281ad9eaa2d5', // pinned 2026-08-18, UNREVIEWED
  'preg_note_sleep_side': '0b08c836b73d1026', // pinned 2026-08-18, UNREVIEWED
  'preg_note_swelling': '9bd96a25d1697239', // pinned 2026-08-18, UNREVIEWED
@@ -588,7 +594,7 @@ const reviewed = <String, String>{
  'preg_warn_fluid': '34d3414265c6502a', // pinned 2026-08-18, UNREVIEWED
  'preg_warn_headache': '53e3de8ec43d6de0', // pinned 2026-08-18, UNREVIEWED
  'preg_warn_intro': 'cfd01f896b93e33f', // pinned 2026-08-18, UNREVIEWED
- 'preg_warn_movement': 'fd623c43695b62de', // pinned 2026-08-18, UNREVIEWED
+ 'preg_warn_movement': 'fd623c43695b62de', // REVIEWED 2026-08-19, unchanged
  'preg_warn_pain': 'd0f5cf538886d7a8', // pinned 2026-08-18, UNREVIEWED
  'preg_warn_title': '594a6de5e2d23e2a', // pinned 2026-08-18, UNREVIEWED
  'pwg_band_normal': '39723b87b963dd24', // pinned 2026-08-18, UNREVIEWED

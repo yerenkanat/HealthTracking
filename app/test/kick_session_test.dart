@@ -100,10 +100,27 @@ void main() {
       findsOneWidget,
       reason: 'her own numbers, stated as fact',
     );
+    // The action the method attaches to its own threshold, and it is asserted
+    // by its CLINICAL PROPERTIES rather than by one phrase: contactable at any
+    // hour, and a route that still works when nobody answers. It read «contact
+    // your clinic today» until 2026-08-19 — at 23:00 that is «in the morning»,
+    // on the red flag with the shortest useful window, and the RK MOH protocol
+    // this product cites says «незамедлительно». See
+    // docs/CLINICAL-REVIEW-WATCH.md, «Reduced fetal movement — CLOSED».
     expect(
-      find.textContaining('contact your clinic today'),
+      find.textContaining('at any hour of the day or night'),
       findsOneWidget,
-      reason: 'the action the method attaches to its own threshold',
+      reason: 'the hour is the whole point: «today» read as «in the morning»',
+    );
+    expect(
+      find.textContaining('call 103'),
+      findsOneWidget,
+      reason: 'the fallback when the clinic does not answer at 03:00',
+    );
+    expect(
+      find.textContaining('clinic today'),
+      findsNothing,
+      reason: 'the softened wording must not come back',
     );
     expect(
       find.textContaining('tell your clinic straight away'),

@@ -545,14 +545,48 @@ MetricStatus metricStatus(String metric, double v,
     // Unlike temperature this branch is NOT an early return, because the
     // temperature ruling barred the device path from every tier including
     // emergency, and the blood-pressure one deliberately did not.
+    //
+    // THERE IS NO WATCH TIER HERE ANY MORE, and its absence is the ruling of
+    // 2026-08-19 (docs/CLINICAL-REVIEW-WATCH.md, «135/85 stopped grading»;
+    // docs/TODO.md §2.1). It used to read `if (v >= 135) return watch` and
+    // `if (v >= 85) return watch`. Those two numbers appear in NO source this
+    // product cites — not packages/contract/triage_thresholds.json, not the RK
+    // MOH protocol in docs/Антенатальный уход.docx, not any WHO or national
+    // guideline the gate could name — and the gate could not source them.
+    // health_advisor.dart already said so in a comment («135/85 fire the card
+    // and appear in NO source this product cites, which is why no user-facing
+    // string may state either of them») and medical_copy_tokens_test enforces
+    // it on the copy. The colour was the hole in that rule: amber on a tile,
+    // plus «, вне безопасного диапазона» in the semantics tree, PUBLISHES the
+    // band to the reader as a verdict just as surely as printing «135» would.
+    // A number that grades must carry a citation or stop grading; this one
+    // could not, so it stopped.
+    //
+    // What did NOT change, deliberately:
+    //   · 140/90 still forces danger from every source — cited to ACOG in
+    //     packages/shared/src/triage.ts and pinned in the contract. Removing an
+    //     uncited warning tier is not permission to touch the cited one.
+    //   · health_advisor.dart still FIRES ADV_BP_ELEVATED / ADV_BP_DEVICE_HIGH
+    //     at 135/85. That is a trigger for describing, not a verdict: the cards
+    //     name no threshold but 140/90, and deleting them would delete the only
+    //     sub-emergency blood-pressure warning a wrist reading can raise. That
+    //     is a removal of clinical content, i.e. an OB-GYN's call, not this
+    //     layer's. So the reading below 140/90 is now UNSAID by the tile and
+    //     still SPOKEN ABOUT by the card, which is the right way round.
+    //   · a device reading below the cutoff stays `ungraded`, unchanged.
+    //
+    // LATENT, and recorded rather than silently fixed: a cuff reading she typed
+    // in at 137/88 now comes out `normal` — on the right side of the only band
+    // this product cites, which is exactly what `normal` means here — while
+    // ADV_BP_ELEVATED says «близки к 140/90». Hand entry is currently removed
+    // (docs/TODO.md §1.2, §2.5), so nothing reaches that pair today; if it
+    // returns, the tile and the card must be settled together, with §1.1.
     case 'systolic':
       if (v >= TriageThresholds.bpSystolicEmergency) return MetricStatus.danger;
-      if (v >= 135) return MetricStatus.watch;
       if (source != ReadingSource.manual) return MetricStatus.ungraded;
       return MetricStatus.normal;
     case 'diastolic':
       if (v >= TriageThresholds.bpDiastolicEmergency) return MetricStatus.danger;
-      if (v >= 85) return MetricStatus.watch;
       if (source != ReadingSource.manual) return MetricStatus.ungraded;
       return MetricStatus.normal;
     case 'hr':

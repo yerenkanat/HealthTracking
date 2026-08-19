@@ -932,13 +932,234 @@ fix.
 
 ### What this leaves open
 
-- The 436 are pinned and **unreviewed**. Pinning bought time; it did not buy
-  safety, and nobody should read the manifest as though it did.
-- `kick_low_action` against `preg_note_movement_pattern` is a live inconsistency
-  on the most time-critical antenatal red flag the app carries. Owner decision.
+- The 436 are pinned and **unreviewed**, less the four the movement ruling
+  below closed on 2026-08-19. Pinning bought time; it did not buy safety, and
+  nobody should read the manifest as though it did.
+- ~~`kick_low_action` against `preg_note_movement_pattern`~~ — **CLOSED
+  2026-08-19**, see «Reduced fetal movement» below. The protocol, not the other
+  three screens, decided it. What that ruling opened instead: the same protocol
+  paragraph says movement COUNTING has no evidence base, and this product ships
+  a counter that says «Цель достигнута».
 - `contr_511_ready` and `lab_go_five_one_one` state the same rule at two
   different strengths on two screens.
 - `pwg_` states Institute of Medicine numbers with no on-screen citation.
 - `an_source` («По клиническому протоколу МЗ РК «Антенатальный уход» (2025)») is
   the only clinical screen in the app that names its source. It is the model the
   other eleven do not follow.
+
+## Reduced fetal movement — CLOSED, 2026-08-19
+
+The item ranked #1 above («the app contradicts itself, and the weakest wording
+sits on the screen where she is already worried») came back with a decision from
+the owner: align `kick_low_action` to the strictest wording already live. The
+gate ruled on it as one item, all four keys together.
+
+| key | verdict | against what |
+|---|---|---|
+| `preg_note_movement_pattern` | **APPROVED**, unchanged | RK MOH «Антенатальный уход» (2025), § «Дальнейшее ведение» |
+| `preg_warn_movement` | **APPROVED**, unchanged | same, plus `emergency_help.json` `fetal_movements` |
+| `lab_go_reduced_movements` | **APPROVED**, unchanged | same |
+| `kick_low_action` | **CHANGES**, made | the protocol; it was weaker than all three |
+
+**The source, and it is not "the other three screens agree".** The RK MOH
+clinical protocol «Антенатальный уход» (2025) — `docs/Антенатальный уход.docx`,
+the document `an_source` cites on screen and `domain/antenatal_protocol.dart`
+names — says, verbatim:
+
+> «Проводить опрос беременной пациентки по поводу характера шевелений плода при
+> каждом визите после 20 недель беременности. […] Пациентке должны быть даны
+> рекомендации, что при субъективном изменении активности и/или частоты
+> шевелений плода, ей следует **незамедлительно** обратиться в
+> родовспомогательную организацию для проведения дополнительного обследования
+> (УД-С).»
+
+*Незамедлительно*, to a maternity facility, with no hour attached. «Свяжитесь с
+консультацией **сегодня**, не ждите до завтра» was weaker than the protocol this
+product cites, so the protocol won. That is the whole justification; the other
+three screens agreeing with it is corroboration, not the reason.
+
+Second corroboration, in-repo and canonical: the **red** `fetal_movements`
+scenario in `packages/contract/emergency_help.json` already fires on the
+identical numeric trigger and gives the identical instruction — «меньше десяти
+за два часа […] звоните 103 или сразу в роддом, не ждите следующего дня». The
+app was therefore already making this claim on one screen while making a softer
+one on the screen that computes the trigger.
+
+**What shipped** (`kick_low_action`, ru):
+
+> «Если за два часа вы не насчитали десяти шевелений — свяжитесь с консультацией
+> или роддомом в любое время суток, не ждите до утра. Если дозвониться не
+> удаётся — звоните 103.»
+
+103 is named as a fallback and imperative to HER: refused sentence #10 is
+untouched, and nothing here says the app summons anyone.
+
+**The finding that outranks the wording, and it is not closed.** The same
+protocol paragraph states: «**Нет доказательных данных по эффективности
+профилактики неблагоприятных перинатальных исходов на основании подсчета числа
+движений плода.**» The app's own cited protocol says formal movement counting is
+not evidenced to prevent adverse outcomes, while the product ships a counter
+that teaches «считай до десяти», rings a goal and prints «Цель достигнута».
+Three consequences, one applied and two open:
+
+1. Applied: the count may not be the gate. `kick_low_action` routes and never
+   reassures, and the subjective trigger (`preg_note_movement_pattern`) is
+   printed directly under it at equal weight — the protocol's actual trigger is
+   the subjective change, not the tally.
+2. Open: `kick_goal_reached` — «Цель достигнута» — is a reassurance verdict on
+   fetal movement produced by a method the cited protocol says has no evidence
+   base behind it. Ranked #12 above; this sharpens it from "two words to look
+   at" to "two words the protocol contradicts".
+3. Open: whether the counter should carry the protocol's own sentence about the
+   evidence, the way `epds_not_validated` carries its instrument's. Not written,
+   deliberately — new user-facing clinical copy needs the owner, not the gate.
+
+**Not done, deliberately: no gestational-age qualifier was added.** The
+`emergency_help.json` card scopes itself «после 28 недель» and the protocol asks
+about movements «после 20 недель»; picking either as the gate for this sentence
+would have been a new claim about when the instruction stops applying, and the
+protocol attaches no window to the *action*. The counter does not know the
+gestational week at this call site either.
+
+**Kazakh.** Written, NOT language-gate reviewed — `docs/TODO.md` §9.12, and the
+line in the manifest says so. Assembled from clauses already live rather than
+translated fresh: «тәуліктің кез келген уақытында … хабарласыңыз» is
+`preg_note_movement_pattern`'s own (already checked against its Russian in this
+document), «перзентханаға», «103-ке қоңырау шалыңыз» and the do-not-wait clause
+are the `emergency_help.json` `fetal_movements` kk pair's. It was written rather
+than left alone because the alternative was shipping a corrected Russian beside
+the old Kazakh — «бүгін … ертеңге қалдырмаңыз», i.e. the 23:00 problem in
+Kazakh — and a softened translation is a different clinical claim. Look at
+«таңға дейін күтпеңіз» first.
+
+**Verified by reverting**, each change on its own, exact messages:
+
+1. The **Russian alone** put back to «свяжитесь с консультацией сегодня, не ждите
+   до завтра», Kazakh and English left corrected. Result: **fails** —
+   `kick_low_action: 00677ac9fd6a374c -> 2ce8e30ebf042c0f`. Worth recording:
+   `kick_session_test` PASSED on that revert, because its assertions read the
+   English. A one-language softening is caught by the fingerprint and by nothing
+   else, which is the reason the fingerprint spans all three.
+2. New text kept, the manifest entry put back to the pinned 2026-08-18 hash.
+   Result: **fails** in the other direction —
+   `kick_low_action: 050b3c54e387cd8f -> 00677ac9fd6a374c`.
+3. New text kept, the new assertion in `app/test/kick_session_test.dart` put
+   back to the old one. Result: **fails** — `Found 0 widgets with text
+   containing contact your clinic today`, i.e. the softened wording cannot
+   return unnoticed.
+
+## The four uncited numbers — 2026-08-19: two stopped grading, two refused
+
+`docs/TODO.md` §1.1 records 37.8 °C, 38.5 °C, 135 and 85 mmHg as numbers that
+grade a tile or fire a card with no cited source. The owner's decision: every
+number that grades must carry a citation, or stop grading.
+
+**Where the gate looked, so nobody repeats it.**
+`packages/contract/antenatal_protocol.json` — the RK MOH schedule shared by app,
+backend and panel — contains no temperature and no blood-pressure threshold at
+all; it is a visit plan, and its only BP line is «Измерение давления и пульса».
+The source document `docs/Антенатальный уход.docx` was extracted and searched:
+**none of 37.8, 38.5, 135 or 85 appears in it**, in any form. `docs/92
+бұйрық.docx` likewise. `packages/contract/emergency_help.json` carries **38 °C**
+twice (a newborn under three months; the first six weeks postpartum) and no
+other number in this family. `packages/contract/triage_thresholds.json` holds
+all four and cites nothing — it is the file that needs a citation, not one that
+can provide it.
+
+### 135 / 85 mmHg — could not source. STOPPED GRADING.
+
+No source names them. `health_advisor.dart` already admitted as much in a
+comment — «135/85 fire the card and appear in NO source this product cites,
+which is why no user-facing string may state either of them» — and
+`medical_copy_tokens_test` enforces that on the copy. **The colour was the hole
+in that rule.** An amber tile, announced to a screen reader as «, вне
+безопасного диапазона», publishes the band to the reader exactly as printing
+«135» would. Refused sentence #23's second half.
+
+Done: the `watch` tier is gone from `metricStatus`'s systolic and diastolic
+branches (`app/lib/domain/health_series.dart`). Blood pressure now grades against
+140/90 and nothing else — cited to ACOG in `packages/shared/src/triage.ts` and
+pinned in the contract. A device reading below the cutoff is `ungraded` as
+before; 140/90 still forces `danger` from every source.
+
+**Verified by reverting.** `if (v >= 135) return watch` and `if (v >= 85) return
+watch` put back into both branches: `metric_status_test` **fails**, on eight
+assertions, the sweep naming the value and the source —
+`systolic 135 (sensor) graded as a warning — on what cited band?` and
+`diastolic 85 (sensor) graded as a warning — on what cited band?` — plus
+`Expected: MetricStatus:<MetricStatus.ungraded> Actual: MetricStatus:<watch>` on
+the wrist-137 case. Restored, and `flutter test` in `app/` is **2286 passing**,
+`dart run tool/verify_all.dart` **82 runners · 3138 assertions**.
+
+Narrowed, deliberately: `health_advisor.dart` still FIRES `ADV_BP_ELEVATED` /
+`ADV_BP_DEVICE_HIGH` at 135/85. A trigger that decides who is shown a card which
+describes and cites 140/90 is not the same act as a verdict painted on a tile,
+and deleting those cards would delete the only sub-emergency blood-pressure
+warning a wrist reading can raise. **Removing a warning is a clinical decision
+and it is not this gate's** — it needs the OB-GYN, together with §1.1. The
+reading below 140/90 is now unsaid by the tile and still spoken about by the
+card, which is the right way round.
+
+Recorded rather than silently fixed: a cuff reading she typed in at 137/88 now
+grades `normal` — it is on the right side of the only band this product cites,
+which is what `normal` means here — while `ADV_BP_ELEVATED` says «близки к
+140/90». Hand entry is currently removed (§1.2, §2.5), so nothing reaches that
+pair today. If it returns, the tile and the card must be settled together.
+
+### 37.8 °C and 38.5 °C — could not source. REFUSED.
+
+**I could not source either number**, and I will not name one from memory. The
+widely published fever definition is 38.0 °C — which is also the number this
+product's own canonical `emergency_help.json` publishes twice. 37.8 °C and
+38.5 °C appear in no document in this repository, and the gate can point at no
+guideline that sets a *pregnancy* fever warning at 37.8 or an emergency at 38.5.
+
+**And the gate refuses to apply the other half of the decision to them.**
+"Stop grading" is not a neutral act here:
+
+* 38.5 °C is the ONLY fever emergency this product has — `HIGH_FEVER`, app and
+  backend, pinned across `triage_thresholds.json` by the contract tests on both
+  sides. Stopping it from grading would make §1.2's hole permanent: a pregnant
+  woman typing 39.2 from a thermometer would get nothing at all.
+* 37.8 °C is what fires `DEVICE_TEMP_HIGH` and `ADV_TEMP_DEVICE_HIGH` — the
+  reachable card that tells her a wrist estimate is raised, to use a thermometer,
+  and to call her doctor today. Removing it removes that card.
+
+Both are removals of clinical content, which this document has held from the
+start is as much a clinical decision as adding it. Neither is the gate's to make;
+and substituting 38.0 °C, even though it is better attested and already used
+elsewhere in this repo, would be moving an emergency cutoff on an inference.
+
+**The question for the OB-GYN, in the form it can be answered:**
+
+1. Does the RK protocol or another named guideline set a fever threshold in
+   pregnancy? If yes, record it beside `temperatureC` in
+   `packages/contract/triage_thresholds.json` and the numbers stay.
+2. If no such threshold can be named, is the product's own 38.0 °C — already
+   published to mothers for a newborn and for the puerperium — the number the
+   pregnancy branch should use as well? That would make the app internally
+   consistent, and it is the one change this gate would sign if a clinician
+   proposes it.
+3. Either answer must move BOTH twins (`app/lib/core/triage.dart` and
+   `packages/shared/src/triage.ts`) and the contract together, or the phone and
+   the server will disagree about a fever.
+
+Until then 37.8 and 38.5 keep grading, uncited, and §1.1 stays open for them.
+Recorded as a known and accepted gap, not as a solved one.
+
+### One more, found while looking, and not among the owner's four
+
+`health_advisor.dart` gates `ADV_BP_STEADY` — a REASSURANCE — on
+`sys.latest < 130 && dia.latest < 85`. 130/85 is uncited in exactly the way
+135/85 was, and it grades a positive claim, which this document ranks as the
+worse direction. The card is unreachable today (hand entry removed), which is
+the only reason this is a note rather than a change.
+
+### The tree was not green when this arrived, and it is not the gate's to fix
+
+`reviewed_medical_copy_test` fails on `db_ring_partial` and `lab_intro`: both
+were edited in the working tree by the concurrent Kazakh pass (§9.12), both are
+pinned medical strings, and neither has a verdict. Their fingerprints were left
+alone. An unreviewed item blocking a release is the system working — and
+`lab_intro` is the modal softening this document already flagged, so the pass is
+touching the right string; it still needs a verdict before the pin moves.

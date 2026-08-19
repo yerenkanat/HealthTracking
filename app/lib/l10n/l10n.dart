@@ -3789,13 +3789,57 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // taught the numbers and stopped: a mother who counted six in two hours had
   // met the trigger for calling and was told nothing about it, because
   // `preg_note_movement_pattern` covers only the subjective «меньше обычного».
+  //
+  // REVIEWED AND REWRITTEN BY THE CLINICAL GATE, 2026-08-19. It used to say
+  // «свяжитесь с консультацией сегодня, не ждите до завтра» — at 23:00 that
+  // reads as «утром», and it was the softest sentence in the app about the
+  // antenatal red flag with the shortest useful window, sitting on the one
+  // screen that fires off an actual count.
+  //
+  // THE SOURCE IS NOT «the other three screens agree». It is the RK MOH
+  // clinical protocol «Антенатальный уход» (2025) — docs/Антенатальный
+  // уход.docx, the document `an_source` cites and domain/antenatal_protocol.dart
+  // names — which says that on a subjective change in the activity or frequency
+  // of fetal movements the patient «следует незамедлительно обратиться в
+  // родовспомогательную организацию … (УД-С)». Незамедлительно, to a maternity
+  // facility, with no hour attached. «Сегодня» was weaker than the protocol
+  // this product cites, so the protocol wins.
+  //
+  // The SAME paragraph states there is no evidence that counting movements
+  // prevents adverse perinatal outcomes. That is why this sentence routes and
+  // never reassures, and why the count is not the gate: the subjective trigger
+  // (`preg_note_movement_pattern`) is printed directly under it at equal
+  // weight and says the same thing.
+  //
+  // 103 is named as the fallback and imperative to HER — the reviewed pattern
+  // (refused sentence #10: this app never says it summoned anyone). No new
+  // clinical claim enters here: the red `fetal_movements` scenario in
+  // packages/contract/emergency_help.json already gives the same instruction on
+  // the same trigger — «меньше десяти за два часа … звоните 103 или сразу в
+  // роддом, не ждите следующего дня».
+  //
+  // KAZAKH GATE-REVIEWED 2026-08-19 (TODO §9.12) — kept as written, clause for
+  // clause against the Russian, with nothing softened: «тәуліктің кез келген
+  // уақытында» = «в любое время суток», «таңға дейін күтпеңіз» = «не ждите до
+  // утра», «Байланыса алмасаңыз» = «Если дозвониться не удаётся». Assembled
+  // from clauses already live rather than translated fresh: «тәуліктің кез
+  // келген уақытында … хабарласыңыз» is `preg_note_movement_pattern`'s own
+  // (gate-checked), «перзентханаға», «103-ке қоңырау» and the do-not-wait
+  // clause are the emergency_help.json `fetal_movements` kk pair's. It was
+  // written rather than left alone because leaving the OLD Kazakh beside the
+  // corrected Russian would have shipped a softened clinical claim in one
+  // language — the exact divergence the manifest exists to catch. Look at
+  // «таңға дейін күтпеңіз» first.
   'kick_low_action': {
     AppLocale.ru: 'Если за два часа вы не насчитали десяти шевелений — '
-        'свяжитесь с консультацией сегодня, не ждите до завтра.',
-    AppLocale.kk: 'Екі сағат ішінде он қимыл санамасаңыз — '
-        'бүгін консультацияға хабарласыңыз, ертеңге қалдырмаңыз.',
-    AppLocale.en: 'If you have not counted ten movements in two hours, '
-        'contact your clinic today — do not wait until tomorrow.',
+        'свяжитесь с консультацией или роддомом в любое время суток, '
+        'не ждите до утра. Если дозвониться не удаётся — звоните 103.',
+    AppLocale.kk: 'Екі сағат ішінде он қимыл санамасаңыз — тәуліктің кез келген '
+        'уақытында консультацияға немесе перзентханаға хабарласыңыз, '
+        'таңға дейін күтпеңіз. Байланыса алмасаңыз — 103-ке қоңырау шалыңыз.',
+    AppLocale.en: 'If you have not counted ten movements in two hours, contact '
+        'your clinic or maternity hospital at any hour of the day or night — '
+        'do not wait until morning. If you cannot get through, call 103.',
   },
   // Shown beside the save confirmation when the session ended BEFORE the two
   // hours with fewer than ten movements. The method has given no signal there,
