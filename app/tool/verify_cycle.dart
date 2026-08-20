@@ -480,6 +480,21 @@ void main() {
     // to 28 and quietly discard what she set.
     _chk('a sane baseline is used as given',
         computeCycle(oneCycle, today, defaultCycle: 31).avgCycleLength == 31);
+    // ...and it is not an AVERAGE. TODO §10.9: the calendar printed «Средний
+    // цикл: 28 дн.» after one logged period, over zero completed cycles, and
+    // rolled the next-period date, the fertile window and ovulation off it.
+    // avgCycleMeasured is what lets the card say where the number came from.
+    _chk('a baseline is never reported as a measurement',
+        !computeCycle(oneCycle, today, defaultCycle: 31).avgCycleMeasured);
+    _chk('nor is the 28 of an empty log',
+        !computeCycle(<DateTime>{}, today).avgCycleMeasured);
+    final twoStarts = {
+      today.subtract(const Duration(days: 34)),
+      today.subtract(const Duration(days: 4)),
+    };
+    final derived = computeCycle(twoStarts, today, defaultCycle: 31);
+    _chk('two starts DO measure one, and it outvotes the baseline',
+        derived.avgCycleMeasured && derived.avgCycleLength == 30);
   }
 
   print('\n$_pass passed, $_fail failed');

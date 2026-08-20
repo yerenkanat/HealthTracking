@@ -268,6 +268,11 @@ CyclePhase? phaseOfLoggedDay(DateTime date, Set<DateTime> periodDays) {
     cycleDay: daysBetween(s, d) + 1,
     hasData: true,
     today: d,
+    // True only when the FOLLOWING start is known, i.e. `cycleLen` above came
+    // from her own two logged starts rather than from the 28 fallback. Nothing
+    // renders this info — it exists to reuse cyclePhaseFor — but the flag is a
+    // claim about provenance and must not be false the way `hasData` was.
+    avgCycleMeasured: next != null,
   );
   return cyclePhaseFor(info)?.phase;
 }

@@ -519,6 +519,10 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
                         completedCycles: reg.cyclesConsidered,
                         variationDays: reg.variationDays,
                       ),
+                      // Null means she never touched the slider, so the 28 the
+                      // dates roll on is ours and the card must not call it
+                      // «ваша настройка».
+                      baselineChosen: c.cycleBaselineDays != null,
                     );
                   }),
                 ],
@@ -2686,7 +2690,20 @@ class _FertileCountdownCard extends StatelessWidget {
 class _CyclePredictions extends StatelessWidget {
   final CycleInfo info;
   final PredictionConfidence confidence;
-  const _CyclePredictions({required this.info, required this.confidence});
+
+  /// Whether the cycle length under these dates is one SHE chose, in the
+  /// settings sheet, rather than the app's 28.
+  ///
+  /// [AppController.cycleBaselineDays] is nullable precisely so this can be
+  /// told apart, and until now that knowledge stopped at the profile sync.
+  /// It only matters while [CycleInfo.avgCycleMeasured] is false: once real
+  /// gaps exist they outvote the baseline and the line states a measurement.
+  final bool baselineChosen;
+
+  const _CyclePredictions(
+      {required this.info,
+      required this.confidence,
+      required this.baselineChosen});
 
   @override
   Widget build(BuildContext context) {
@@ -2737,7 +2754,26 @@ class _CyclePredictions extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(l.t('cyc_avg_cycle', {'n': info.avgCycleLength}),
+                // THE AVERAGE, OR THE ASSUMPTION STANDING IN FOR IT.
+                //
+                // This printed «Средний цикл: 28 дн.» after ONE logged period —
+                // a stated average over zero completed cycles. The chip to the
+                // right says «мало данных», which is the right hedge on the
+                // DATES; it does not excuse a measurement claim beside it.
+                //
+                // The dates are kept. They rest on a number, they always did,
+                // and withholding them would leave the card with nothing on the
+                // one screen a period tracker exists for. What was missing is
+                // that the number was never named as an assumption — so the
+                // line now names it, and says whose it is.
+                child: Text(
+                    info.avgCycleMeasured
+                        ? l.t('cyc_avg_cycle', {'n': info.avgCycleLength})
+                        : l.t(
+                            baselineChosen
+                                ? 'cyc_avg_cycle_setting'
+                                : 'cyc_avg_cycle_assumed',
+                            {'n': info.avgCycleLength}),
                     style:
                         const TextStyle(color: Palette.textDim, fontSize: 12)),
               ),
@@ -2820,6 +2856,25 @@ class _PredRow extends StatelessWidget {
           child: Icon(icon, size: 18, color: color),
         ),
         const SizedBox(width: 12),
+        // THE BADGE SITS WITH THE DATE, NOT AT THE FAR RIGHT.
+        //
+        // Incidental to §10.9 and found by the test written for it: this row
+        // overflowed by 70 px at 320 dp with the font slider at 130 % in
+        // Kazakh, where «через 12 дней» is «12 күннен кейін». The badge was an
+        // inflexible child, so it took its natural width first and the Expanded
+        // column was left with whatever remained — which was less than nothing.
+        //
+        // Nothing in the suite had ever drawn it. The golden builds cycle mode
+        // from an EMPTY controller and narrow_phone_test measures a 640 dp
+        // fold, and this card is far below it in a `ListView(children:)` that
+        // mounts only what is near the viewport. Exactly the vacuity that hid a
+        // 131 px overflow in _CyclePhaseCard until 359fb8d, one card up.
+        //
+        // A Wrap, reusing that fix's answer rather than inventing a third: the
+        // badge follows the date on one line while there is room and drops
+        // under it when there is not. It also reads better — «через 12 дней»
+        // qualifies the date, and pinning it to the opposite edge of the card
+        // put the whole row's width between the two halves of one statement.
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2828,25 +2883,34 @@ class _PredRow extends StatelessWidget {
                   style:
                       const TextStyle(color: Palette.textDim, fontSize: 12.5)),
               const SizedBox(height: 1),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w700)),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(value,
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700)),
+                  if (badge != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                          border: Border.all(
+                              color: Ds.ink, width: DsShape.borderWidth),
+                          color: badgeColor!.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text(badge!,
+                          style: TextStyle(
+                              color: badgeColor,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12)),
+                    ),
+                ],
+              ),
             ],
           ),
         ),
-        if (badge != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-                border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                color: badgeColor!.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(20)),
-            child: Text(badge!,
-                style: TextStyle(
-                    color: badgeColor,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12)),
-          ),
       ],
     );
   }

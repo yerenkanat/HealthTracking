@@ -4384,6 +4384,29 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   'sym_days_empty': {AppLocale.ru: 'Этот симптом ещё не отмечался.', AppLocale.kk: 'Бұл симптом әлі белгіленбеген.', AppLocale.en: 'This symptom hasn\'t been logged yet.'},
   'cyc_next_period': {AppLocale.ru: 'Следующие месячные', AppLocale.kk: 'Келесі етеккір', AppLocale.en: 'Next period'},
   'cyc_avg_cycle': {AppLocale.ru: 'Средний цикл: {n} дн.', AppLocale.kk: 'Орташа цикл: {n} күн', AppLocale.en: 'Average cycle: {n} days'},
+  // ---- …and what that line says before any cycle has been measured ---------
+  //
+  // «Средний цикл: 28 дн.» is a MEASUREMENT, and it was printed after a single
+  // logged period — from which no cycle length can be computed at all, because
+  // it takes two period starts to measure one gap. The number was the baseline
+  // (28, or wherever the settings slider sits), the next-period date and the
+  // fertile window were rolled forward from it, and nothing on the card said so.
+  //
+  // The dates stay: they are what the screen is for, and the confidence chip
+  // beside this line already hedges them («мало данных»). What could not stay is
+  // an unearned claim about her body sitting next to that hedge. So the line
+  // stops asserting an average and states the assumption the dates rest on.
+  //
+  // Two of them, because [AppController.cycleBaselineDays] can tell «she moved
+  // the slider to 28» from «nobody chose anything» — and «прогноз по вашей
+  // настройке» would be its own invented number if she never set one.
+  //
+  // KAZAKH IS A DRAFT WRITTEN OUTSIDE THE LANGUAGE GATE — see docs/TODO.md
+  // §10.17. «Цикл ұзақтығы» carries the noun so «өлшенген жоқ» has a subject,
+  // and «{n} күнмен» keeps the case ending off the numeral, the same dodge
+  // cyc_future_mark_title was accepted for.
+  'cyc_avg_cycle_assumed': {AppLocale.ru: 'Цикл ещё не измерен — прогноз по стандартным {n} дн.', AppLocale.kk: 'Цикл ұзақтығы әлі өлшенген жоқ — болжам стандартты {n} күнмен есептелген.', AppLocale.en: 'Cycle not measured yet — forecast assumes a standard {n} days.'},
+  'cyc_avg_cycle_setting': {AppLocale.ru: 'Цикл ещё не измерен — прогноз по вашей настройке: {n} дн.', AppLocale.kk: 'Цикл ұзақтығы әлі өлшенген жоқ — болжам сіз көрсеткен {n} күнмен есептелген.', AppLocale.en: 'Cycle not measured yet — forecast uses your setting of {n} days.'},
   'gest_due': {AppLocale.ru: 'Дата родов: {date}', AppLocale.kk: 'Босану күні: {date}', AppLocale.en: 'Due date: {date}'},
   'cyc_no_data_title': {AppLocale.ru: 'Отслеживайте цикл', AppLocale.kk: 'Циклді қадағалаңыз', AppLocale.en: 'Track your cycle'},
   'cyc_no_data_body': {AppLocale.ru: 'Отметьте день менструации, чтобы видеть прогнозы.', AppLocale.kk: 'Болжамды көру үшін етеккір күнін белгілеңіз.', AppLocale.en: 'Log a period day to see predictions.'},

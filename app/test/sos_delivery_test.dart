@@ -453,7 +453,7 @@ void main() {
       await tester.pumpWidget(host(SosAlertScreen(
         childName: view.childName,
         at: view.at,
-        now: now,
+        now: () => now,
         zoneName: view.zoneName,
         coords: view.coords,
         coordsAt: view.coordsAt,
@@ -478,7 +478,7 @@ void main() {
       await tester.pumpWidget(host(SosAlertScreen(
         childName: 'Алия',
         at: justNow,
-        now: now,
+        now: () => now,
         onCall: (_) async => true,
         onDismissConfirmed: () async {},
       )));

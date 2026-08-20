@@ -195,7 +195,11 @@ class FcsApp extends StatelessWidget {
       return SosAlertScreen(
         childName: s.childName,
         at: s.at,
-        now: DateTime.now(),
+        // The function, not a reading. `DateTime.now()` here was evaluated once
+        // as _rootFor built the takeover and never again, so «2 мин назад» was
+        // still «2 мин назад» forty minutes later. The screen ticks itself off
+        // this now.
+        now: DateTime.now,
         zoneName: s.zoneName,
         coords: s.coords,
         coordsAt: s.coordsAt,

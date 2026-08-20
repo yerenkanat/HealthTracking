@@ -87,7 +87,7 @@ void main() {
     await tester.pumpWidget(host(SosAlertScreen(
       childName: 'Алия',
       at: pressed,
-      now: now,
+      now: () => now,
       zoneName: 'Мектеп №25',
       coords: const Coordinates(43.25, 76.95),
       coordsAt: now.subtract(const Duration(minutes: 4)),
@@ -111,7 +111,7 @@ void main() {
     await tester.pumpWidget(host(SosAlertScreen(
       childName: 'Алия',
       at: pressed,
-      now: now,
+      now: () => now,
       contactName: 'Нұржан',
       contactPhone: '+77011234567',
       onCall: (tel) async {
@@ -133,7 +133,7 @@ void main() {
     await tester.pumpWidget(host(SosAlertScreen(
       childName: 'Алия',
       at: pressed,
-      now: now,
+      now: () => now,
       onCall: (_) async => true,
       onDismissConfirmed: () async {},
     )));
@@ -151,7 +151,7 @@ void main() {
     await tester.pumpWidget(host(SosAlertScreen(
       childName: 'Алия',
       at: pressed,
-      now: now,
+      now: () => now,
       mapBuilder: (_, __, ___) => const SizedBox(key: Key('map'), height: 100),
       onCall: (_) async => true,
       onDismissConfirmed: () async {},
@@ -168,7 +168,7 @@ void main() {
     await tester.pumpWidget(host(SosAlertScreen(
       childName: 'Алия',
       at: pressed,
-      now: now,
+      now: () => now,
       onCall: (_) async => true,
       onDismissConfirmed: () async => dismissed++,
     )));
@@ -469,7 +469,7 @@ void main() {
       SosAlertScreen(
         childName: 'Алия',
         at: pressed,
-        now: now,
+        now: () => now,
         contactName: 'Нұржан',
         contactPhone: '+77011234567',
         onCall: (_) async => true,

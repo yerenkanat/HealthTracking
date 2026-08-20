@@ -106,6 +106,41 @@ String? formatAgo(Duration age) {
   return '${age.inDays} d ago';
 }
 
+/// How long until [formatAgo]/`L10n.ago` would produce a DIFFERENT sentence for
+/// an age that is currently [age]. Derived from the buckets above, and it has to
+/// live next to them: two copies of this table would drift, and the drift shows
+/// as a screen that redraws at the wrong moment or not at all.
+///
+/// For a screen that keeps an age on it while the user watches — the SOS
+/// takeover — this is what makes «2 мин назад» tick without waking the device
+/// every second to rewrite a string that only changes once a minute. One timer
+/// per minute for the first hour, then one per hour, then one per day.
+///
+/// Never zero: a returned zero would re-arm a timer that fires immediately, and
+/// the resulting spin is a worse defect than the stale string it replaced.
+Duration agoRefreshDelay(Duration age) {
+  const floor = Duration(seconds: 1);
+  // A timestamp from the future. The sentence changes when the clock catches up
+  // with it, so wait exactly that long — and cap it, because a wildly wrong
+  // device clock must not schedule a timer years out and then never re-check.
+  if (age.isNegative) {
+    final until = -age;
+    return until > const Duration(hours: 1) ? const Duration(hours: 1) : until;
+  }
+  if (age.inSeconds < 45) return Duration(seconds: 45 - age.inSeconds);
+  if (age.inSeconds < 60) return Duration(seconds: 60 - age.inSeconds);
+  if (age.inMinutes < 60) {
+    final d = const Duration(minutes: 1) - Duration(seconds: age.inSeconds % 60);
+    return d < floor ? floor : d;
+  }
+  if (age.inHours < 24) {
+    final d = const Duration(hours: 1) - Duration(minutes: age.inMinutes % 60);
+    return d < floor ? floor : d;
+  }
+  final d = const Duration(days: 1) - Duration(hours: age.inHours % 24);
+  return d < floor ? floor : d;
+}
+
 /// Derive the full status shown on the tracking screen.
 ChildStatus deriveChildStatus({
   required String childName,

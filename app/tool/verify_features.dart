@@ -102,6 +102,36 @@ void main() {
   _chk('formatAgo refuses a future timestamp',
       formatAgo(const Duration(hours: -3)) == null);
 
+  // TODO §10.10 — a screen that KEEPS one of these sentences on it while the
+  // user watches (the SOS takeover) has to redraw when the sentence changes and
+  // at no other time. agoRefreshDelay is that schedule, and it is derived from
+  // the buckets right above so the two cannot drift apart.
+  _chk('the first refresh is the 45-second boundary',
+      agoRefreshDelay(Duration.zero) == const Duration(seconds: 45));
+  _chk('inside the minute bucket it waits for the next whole minute',
+      agoRefreshDelay(const Duration(minutes: 2)) == const Duration(minutes: 1) &&
+          agoRefreshDelay(const Duration(minutes: 2, seconds: 20)) ==
+              const Duration(seconds: 40));
+  _chk('past an hour it drops to hourly, not minutely',
+      agoRefreshDelay(const Duration(minutes: 90)) == const Duration(minutes: 30));
+  _chk('past a day it drops to daily',
+      agoRefreshDelay(const Duration(hours: 30)) == const Duration(hours: 18));
+  // A zero delay re-arms a timer that fires immediately — a spin on the one
+  // screen whose battery has to last until she arrives.
+  _chk('never zero, at any bucket edge', [
+    Duration.zero,
+    const Duration(seconds: 44),
+    const Duration(seconds: 59),
+    const Duration(minutes: 59, seconds: 59),
+    const Duration(hours: 23, minutes: 59),
+    const Duration(days: 400),
+  ].every((a) => agoRefreshDelay(a) > Duration.zero));
+  // A future timestamp: wait for the clock to catch up, but re-check within the
+  // hour rather than scheduling a timer years out and never looking again.
+  _chk('a future timestamp is waited out, and capped',
+      agoRefreshDelay(const Duration(minutes: -3)) == const Duration(minutes: 3) &&
+          agoRefreshDelay(const Duration(days: -400)) == const Duration(hours: 1));
+
   final skewed = deriveChildStatus(
     childName: 'Sultan',
     location: home.center,

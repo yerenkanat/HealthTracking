@@ -25,6 +25,25 @@ class CycleInfo {
   final bool hasData; // enough logs to predict
   final DateTime today; // anchor the prediction was computed against
 
+  /// Whether [avgCycleLength] was MEASURED from her own logged period starts,
+  /// or is the baseline the prediction fell back on.
+  ///
+  /// It takes two period starts to measure one cycle, so after her first logged
+  /// period this is false and [avgCycleLength] is simply `defaultCycle` — 28
+  /// unless she moved the settings slider. [hasData] is true throughout, which
+  /// is why the screen printed «Средний цикл: 28 дн.» over zero completed
+  /// cycles: an average she never provided, stated as a measurement, with a
+  /// next-period date rolled forward from it.
+  ///
+  /// Same shape as the `cycleDay ?? 1` fallback closed in 359fb8d, one card up
+  /// the same screen. Predictions still need SOME number to roll forward from,
+  /// so the fix is not to withhold it — it is to let the screen say where it
+  /// came from, which needs this flag to reach the widget.
+  ///
+  /// Defaults to false because false is the conservative claim: a caller that
+  /// has not thought about it gets the hedged sentence, not the asserted one.
+  final bool avgCycleMeasured;
+
   const CycleInfo({
     required this.avgCycleLength,
     required this.avgPeriodLength,
@@ -36,6 +55,7 @@ class CycleInfo {
     required this.cycleDay,
     required this.hasData,
     required this.today,
+    this.avgCycleMeasured = false,
   });
 
   int? get daysUntilNextPeriod =>
@@ -85,6 +105,7 @@ CycleInfo computeCycle(
       avgCycleLength: 28, avgPeriodLength: 5,
       lastPeriodStart: null, nextPeriodStart: null, ovulation: null,
       fertileStart: null, fertileEnd: null, cycleDay: null, hasData: false, today: t,
+      avgCycleMeasured: false,
     );
   }
 
@@ -109,6 +130,10 @@ CycleInfo computeCycle(
   // taken when there is not yet enough logged history, which is exactly when a
   // new user is relying on the baseline.
   var avgCycle = _clamp(defaultCycle, 21, 35);
+  // ...and it is NOT a measurement until a gap below replaces it. Exactly one
+  // logged period start yields no gaps at all, so this stays at the baseline
+  // while [CycleInfo.hasData] goes true. See [CycleInfo.avgCycleMeasured].
+  var measured = false;
   final gaps = <int>[
     for (var i = 1; i < starts.length; i++) daysBetween(starts[i - 1], starts[i]),
   ];
@@ -123,6 +148,7 @@ CycleInfo computeCycle(
         ? recent[mid]
         : ((recent[mid - 1] + recent[mid]) / 2).round();
     avgCycle = _clamp(median, 21, 35);
+    measured = true;
   }
 
   // Average period length: consecutive logged days from each start.
@@ -168,6 +194,7 @@ CycleInfo computeCycle(
     cycleDay: cycleDay,
     hasData: true,
     today: t,
+    avgCycleMeasured: measured,
   );
 }
 

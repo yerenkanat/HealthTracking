@@ -30,11 +30,14 @@
 /// calmly on a Tuesday. This is the alarm.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/geofence.dart';
+import '../../domain/child_tracker_state.dart' show agoRefreshDelay;
 import '../../l10n/l10n.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
@@ -47,9 +50,26 @@ class SosAlertScreen extends StatefulWidget {
   /// have — the headline then needs no name instead of borrowing one.
   final String childName;
 
-  /// When the button was pressed, and the clock this screen measures against.
+  /// When the button was pressed.
   final DateTime at;
-  final DateTime now;
+
+  /// The clock this screen measures ages against — READ REPEATEDLY, not once.
+  ///
+  /// It used to be a `DateTime now`, sampled by the caller. `_rootFor` in
+  /// app.dart evaluated `DateTime.now()` as it built the takeover and nothing
+  /// ever called setState again, so «в 09:00 · 2 мин назад» stayed «2 мин
+  /// назад» for the forty minutes she drove with the screen up. The absolute
+  /// time stayed right, which is why it never looked broken.
+  ///
+  /// That is the claim this screen's own location card warns about: «a position
+  /// with no age on it claims to be live, and on this screen that is the claim
+  /// most likely to be wrong». A frozen age is worse than no age — it is an age
+  /// that keeps saying something false.
+  ///
+  /// A function, matching every other screen here that needs the time
+  /// (`WomensHealthScreen`, `AlertsScreen`, `ChildDetailScreen`), so a test can
+  /// move the clock and watch the string follow.
+  final DateTime Function() now;
 
   /// The zone she was in when it happened, if any.
   final String zoneName;
@@ -104,9 +124,25 @@ class SosAlertScreen extends StatefulWidget {
 }
 
 class _SosAlertScreenState extends State<SosAlertScreen> {
+  /// The clock reading the current frame was drawn against. Advanced by
+  /// [_scheduleAgeTick] only, so every age on the screen moves together.
+  late DateTime _now = widget.now();
+
+  /// One-shot and re-armed, NOT `Timer.periodic(1s)`.
+  ///
+  /// The two ages here are rendered by `L10n.ago`, whose smallest step is a
+  /// minute after the first 45 seconds. A per-second timer would wake the
+  /// device sixty times to redraw the same string, on the one screen where the
+  /// battery has to last until she gets there — a takeover that flattens the
+  /// phone is its own emergency. So the next tick is scheduled for the exact
+  /// moment the sentence would change ([agoRefreshDelay]): once a minute for
+  /// the first hour, then once an hour.
+  Timer? _ageTick;
+
   @override
   void initState() {
     super.initState();
+    _scheduleAgeTick();
     // Felt, not just seen — she may be looking at something else entirely.
     HapticFeedback.heavyImpact();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -119,6 +155,50 @@ class _SosAlertScreenState extends State<SosAlertScreen> {
         assertiveness: Assertiveness.assertive,
       );
     });
+  }
+
+  /// Re-arm for the moment the OLDEST-changing sentence on screen would change.
+  ///
+  /// Both ages are considered — the press time and, when there is one, the age
+  /// of the last position — because a single timer redraws both and the earlier
+  /// boundary is the one that must not be missed. The location line is the more
+  /// important of the two: it is the one the card calls the claim «most likely
+  /// to be wrong».
+  void _scheduleAgeTick() {
+    _ageTick?.cancel();
+    var delay = agoRefreshDelay(_now.difference(widget.at));
+    final coordsAt = widget.coordsAt;
+    if (coordsAt != null) {
+      final other = agoRefreshDelay(_now.difference(coordsAt));
+      if (other < delay) delay = other;
+    }
+    _ageTick = Timer(delay, () {
+      if (!mounted) return;
+      setState(() => _now = widget.now());
+      _scheduleAgeTick();
+    });
+  }
+
+  @override
+  void didUpdateWidget(SosAlertScreen old) {
+    super.didUpdateWidget(old);
+    // A second child presses the button and the takeover is rebuilt with a new
+    // `at`. Without this the pending timer is still aimed at the old alert's
+    // boundary and the new age steps late.
+    // No setState: a rebuild is already under way, and marking dirty inside it
+    // only schedules a second one.
+    if (old.at != widget.at || old.coordsAt != widget.coordsAt) {
+      _now = widget.now();
+      _scheduleAgeTick();
+    }
+  }
+
+  @override
+  void dispose() {
+    // The takeover goes when she dismisses it or the app is torn down; a timer
+    // that outlives it would call setState on a dead State every minute.
+    _ageTick?.cancel();
+    super.dispose();
   }
 
   String _headline(L10n l) => widget.childName.trim().isEmpty
@@ -167,7 +247,7 @@ class _SosAlertScreenState extends State<SosAlertScreen> {
                         Text(
                           l.t('sos21_when', {
                             'time': _hhmm(widget.at),
-                            'ago': l.ago(widget.now.difference(widget.at)),
+                            'ago': l.ago(_now.difference(widget.at)),
                           }),
                           style: const TextStyle(
                             color: Color(0xFFFFD3DE),
@@ -346,7 +426,7 @@ class _SosAlertScreenState extends State<SosAlertScreen> {
                     Text(
                       l.t('sos21_where_at', {
                         'time': _hhmm(at),
-                        'ago': l.ago(widget.now.difference(at)),
+                        'ago': l.ago(_now.difference(at)),
                       }),
                       style: const TextStyle(
                         color: Ds.textSecondary,

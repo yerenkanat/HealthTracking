@@ -1722,7 +1722,7 @@ void main() {
         () => SosAlertScreen(
           childName: 'Айгерім-Гүлнұр',
           at: DateTime.utc(2026, 7, 15, 8, 41),
-          now: now,
+          now: () => now,
           // A parent-typed zone name, not «Дом» — the short case is not the
           // normal one.
           zoneName: 'Мектеп №25, ауладағы алаң',
