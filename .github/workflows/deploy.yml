@@ -47,7 +47,7 @@ jobs:
     # Nothing ships unless the suites are green. Deploying past a red test is
     # how a broken panel reaches an operator who is mid-shift.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
