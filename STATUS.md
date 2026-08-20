@@ -80,6 +80,10 @@ without a device or cloud is unit-tested and green on each change.
 3. **Regulatory** (PM). Determine SaMD / medical-device obligations per market
    (KZ/CIS + any EU/US).
 4. **Privacy** (Security). Envelope-encrypt health + location columns; key rotation;
+   The key-management question is the blocker, not the cipher: the app and the
+   database share one host, so a key the backend can read unattended is a key
+   an attacker with that host can read. Options, and what ciphertext breaks in
+   SQL, are worked through in `docs/SECURITY_FOLLOWUP.md` §8.
    pen-test ingest + AI endpoints (injection tests already seeded).
 
 ## Next up (in priority order)

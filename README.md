@@ -207,6 +207,10 @@ real endpoints + API keys drop in without touching the verified logic.
 2. **Clinical validation & regulatory review.** PPG BP is not a validated diagnostic.
    OB-GYN sign-off on thresholds/copy; assess SaMD/medical-device obligations per market.
 3. **Security:** envelope-encrypt health + location columns, rotate keys, pen-test the
+   The key-management question is the blocker, not the cipher: the app and the
+   database share one host, so a key the backend can read unattended is a key
+   an attacker with that host can read. Options, and what ciphertext breaks in
+   SQL, are worked through in `docs/SECURITY_FOLLOWUP.md` §8.
    ingest and AI endpoints (injection tests included as a starting point).
 4. **Native background geofencing** (iOS region monitoring / Android GeofencingClient)
    to replace JS/Dart polling in the background — see the battery doc.
