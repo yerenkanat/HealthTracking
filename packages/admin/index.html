@@ -3419,7 +3419,22 @@
   // ---- Rendering ----
   const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
   const sevRank={emergency:0,warning:1,good:2};
-  function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+  // Escapes BOTH quote characters, not just the tag delimiters.
+  //
+  // This used to be /[&<>]/ while 90 call sites in this same script block
+  // interpolate it INSIDE a double-quoted attribute — including
+  // data-who="${esc(l.customerName)}" on the leads row, where the value is
+  // typed by an anonymous member of the public at POST /shop/leads. A name of
+  // Aigul" onfocus=alert(1) autofocus x=" broke out of the attribute and ran
+  // in the panel's origin, as the signed-in owner, with their whole capability
+  // set — and the audit log would have recorded the reads as theirs.
+  //
+  // HttpOnly does not help: the panel's own fetch is credentials:"same-origin",
+  // so injected script does not need to read the cookie, it just calls the API.
+  //
+  // The other block's esc (search: replace(/[&<>"]/g) already did this. Two
+  // helpers with the same name and different behaviour is why it survived.
+  function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 
   // Product metrics from GET /admin/bi. Null until it answers.
   let BI=null;
