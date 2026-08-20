@@ -48,6 +48,39 @@ void main() {
   _chk('ru next-period label', rs.contains('Следующие месячные:'));
   _chk('ru disclaimer', rs.contains('не средство контрацепции'));
 
+
+
+  // ── the average is not asserted over zero completed cycles ───────────────
+  //
+  // 45309a7 stopped the CARD claiming an average after one logged period. This
+  // text did not change, and it is the one she copies to send to a doctor — a
+  // measurement she never provided, in a document a clinician may act on.
+  // Found by the language gate reading the screen, not by a test.
+  //
+  // Built through computeCycle rather than a hand-made CycleInfo, so the
+  // provenance flag is the domain's own answer and not this file's opinion.
+  final oneCycle = computeCycle(
+    <DateTime>{DateTime(2026, 7, 1), DateTime(2026, 7, 2), DateTime(2026, 7, 3)},
+    DateTime(2026, 7, 15),
+  );
+  _chk('one logged period leaves the average unmeasured', !oneCycle.avgCycleMeasured);
+
+  final assumed = buildCycleSummary(l, oneCycle, formatDate: _fmt);
+  _chk('an unmeasured average is not stated as measured',
+      !assumed.contains(l.t('cyc_avg_cycle', {'n': oneCycle.avgCycleLength})));
+  _chk('and the text says the number is ours',
+      assumed.contains(l.t('cyc_avg_cycle_assumed', {'n': oneCycle.avgCycleLength})));
+
+  final chosen =
+      buildCycleSummary(l, oneCycle, formatDate: _fmt, baselineChosen: true);
+  _chk('a slider she moved is named as hers',
+      chosen.contains(l.t('cyc_avg_cycle_setting', {'n': oneCycle.avgCycleLength})));
+
+  _chk('a measured average is still stated plainly',
+      info.avgCycleMeasured &&
+          s.contains(l.t('cyc_avg_cycle', {'n': info.avgCycleLength})));
+
+
   print('\n$_pass passed, $_fail failed');
   exit(_fail == 0 ? 0 : 1);
 }

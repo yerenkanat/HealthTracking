@@ -646,7 +646,9 @@ class _WomensHealthScreenState extends State<WomensHealthScreen> {
 
   Future<void> _shareCycle(CycleInfo info, L10n l) async {
     final ml = MaterialLocalizations.of(context);
-    final text = buildCycleSummary(l, info, formatDate: ml.formatMediumDate);
+    final text = buildCycleSummary(l, info,
+        formatDate: ml.formatMediumDate,
+        baselineChosen: widget.controller.cycleBaselineDays != null);
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
