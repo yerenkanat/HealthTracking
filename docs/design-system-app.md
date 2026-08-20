@@ -90,6 +90,52 @@ Each tab: glyph 19px + label 11px; active `#FF3D71` weight 800, inactive `#A895B
 
 **Empty / add state** — dashed ink border, `＋` glyph, one-line explanation in 14/600/#8A7590.
 
+## Who plays each role
+
+Every pattern above names a *role*, not a class name. An audit in §10.14 listed
+five `Ds*` widgets as "built, styled, tested and drawn by no screen" and nearly
+deleted all five. The count was right and the conclusion was not: they were four
+different situations. This table exists so the next audit reads it instead of
+re-deriving it.
+
+| Pattern above | What actually draws it | Status |
+| --- | --- | --- |
+| **Header** (line 62) | the themed `AppBar` — `theme.dart`'s `appBarTheme`, `type.screenTitle` on cream/ink, at 71 call sites | `DsScreenHeader` **deleted**. It duplicated the role and lost the system back gesture, the route's pop semantics and the status-bar inset doing it. One entry per destination applies to components. |
+| **Hero metric card** (line 71) | `_MetricCard` in `dashboard/health_dashboard_screen.dart`, built from `DsCard` | `DsHeroMetric` **deleted**. It had no slot for an "as of" age. Every hero figure in this app is a vital sign; a hero number with no freshness treatment is a reading that will be trusted when it should not be, so the component could never be adopted on the only screens that wanted it. |
+| **Stat grid** (line 73) | `widgets/stat_tile.dart`'s `StatTile` (~20 call sites) and the dashboard's private tile, which adds a unit slot, a verdict colour and a Kazakh scale-down | `DsStatTile` **deleted**. Three tiles for one role; the unused one went. |
+| **Map view** (line 82) | the real map, injected per screen via `mapBuilder` | `DsMapPlaceholder` **kept with no production caller.** It is the test double `children_golden_test.dart` and `narrow_phone_test.dart` pass, which is what lets those screens be covered at all, and it is the honest fallback the day a tile fetch fails on 2G. Annotated in the file. |
+| **Segmented control** (line 77) | `DsSegmented` | **Now used.** Onboarding step 4's «Пол» (frame 35) and the child edit sheet drew Material `ChoiceChip`s in `Palette.violet` instead — the one control the spec names by component was the one not built from the system. |
+
+Deleting is the right move for a component with no caller **only** when another
+built thing already fills the role. A spec'd pattern with no implementation at
+all stays. Git has the three that went.
+
+### What a segmented control is, and is not
+
+Two or three mutually exclusive labels, equal width, all visible. Measured at
+320dp with text at 130 %:
+
+| | wants | gets |
+| --- | --- | --- |
+| «Мальчик» / «Девочка» (2 up) | 129.1 dp | 119.0 dp |
+| «Ұл» / «Қыз» (2 up) | 55.3 dp | 119.0 dp |
+| «Сейчас» / «История» / «Зоны» (3 up) | 129.1 dp | 73.3 dp |
+
+So the labels scale down rather than ellipsise — a gender control reading
+«Маль…» is one nobody can identify — and **four segments is not a thing this
+widget does.** A variable number of options, a scrolling row, or anything
+multi-select is a chip strip (the alerts filters, the device→child pick), not
+this.
+
+Note which language is tight: **Russian**, not Kazakh. Kazakh runs longer almost
+everywhere else and is what the 320 dp rule is written for, but «Ұл» and «Қыз»
+are the short case. A segmented control has to be measured in both.
+
+The empty state is a state. `index` is nullable, because the first field to
+adopt this is optional on a step that can be skipped entirely; a control that
+required an index would open pre-answered «Мальчик», which invents a fact about
+someone's child.
+
 ## Screen inventory (17)
 
 Auth & setup: вход по номеру телефона (+7, SMS, Apple ID, WhatsApp) · код из SMS (4 ячейки) · первый запуск с выбором языка (Қазақша / Русский).

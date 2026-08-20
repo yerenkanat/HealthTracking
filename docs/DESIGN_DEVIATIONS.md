@@ -239,3 +239,41 @@ a tile to the same destination is two entries to one screen on one screen, which
 is the defect that shipped as a «Вес» quick action beside a «Вес» pill. The tile
 keeps the banner's content (last check, with its date) and its prominence
 (first position).
+
+## Onboarding step 4 keeps its field order, and drops the gender icons
+
+**Spec:** frame 35 (`CLAUDE-app-design.md:371`) — «поля Имя, Пол (два сегмента),
+Дата рождения с бейджем возраста».
+
+**App:** Имя → Дата рождения → Пол → зоны, and the two segments carry no icon.
+
+Two deliberate calls, both about what the field is worth.
+
+*Order.* Gender is the least consequential thing on the screen: it is nullable
+everywhere (`ChildProfile.gender`, and `copyWith` carries an explicit
+`clearGender`), the whole step is skippable, and it drives exactly one thing —
+which glyph the avatar falls back to when there is no photo. The date of birth
+drives the age badge, the growth screen, the development milestones and the
+vaccination catch-up. An optional cosmetic field does not sit between the name
+and the date that everything downstream reads.
+
+*Icons.* The `ChoiceChip`s this replaced carried `Icons.boy` / `Icons.girl` in
+`Palette.violet` — Material's own glyphs, in a colour the design system does not
+use, on the one control the spec names by component. «Мальчик»/«Девочка» and
+«Ұл»/«Қыз» are not ambiguous words, and the icons cost width on the axis that is
+already 10 dp short at 320 dp/130 % (see the table in `design-system-app.md`).
+Dropped, not moved.
+
+## Gender stays clearable, and a segmented control had to learn how
+
+A segmented control normally cannot be emptied. This one can, per call site,
+because the field it was adopted for is optional and the `ChoiceChip` row it
+replaced could be tapped back to null. Swapping the widget must not quietly
+change what the form permits — so `DsSegmented.onClear` is opt-in and absent by
+default, and a tab-like use (§9.13's «Где ребёнок / Сегодня») stays
+un-emptiable. `ds_widgets_test.dart` asserts both halves.
+
+The reason to keep it clearable rather than "tidy up" an optional demographic
+question into a required one: a mis-tap would otherwise be the only irreversible
+thing on that screen, for the least consequential field on it — and a parent who
+does not want to answer should not have to invent an answer to get past.

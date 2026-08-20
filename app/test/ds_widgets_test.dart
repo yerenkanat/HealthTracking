@@ -9,6 +9,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/l10n/l10n.dart';
@@ -162,6 +163,123 @@ void main() {
       await tester.tap(find.text('Зоны'));
       expect(picked, 2);
     });
+
+    testWidgets('draws no ink chip at all when nothing is chosen', (tester) async {
+      // The state that made this control adoptable. «Пол» is optional, on a
+      // step that can be skipped entirely, so the control has to be able to
+      // show no answer — a segmented control that required an index would
+      // have opened pre-answered «Мальчик» and invented a fact about someone's
+      // child.
+      await pump(tester, DsSegmented(items: const ['Мальчик', 'Девочка'], index: null, onChanged: (_) {}));
+      final inked = tester
+          .widgetList<Container>(find.byType(Container))
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .where((d) => d.color == Ds.ink);
+      expect(inked, isEmpty, reason: 'no segment may read as the answer');
+    });
+
+    testWidgets('clears on a second tap only where the caller opted in', (tester) async {
+      // A widget swap must not silently change what a form permits. The
+      // ChoiceChips this replaced could be tapped back to null; the segments
+      // keep that ONLY for callers that pass onClear, and tab-like callers
+      // that omit it must stay un-emptiable.
+      var cleared = 0;
+      var picked = -1;
+      await pump(tester, DsSegmented(
+        items: const ['Мальчик', 'Девочка'],
+        index: 1,
+        onChanged: (i) => picked = i,
+        onClear: () => cleared++,
+      ));
+      await tester.tap(find.text('Девочка'));
+      expect(cleared, 1);
+      expect(picked, -1, reason: 'clearing is not a re-pick');
+
+      await pump(tester, DsSegmented(
+        items: const ['Сейчас', 'История', 'Зоны'],
+        index: 2,
+        onChanged: (i) => picked = i,
+      ));
+      await tester.tap(find.text('Зоны'));
+      expect(picked, 2, reason: 'no onClear: re-tapping the tab is idempotent');
+    });
+
+    testWidgets('tells a screen reader which segment is the answer', (tester) async {
+      // The segments read «Ұл» / «Қыз» and lose the «Жынысы» above them, so
+      // the group carries the question and each segment its own selected flag.
+      await pump(tester, DsSegmented(
+        label: 'Жынысы',
+        items: const ['Ұл', 'Қыз'],
+        index: 1,
+        onChanged: (_) {},
+      ), locale: AppLocale.kk);
+      final chosen = tester.getSemantics(find.text('Қыз'));
+      expect(chosen.hasFlag(SemanticsFlag.isSelected), isTrue);
+      expect(chosen.hasFlag(SemanticsFlag.isInMutuallyExclusiveGroup), isTrue);
+      final other = tester.getSemantics(find.text('Ұл'));
+      expect(other.hasFlag(SemanticsFlag.isSelected), isFalse);
+    });
+
+    testWidgets('shrinks a label that will not fit rather than clipping it',
+        (tester) async {
+      // 320dp with text at 130%, which is a 360dp phone whose owner turned
+      // Android's display size up. «Мальчик» wants 129.1dp and a half-width
+      // segment gives it 119.0. A gender control reading «Маль…» is one
+      // nobody can identify, so the label scales down instead.
+      //
+      // Russian, not Kazakh, deliberately: «Ұл» and «Қыз» are the SHORT case
+      // here, which inverts the usual rule and is why this control had to be
+      // measured in both languages.
+      tester.view.physicalSize = const Size(320 * 3, 640 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(MaterialApp(
+        theme: FcsTheme.light(AppLocale.ru),
+        home: Builder(
+          builder: (ctx) => MediaQuery(
+            data: MediaQuery.of(ctx)
+                .copyWith(textScaler: const TextScaler.linear(1.3)),
+            child: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: DsSegmented(
+                    items: const ['Мальчик', 'Девочка'],
+                    index: 0,
+                    onChanged: (_) {}),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      for (final s in ['Мальчик', 'Девочка']) {
+        final p = tester.renderObject<RenderParagraph>(find.text(s));
+        expect(p.didExceedMaxLines, isFalse, reason: '$s was clipped');
+        final box = find
+            .ancestor(of: find.text(s), matching: find.byType(FittedBox))
+            .first;
+        expect(tester.getSize(box).width,
+            lessThan(p.getMaxIntrinsicWidth(double.infinity)),
+            reason: '$s no longer needs the scale-down — if the type or the '
+                'padding changed, re-measure before deleting the guard');
+      }
+    });
+
+    testWidgets('clears 48dp per segment', (tester) async {
+      // 38 was the painted chip; the tap area was 38 too. These segments are
+      // the only way to answer a question on the last step of onboarding,
+      // one-handed. DsToggle had to be corrected for exactly this.
+      await pump(tester, DsSegmented(items: const ['Мальчик', 'Девочка'], index: 0, onChanged: (_) {}));
+      expect(tester.getSize(find.text('Мальчик').first).height, lessThan(DsShape.minTapTarget));
+      for (final s in ['Мальчик', 'Девочка']) {
+        final tapArea = find.ancestor(of: find.text(s), matching: find.byType(InkWell)).first;
+        expect(tester.getSize(tapArea).height,
+            greaterThanOrEqualTo(DsShape.minTapTarget),
+            reason: '$s is below the tap target');
+      }
+    });
   });
 
   group('DsToggle', () {
@@ -204,26 +322,6 @@ void main() {
     });
   });
 
-  group('DsHeroMetric', () {
-    testWidgets('shows label, value and unit, and picks out the current bar', (tester) async {
-      await pump(tester, const DsHeroMetric(
-        label: 'Пульс',
-        value: '78',
-        unit: 'уд/мин',
-        bars: [0.4, 0.6, 0.5, 0.8, 0.7, 0.6, 0.9, 0.5, 0.7],
-      ));
-      expect(find.text('ПУЛЬС'), findsOneWidget); // the spec uppercases it
-      expect(find.text('78'), findsOneWidget);
-      expect(find.text('уд/мин'), findsOneWidget);
-
-      final yellow = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox))
-          .map((d) => d.decoration)
-          .whereType<BoxDecoration>()
-          .where((d) => d.color == Ds.yellow);
-      expect(yellow.length, 1, reason: 'exactly one bar is "now"');
-    });
-  });
-
   group('DsEmptyState', () {
     testWidgets('says what is missing rather than rendering a blank box', (tester) async {
       await pump(tester, const DsEmptyState(label: 'Добавьте первого ребёнка'));
@@ -234,14 +332,20 @@ void main() {
 
   group('locale', () {
     testWidgets('Kazakh screens render their headings in Rubik', (tester) async {
-      await pump(
-        tester,
-        const DsScreenHeader(title: 'Денсаулық'),
-        locale: AppLocale.kk,
-      );
-      final text = tester.widget<Text>(find.text('Денсаулық'));
+      // Through the themed AppBar, which is what 71 screens actually draw
+      // their header with. This used to go through DsScreenHeader, a widget
+      // no screen used — so the assertion was true of a code path nobody took
+      // and said nothing about the app. The header the spec describes
+      // (design-system-app.md:62) is `appBarTheme`, and the title style is
+      // inherited rather than set on the Text, so read the rendered span.
+      await tester.pumpWidget(MaterialApp(
+        theme: FcsTheme.light(AppLocale.kk),
+        home: Scaffold(appBar: AppBar(title: const Text('Денсаулық'))),
+      ));
+      await tester.pumpAndSettle();
+      final span = tester.renderObject<RenderParagraph>(find.text('Денсаулық')).text;
       // Unbounded has no ә ғ қ ң — a heading in it drops letters mid-word.
-      expect(text.style?.fontFamily, 'Rubik');
+      expect(span.style?.fontFamily, 'Rubik');
     });
 
     testWidgets('every widget keeps the Kazakh fallback on Russian screens', (tester) async {

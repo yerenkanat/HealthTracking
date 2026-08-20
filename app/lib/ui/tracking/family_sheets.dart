@@ -14,6 +14,7 @@ import '../../domain/device_pairing.dart';
 import '../../domain/family.dart';
 import '../../l10n/l10n_scope.dart';
 import '../design_system.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 import 'claim_device_sheet.dart';
 import '../widgets/avatar.dart';
@@ -243,30 +244,23 @@ Future<void> _childSheet(BuildContext context, AppController controller,
             onChanged: (_) => setState(() {}), // refresh avatar initials
           ),
           const SizedBox(height: 14),
-          // Gender — optional (tap again to clear).
+          // Gender — optional (tap the answer again to clear).
+          //
+          // The same field as onboarding step 4, so the same control: this is
+          // where a parent comes back to correct what she entered there, and
+          // two different-looking pickers for one field is how a person starts
+          // wondering whether they are the same field.
           Text(l.t('child_gender'),
               style:
                   const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
           const SizedBox(height: 8),
-          Wrap(spacing: 8, children: [
-            for (final g in Gender.values)
-              ChoiceChip(
-                avatar: Icon(g == Gender.boy ? Icons.boy : Icons.girl,
-                    size: 18,
-                    color: gender == g ? Palette.violet : Palette.textDim),
-                label: Text(l.t('gender_${g.name}')),
-                selected: gender == g,
-                onSelected: (_) =>
-                    setState(() => gender = gender == g ? null : g),
-                selectedColor: Palette.violet.withValues(alpha: 0.18),
-                backgroundColor: Palette.glass,
-                side: const BorderSide(color: Palette.border),
-                labelStyle: TextStyle(
-                  color: gender == g ? Palette.text : Palette.textDim,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-          ]),
+          DsSegmented(
+            label: l.t('child_gender'),
+            items: [for (final g in Gender.values) l.t('gender_${g.name}')],
+            index: gender == null ? null : Gender.values.indexOf(gender!),
+            onChanged: (i) => setState(() => gender = Gender.values[i]),
+            onClear: () => setState(() => gender = null),
+          ),
           const SizedBox(height: 14),
           // Date of birth — optional, but powers age-based personalization.
           _DateField(

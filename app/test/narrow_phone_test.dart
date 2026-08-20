@@ -43,8 +43,10 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart' hide Flow;
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fcs_app/app/app_controller.dart';
+import 'package:fcs_app/domain/onboarding_controller.dart' show OnboardingStep;
 import 'package:fcs_app/data/api_client.dart';
 import 'package:fcs_app/data/cry_classifier_client.dart';
 import 'package:fcs_app/data/cry_recorder.dart';
@@ -1101,6 +1103,66 @@ void main() {
       'onboarding',
       textScale: 1.3,
     );
+  });
+
+  testWidgets('onboarding step 4 — the child — fits in Kazakh at 130%',
+      (tester) async {
+    // Both tests above open on step 1 and never leave it, so the four steps
+    // behind it were covered by a test whose name says "onboarding". Step 4 is
+    // the widest: a name field, a date row with an age badge, a full-width
+    // «Жынысы» segmented control and two zone tiles.
+    //
+    // Kazakh at 130% on a 320dp phone, because that is where a segmented
+    // control breaks first — two Expanded halves of 320dp are 140dp each, and
+    // the labels have to survive it. This is the step the design system's
+    // «два сегмента» was finally adopted on.
+    final c = AppController(now: () => now, locale: AppLocale.kk);
+    addTearDown(c.dispose);
+    c.onboarding
+      ..setLocale(AppLocale.kk)
+      ..setDisplayName('Айгерім Нұрсұлтанқызы')
+      ..setPhoneNumber('7073452244');
+    while (c.onboarding.step != OnboardingStep.child) {
+      final before = c.onboarding.step;
+      c.onboarding.next();
+      expect(c.onboarding.step, isNot(before),
+          reason: 'onboarding stalled at $before — the fixture is invalid');
+    }
+    await fits(
+      tester,
+      () => OnboardingFlow(
+        controller: c.onboarding,
+        onLocaleChange: c.setLocale,
+        onComplete: (_) {},
+      ),
+      'onboarding step 4',
+      locale: AppLocale.kk,
+      textScale: 1.3,
+      width: kTinyWidth,
+      // The step is a ListView, and at 320dp/130% everything from the gender
+      // control down is below the fold and never built — so measuring it
+      // without scrolling proves only the title and the name field. Scrolling
+      // inside afterPump means an overflow further down is still caught by the
+      // takeException that follows.
+      afterPump: (t) async {
+        await t.scrollUntilVisible(
+          find.text('Қыз'),
+          120,
+          scrollable: find
+              .descendant(
+                  of: find.byType(ListView), matching: find.byType(Scrollable))
+              .first,
+        );
+        await t.pumpAndSettle();
+      },
+    );
+    // An overflow check passes on a control that ellipsised instead. «Қыз» in
+    // a gender picker rendered as «Қ…» is a control nobody can identify.
+    for (final s in ['Ұл', 'Қыз']) {
+      expect(find.text(s), findsOneWidget, reason: '$s is not on the screen');
+      final p = tester.renderObject<RenderParagraph>(find.text(s));
+      expect(p.didExceedMaxLines, isFalse, reason: '$s was truncated');
+    }
   });
 
   // ---- The list and history screens --------------------------------------

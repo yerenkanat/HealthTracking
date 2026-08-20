@@ -17,6 +17,7 @@ import '../../data/device_location.dart';
 import '../../l10n/l10n_scope.dart';
 import '../settings/legal_screen.dart';
 import '../design_system.dart';
+import '../ds_widgets.dart';
 import '../theme.dart';
 import '../widgets/glass.dart';
 import '../widgets/phone_format.dart';
@@ -1014,28 +1015,34 @@ class _ChildPageState extends State<_ChildPage> {
           },
         ),
         const SizedBox(height: 12),
-        // Wrap, not Row: a label plus two chips is wider than 360dp once the
-        // words are Russian — 64px past the edge — and this is the last step of
-        // onboarding, where a clipped control is the difference between
-        // finishing and giving up.
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          runSpacing: 8,
-          children: [
-          Text(l.t('child_gender'), style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(width: 12),
-          for (final g in Gender.values)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                avatar: Icon(g == Gender.boy ? Icons.boy : Icons.girl, size: 18,
-                    color: controller.childGender == g ? Palette.violet : Palette.textDim),
-                label: Text(l.t('gender_${g.name}')),
-                selected: controller.childGender == g,
-                onSelected: (_) => controller.setChildGender(controller.childGender == g ? null : g),
-              ),
-            ),
-        ],
+        // Frame 35 asks for «Пол (два сегмента)», and this drew Material
+        // ChoiceChips in Palette.violet instead — so the one control the spec
+        // names by component was the one control not built from the system.
+        //
+        // The label sits ABOVE rather than inline. It used to be a Wrap for
+        // exactly this reason: a label plus two chips is wider than 360dp in
+        // Russian, 64px past the edge, and this is the last step of onboarding
+        // where a clipped control is the difference between finishing and
+        // giving up. A full-width segmented pill cannot share a line with
+        // anything, so stacking it removes the problem instead of wrapping
+        // around it, and matches how the child edit sheet already labels the
+        // same field.
+        Text(l.t('child_gender'), style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        DsSegmented(
+          label: l.t('child_gender'),
+          items: [for (final g in Gender.values) l.t('gender_${g.name}')],
+          index: controller.childGender == null
+              ? null
+              : Gender.values.indexOf(controller.childGender!),
+          onChanged: (i) => controller.setChildGender(Gender.values[i]),
+          // Unchanged from the ChoiceChips: tapping the answer again clears it.
+          // The field is optional (ChildProfile.gender is nullable and
+          // copyWith carries an explicit clearGender), the whole child step is
+          // skippable, and gender drives nothing but the avatar glyph — so a
+          // mis-tap that cannot be undone would be the only irreversible thing
+          // on this screen, for the least consequential field on it.
+          onClear: () => controller.setChildGender(null),
         ),
         const SizedBox(height: 12),
         _ZoneTile(

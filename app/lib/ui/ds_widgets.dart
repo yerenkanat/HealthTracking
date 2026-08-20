@@ -303,132 +303,23 @@ class DsIconTile extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Data display
 // ---------------------------------------------------------------------------
-
-/// The one big number on a screen: coral panel, white type, an uppercase micro
-/// label, and an optional nine-bar sparkline with the current bar picked out in
-/// yellow.
-class DsHeroMetric extends StatelessWidget {
-  const DsHeroMetric({
-    super.key,
-    required this.label,
-    required this.value,
-    this.unit,
-    this.bars = const [],
-    this.fill = Ds.coralCta,
-  });
-
-  final String label;
-  final String value;
-  final String? unit;
-
-  /// Relative heights, 0..1. The last one is treated as "now".
-  final List<double> bars;
-  final Color fill;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.ds;
-    return DsCard(
-      color: fill,
-      raised: true,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label.toUpperCase(), style: t.micro(color: Colors.white)),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(value, style: t.heroMetric(color: Colors.white)),
-              if (unit != null) ...[
-                const SizedBox(width: 8),
-                Text(unit!, style: t.caption(color: Colors.white)),
-              ],
-            ],
-          ),
-          if (bars.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            SizedBox(height: 44, child: _Bars(bars: bars)),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Bars extends StatelessWidget {
-  const _Bars({required this.bars});
-  final List<double> bars;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        for (var i = 0; i < bars.length; i++) ...[
-          if (i > 0) const SizedBox(width: 5),
-          Expanded(
-            child: FractionallySizedBox(
-              heightFactor: bars[i].clamp(0.12, 1.0),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  // The current reading is the yellow one; the history behind it
-                  // is white at 55%, per the spec.
-                  color: i == bars.length - 1
-                      ? Ds.yellow
-                      : Colors.white.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// A pastel tile in the 2-up grid: uppercase micro label, a number, a caption.
-class DsStatTile extends StatelessWidget {
-  const DsStatTile({
-    super.key,
-    required this.label,
-    required this.value,
-    this.caption,
-    this.fill = Ds.pastelPink,
-    this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final String? caption;
-  final Color fill;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.ds;
-    return DsCard(
-      color: fill,
-      onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label.toUpperCase(), style: t.micro()),
-          const SizedBox(height: 6),
-          Text(value, style: t.statNumber()),
-          if (caption != null) ...[
-            const SizedBox(height: 2),
-            Text(caption!, style: t.caption()),
-          ],
-        ],
-      ),
-    );
-  }
-}
+//
+// `DsHeroMetric` and `DsStatTile` used to live here and were removed — see
+// docs/design-system-app.md, "Who plays each role". Both were drawn by nothing,
+// and in both cases the role was already occupied by something the screens
+// could actually use:
+//
+//   * the hero number, because it could not carry an "as of" age. Every hero
+//     figure in this app is a vital sign, and a vitals surface with no
+//     freshness treatment is a reading that will be trusted when it should not
+//     be. `_MetricCard` (dashboard/health_dashboard_screen.dart) is the real
+//     one, and it is built from `DsCard`.
+//   * the stat tile, because `widgets/stat_tile.dart` already fills that role
+//     at twenty call sites, and the dashboard's private tile adds a unit slot,
+//     a verdict colour and a Kazakh scale-down that the system version had no
+//     way to express.
+//
+// Do not re-add either without a screen. Git has them.
 
 /// One line of a [DsListCard].
 class DsRow {
@@ -538,55 +429,126 @@ class DsListCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 /// White pill, ink chip on the selected segment.
+///
+/// Two or three mutually exclusive labels, equal width, all visible at once.
+/// It is NOT a filter strip: a variable number of options, a scrolling row, or
+/// anything that can be multi-selected belongs in chips, not here — an
+/// `Expanded` segment gets narrower with every option added, and the fourth one
+/// truncates its Kazakh at 320dp.
 class DsSegmented extends StatelessWidget {
   const DsSegmented({
     super.key,
     required this.items,
     required this.index,
     required this.onChanged,
+    this.onClear,
+    this.label,
   });
 
   final List<String> items;
-  final int index;
+
+  /// The chosen segment, or null for "nothing chosen yet".
+  ///
+  /// Nullable because the first screen to adopt this — onboarding step 4's
+  /// «Пол» — is an OPTIONAL field on an OPTIONAL step, and the `ChoiceChip`
+  /// row it replaced could show no answer at all. A segmented control that
+  /// required an index would have had to open pre-answered «Мальчик», which
+  /// invents a fact about someone's child, or open with the first segment
+  /// falsely inked. Neither is acceptable, so the empty state is a state.
+  final int? index;
+
   final ValueChanged<int> onChanged;
+
+  /// Tapping the already-selected segment clears the answer.
+  ///
+  /// Off by default: a segmented control normally cannot be emptied, and the
+  /// tab-like uses (§9.13's «Где ребёнок / Сегодня») must not be. It is opt-in
+  /// per call site so that a widget swap can never quietly change what a form
+  /// permits — a caller that wants a clearable field has to say so in one
+  /// visible word.
+  final VoidCallback? onClear;
+
+  /// Announced to a screen reader as the group's question, since the segments
+  /// themselves only say «Ұл» / «Қыз» and lose the «Жынысы» above them.
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
     final t = context.ds;
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: DsShape.pill,
-        border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
-      ),
-      child: Row(
-        children: [
-          for (var i = 0; i < items.length; i++)
-            Expanded(
-              child: InkWell(
-                onTap: () => onChanged(i),
-                customBorder:
-                    RoundedRectangleBorder(borderRadius: DsShape.pill),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 38),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border:
-                        Border.all(color: Ds.ink, width: DsShape.borderWidth),
-                    color: i == index ? Ds.ink : Colors.transparent,
-                    borderRadius: DsShape.pill,
-                  ),
-                  child: Text(
-                    items[i],
-                    style: t.button(
-                        size: 14,
-                        color: i == index ? Colors.white : Ds.textSecondary),
+    return Semantics(
+      container: true,
+      label: label,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: DsShape.pill,
+          border: Border.all(color: Ds.ink, width: DsShape.borderWidth),
+        ),
+        child: Row(
+          children: [
+            for (var i = 0; i < items.length; i++)
+              Expanded(
+                child: Semantics(
+                  inMutuallyExclusiveGroup: true,
+                  selected: i == index,
+                  button: true,
+                  child: InkWell(
+                    onTap: () => (i == index && onClear != null)
+                        ? onClear!()
+                        : onChanged(i),
+                    customBorder:
+                        RoundedRectangleBorder(borderRadius: DsShape.pill),
+                    child: Container(
+                      // 38 is the painted chip in the spec; 48 is the tap
+                      // target this app holds itself to, and DsToggle already
+                      // had to be corrected for the same thing. The segments
+                      // are the only way to answer a question on the last step
+                      // of onboarding, one-handed.
+                      constraints: const BoxConstraints(
+                          minHeight: DsShape.minTapTarget),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: Ds.ink, width: DsShape.borderWidth),
+                        color: i == index ? Ds.ink : Colors.transparent,
+                        borderRadius: DsShape.pill,
+                      ),
+                      // scaleDown, not ellipsis. Measured at 320dp with text
+                      // at 130%: «Мальчик» wants 129.1dp and a half-width
+                      // segment gives it 119.0 — 10dp short, so without this
+                      // the gender control reads «Маль…», which nobody can
+                      // identify. Same guard the vitals tiles use.
+                      //
+                      // Note which language is tight. Kazakh normally
+                      // truncates first and is what the 320dp rule is written
+                      // for, but «Ұл» (36.9dp) and «Қыз» (55.3dp) are the
+                      // SHORT case here — Russian is the one that breaks. A
+                      // segmented control has to be measured in both.
+                      //
+                      // Three segments are already near the floor: at the same
+                      // 320dp/130%, «История» wants 129.1dp into 73.3. Four
+                      // would be unreadable, which is why this widget is for
+                      // two or three labels and filters belong in chips.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          items[i],
+                          maxLines: 1,
+                          style: t.button(
+                              size: 14,
+                              color: i == index
+                                  ? Colors.white
+                                  : Ds.textSecondary),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -670,61 +632,14 @@ class DsToggle extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Chrome
 // ---------------------------------------------------------------------------
-
-/// Back chevron + title, with an optional right-hand action in the link colour.
-class DsScreenHeader extends StatelessWidget {
-  const DsScreenHeader({
-    super.key,
-    required this.title,
-    this.step,
-    this.onBack,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final String title;
-  final String? step;
-  final VoidCallback? onBack;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.ds;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            if (onBack != null)
-              IconButton(
-                onPressed: onBack,
-                icon: const Icon(Icons.chevron_left_rounded,
-                    size: 28, color: Ds.textSecondary),
-                constraints: const BoxConstraints(
-                  minWidth: DsShape.minTapTarget,
-                  minHeight: DsShape.minTapTarget,
-                ),
-                padding: EdgeInsets.zero,
-              ),
-            Expanded(child: Text(title, style: t.screenTitle)),
-            if (actionLabel != null)
-              TextButton(
-                onPressed: onAction,
-                child: Text(actionLabel!,
-                    style: t.button(size: 15, color: Ds.coralText)),
-              ),
-          ],
-        ),
-        if (step != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Text(step!, style: t.caption().copyWith(fontSize: 14)),
-          ),
-      ],
-    );
-  }
-}
+//
+// `DsScreenHeader` used to live here and was removed. The spec's header —
+// docs/design-system-app.md:62, chevron + title + optional right action — is
+// drawn by the themed `AppBar` at `theme.dart`'s `appBarTheme`, which carries
+// `type.screenTitle` and the cream/ink pair, and which 71 screens already use.
+// It also gets the system back gesture, the route's own pop semantics and the
+// status-bar inset right; the hand-rolled Column did none of that. One entry
+// per destination applies to components too.
 
 /// The sticky bar at the foot of a screen: an ink top rule, the cream-at-94%
 /// fill, and room left for the home indicator.
@@ -769,6 +684,24 @@ class DsBottomActionBar extends StatelessWidget {
 /// Striped placeholder standing in for a map that has not loaded (or is not
 /// wired yet). The spec asks for stripes and a mono caption rather than a grey
 /// box, so an unloaded map never reads as a broken one.
+///
+/// NO PRODUCTION CALLER TODAY, AND THAT IS NOT THE USUAL DEFECT. An audit
+/// listed this among five `Ds*` widgets "drawn by no screen"; finished code
+/// with no caller really is this repo's dominant defect, and three of the five
+/// were deleted for it. This one is different, and re-reporting it wastes the
+/// next audit's time:
+///
+///   The map screens take a `mapBuilder`, because the real map needs a tile
+///   provider and a platform view that a widget test cannot render. THIS is
+///   what those tests pass — `children_golden_test.dart:55`,
+///   `narrow_phone_test.dart:348, 374, 1593, 1844`. It is a design-system test
+///   double, deliberately, and it is the reason the child-map golden and the
+///   320dp sweep can cover those screens at all.
+///
+/// It is also the honest fallback the day a tile fetch fails on a 2G
+/// connection in a village, which is the state the stripes and the mono caption
+/// were specified for. If it ever gains that caller, delete this note — do not
+/// delete the widget for the caller count.
 class DsMapPlaceholder extends StatelessWidget {
   const DsMapPlaceholder({super.key, this.caption, this.height = 260});
 
