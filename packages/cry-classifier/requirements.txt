@@ -7,7 +7,7 @@ python-multipart==0.0.19
 librosa==0.10.2.post1
 soundfile==0.12.1
 pydub==0.25.1
-numpy==1.26.4          # <2.0 ради совместимости librosa/sklearn на слабом VPS
+numpy==2.5.2          # <2.0 ради совместимости librosa/sklearn на слабом VPS
 
 # Модель
 scikit-learn==1.4.2
