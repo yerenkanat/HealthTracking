@@ -3148,6 +3148,31 @@
 <script>
 (function(){
   "use strict";
+
+  // A photo that will not load, replaced with the honest placeholder.
+  //
+  // This was an onerror="" attribute on each <img>. An inline event handler IS
+  // script, and the panel is now served under a nonce CSP (see
+  // src/http/securityHeaders.ts) which refuses one — the attribute would be
+  // ignored, the operator would get the browser's broken-image glyph instead of
+  // «Фото ещё не загружено», and the only trace would be a console line nobody
+  // has open. So it lives here instead, once.
+  //
+  // Capture phase, on the document: an <img> "error" event does not bubble, and
+  // both script blocks in this file build these images. data-onfail says which
+  // placeholder belongs where.
+  document.addEventListener("error", function (e) {
+    var el = e.target;
+    if (!el || el.tagName !== "IMG") return;
+    var kind = el.getAttribute("data-onfail");
+    if (kind === "thumb") {
+      el.replaceWith(Object.assign(document.createElement("span"),
+        { className: "thumb none", title: "Фото не открылось" }));
+    } else if (kind === "note") {
+      el.replaceWith(Object.assign(document.createElement("div"),
+        { className: "note", textContent: "Фото ещё не загружено." }));
+    }
+  }, true);
   // ---- Mock data (mirrors the /admin API response shapes) ----
   const MOCK = {
     stats:{activeUsers:1284,devicesOnline:power(1071),alertsToday:3,ingestLastHour:power(9420)},
@@ -8849,7 +8874,7 @@
   function thumbCell(url, hex, label){
     if(url){
       return `<img class="thumb" src="${esc(url)}" alt="${esc(label)}" width="32" height="32" loading="lazy"
-        onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'thumb none',title:'Фото не открылось'}))">`;
+        data-onfail="thumb">`;
     }
     return `<span class="thumb none" title="${esc(label)}: фото не загружено — Каталог → карточка товара → вкладка «Фото»"
       >${hex?`<i style="background:${esc(hex)}"></i>`:""}</span>`;
@@ -13709,7 +13734,7 @@
     const url = `/shop/products/${encodeURIComponent(id)}/photo${color ? `?color=${encodeURIComponent(color)}` : ""}`;
     box.innerHTML = `<img src="${esc(url)}${url.includes("?") ? "&" : "?"}v=${Date.now()}" alt=""
         style="max-width:220px;max-height:170px;border:1px solid var(--hair);border-radius:8px;display:block"
-        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'note',textContent:'Фото ещё не загружено.'}))">`;
+        data-onfail="note">`;
   }
 
   /** Send the chosen file as raw bytes, the same shape the audio upload uses. */

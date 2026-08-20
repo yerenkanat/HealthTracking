@@ -15,9 +15,11 @@ State as of **2026-08-20**. The landing went live on `188.137.231.252` on
 > It is four commands and it is **§1 below**. Nothing in this repository can do
 > it, and no amount of code review substitutes for it.
 
-Nothing here is a hypothetical hardening exercise. Items 1–3 are open now and
-each has a concrete consequence; 4–8 are smaller, except §8, which is a decision
-rather than a task.
+Nothing here is a hypothetical hardening exercise. **§1 is open and only the
+owner can close it**; §5 and §6 are half done. §2, §3 and §4 shipped and are
+kept as the record of what changed — a page that says a control is missing after
+it was built teaches people to stop reading the page. §8 is a decision rather
+than a task.
 
 ---
 
@@ -49,84 +51,89 @@ passwords, or a typo locks everyone out of the box.
 
 ---
 
-## 2. Staff auth still does not exist; the panel is behind an edge password
+## 2. Staff auth — **done**
 
-**Status:** mitigated 2026-08-03, not solved. **Who:** developer.
+**Status:** closed 2026-08-12. **Who:** developer. *(Rewritten 2026-08-20: this
+section still described the system it replaced, which is worse than saying
+nothing.)*
 
-The back-office is reachable again at **https://ana-bala.kz/admin/ui**, behind
-HTTP basic auth. Read the password on the box — it is deliberately not in any
-chat, ticket or commit:
+The back office is at **https://ana-bala.kz/admin** and asks for a phone number
+and a password. Migration 019, `packages/backend/src/routes/staffLogin.ts`, roles
+and capabilities in `src/auth/capabilities.ts`, session cookie in
+`src/http/staffAuth.ts`.
+
+Seed the first account — there is no default, and a back office nobody has an
+account for is a locked door with no key:
 
 ```bash
-ssh root@188.137.231.252 'cat /etc/umay/admin-credentials'
-bash /opt/umay/deploy/admin-access.sh            # rotate it
-bash /opt/umay/deploy/admin-access.sh --close    # take it away again
+DATABASE_URL=... STAFF_PHONE=7… STAFF_PASSWORD=… STAFF_ROLE=owner \
+  node packages/backend/db/seed-staff.mjs
 ```
 
-**That password is the entire boundary.** The page behind it carries the staff
-header stub in its own source, so anyone who gets past basic auth has full
-read/write over every family's data. Treat it like the root password. It also
-belongs on `admin.ana-bala.kz` rather than a path — that DNS record does not
-exist yet, which is the only reason it is not there.
+**What went away with it.** The edge `basic_auth` on `admin.ana-bala.kz` is
+gone, and `deploy/landing-takeover.sh` now CHECKS it is gone on every run — an
+edge password on top of a real login is a second credential nobody rotates and a
+prompt that hides the real one. `deploy/admin-access.sh` and
+`/etc/umay/admin-credentials` no longer exist. So did the `x-staff-id` /
+`x-staff-role` header stub, and with it `authPosture().adminStub`.
 
-Everything below still stands as the real fix.
+**What is left.** `/admin*` is proxied to the app, and the app refuses without a
+session cookie. Failed sign-ins are counted per phone number in the handler and
+per source address at the edge (`zone admin_login`, 12 per 5 minutes), so nobody
+can walk the eleven-digit phone space one number at a time.
+
+`ADMIN_CLOSED=1 bash deploy/landing-takeover.sh` 404s the whole back office at
+the edge — the fast way to shut it if a session ever has to be assumed stolen.
 
 ---
 
-**The original problem:** `authAdmin` trusts the `x-staff-id` / `x-staff-role`
-headers outright.
+## 3. The app API is open, and defended by the app
 
-`authAdmin` trusts the `x-staff-id` / `x-staff-role` headers outright. There is
-no verifier behind them, and `authPosture()` hardcodes `adminStub = true` for
-that reason — it is not an env flag, so it cannot be waved through.
+**Status:** closed 2026-08-05. **Who:** developer. *(Rewritten 2026-08-20 for
+the same reason as §2.)*
 
-Consequence: `/admin*` returns 404 at the edge, which means **nobody can read
-the leads the landing page is collecting**, or set the WhatsApp number in
-`shop_settings`. The form works and writes to `shop_leads`; the queue is simply
-unreadable until this is built.
+For a few hours on 2026-08-03, `curl -H 'x-user-id: <any uuid>'
+https://ana-bala.kz/children` answered **200** with that family's children. The
+dev shortcuts were gated on `REAL_AUTH`, which is about Firebase — and this
+deployment has no Firebase, so they were never off. They are now gated on the
+presence of a database, and the same request is refused.
 
-Two ways out, either acceptable:
+The edge is an allow-list (`@public` and `@app` in
+`deploy/landing-takeover.sh`); anything not named there is answered by Caddy's
+catch-all 404 and never reaches the app.
+`packages/backend/src/__tests__/edgeAllowlist.test.ts` compares the two sides
+and fails when they part company — **check it on every release**, because a
+route missing from that list looks exactly like the server being down and
+nothing on the box shows it.
 
-- **Quick:** put the admin panel on `admin.ana-bala.kz` behind Caddy
-  `basic_auth`, as `deploy/Caddyfile` already sketches. The header stub stays,
-  but the edge password gates it. Good enough for a small staff.
-- **Proper:** implement a real staff verifier, flip `adminStub` in
-  `authPosture.ts`, and let the boot guard pass.
-
-Until one of those ships, read leads directly:
-
-```bash
-docker exec umay-db psql -U umay -d umay \
-  -c "SELECT created_at, customer_name, phone, package, locale, status FROM shop_leads ORDER BY created_at DESC;"
-```
+The Flutter app points at production.
 
 ---
 
-## 3. The app API is closed for the same reason
+## 4. HSTS — **done**, at the full year
 
-**Status:** open by design. **Who:** developer.
+**Status:** closed 2026-08-20. **Who:** developer.
 
-`authUser` is a header stub until `REAL_AUTH=1` plus a Firebase service account.
-While it is open, anyone can read any family's data by typing a header — this
-was live for a few hours on 2026-08-03 and is now closed:
+Staged, deliberately: a bad certificate with a live `max-age` traps every
+visitor on a broken site for the cached duration, and there is nothing the
+server can do about it. `0` for the first days → `86400` on 2026-08-05 →
+`31536000` on 2026-08-20, after fifteen days with a stable certificate and
+`uptime-check.sh` watching expiry with ten days' warning. In
+`deploy/landing-takeover.sh`.
 
-```bash
-curl -H 'x-user-id: <any id>' https://ana-bala.kz/children    # was 200, now 404
-```
+Two things deliberately NOT added, so nobody has to re-derive why:
 
-The edge serves an allow-list (`/`, `/landing/*`, `/shop/*`, `/health`,
-`/ready`); everything else 404s. See `docs/DEPLOY.md` §9 for the exact order of
-operations to open it. **The Flutter app cannot point at production until then.**
+- **`preload`** — a hardcoded browser list, and getting off it takes months.
+- **`includeSubDomains`** — `admin.ana-bala.kz` is a name this product intends
+  to start using. Adding it now would make that subdomain unreachable for a year
+  in every browser that had loaded the apex, from the moment it goes live until
+  its certificate does. Add it once that record exists and serves HTTPS.
 
----
-
-## 4. HSTS is `max-age=0`
-
-**Status:** intentional, revisit. **Who:** developer.
-
-Deliberate for the first deploy: a bad certificate with a live `max-age` traps
-every visitor on a broken site for the cached duration. Raise it to `31536000`
-once HTTPS has been stable for about a week, in `deploy/landing-takeover.sh`.
+Since 2026-08-20 the edge and the app also send `X-Frame-Options: DENY` and a
+Content-Security-Policy. The back office gets a strict, per-response nonce
+policy; the public pages get a narrower one that does not restrict `script-src`.
+`packages/backend/src/http/securityHeaders.ts` states exactly what that second
+policy does not protect against and why it is written that way.
 
 ## 5. The test CRM's Supabase is still published on `:8081`
 
@@ -345,9 +352,33 @@ undone; this section is why.
 
 ## Verifying the current posture
 
+`deploy/landing-takeover.sh` ends by printing all of this itself, and
+`deploy/verify-live.sh` checks the served pages. The lines below are the ones
+worth running by hand, and they are written to be read as pass/fail rather than
+as numbers to memorise — the previous version of this block asserted two status
+codes that had both changed underneath it.
+
 ```bash
-bash /opt/umay/deploy/landing-takeover.sh          # prints the checks below
-curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/admin/ui                 # 404
-curl -s -o /dev/null -w '%{http_code}\n' -H 'x-user-id: x' https://ana-bala.kz/children  # 404
-curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/                          # 200
+bash /opt/umay/deploy/landing-takeover.sh   # rewrites the edge config and prints its checks
+
+# The landing answers.
+curl -s -o /dev/null -w '%{http_code}\n' https://ana-bala.kz/                # 200
+
+# A forged identity gets no data. Any code but 200 is a pass; 200 is an incident.
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H 'x-user-id: 11111111-1111-1111-1111-111111111111' https://ana-bala.kz/children
+
+# The back office asks the APP for a password, not the browser. A
+# WWW-Authenticate line here means an edge password came back.
+curl -sI https://ana-bala.kz/admin | grep -i 'www-authenticate' && echo 'EDGE PASSWORD IS BACK'
+
+# The headers added on 2026-08-20.
+curl -sI https://ana-bala.kz/admin | grep -iE 'content-security-policy|x-frame-options|strict-transport'
 ```
+
+On `/admin` the CSP must contain `'nonce-…'` and must NOT contain
+`'unsafe-inline'` in `script-src`. If it reads
+`base-uri 'none'; object-src 'none'; frame-ancestors 'none'` instead, that is
+the EDGE default and the app's own policy did not arrive — either the backend
+was not restarted, or the `?` was lost from `?Content-Security-Policy` in the
+Caddyfile and Caddy is overwriting what the app sent.

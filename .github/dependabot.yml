@@ -1,0 +1,68 @@
+# Somebody has to notice when a dependency is found to be vulnerable.
+#
+# Until now nothing did: no dependabot, no `npm audit`, no CodeQL, no pip-audit.
+# The first time this ran it found seven high-severity advisories and one
+# critical one already in the tree — including in `fastify`, which serves every
+# request this product answers. None of them was hidden; nobody was looking.
+#
+# This half opens the pull requests. The other half — tools/audit-deps.mjs, run
+# in CI — is what refuses to let a NEW high or critical one in quietly.
+#
+# Weekly, not daily: a Monday batch gets read. A daily trickle gets filtered
+# into a folder, and then it is worth nothing.
+version: 2
+updates:
+  # ---- Node: the backend, the shared package and the tooling ---------------
+  # One lockfile at the root covers both workspaces (packages/backend,
+  # packages/shared), so one entry is the whole JavaScript surface.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Almaty
+    open-pull-requests-limit: 5
+    # Grouped, or a quiet week is still eleven pull requests and a loud week is
+    # ignored. Security fixes are deliberately NOT grouped with the routine
+    # ones: those get their own PR so they can be merged on their own merits.
+    groups:
+      backend-runtime:
+        applies-to: version-updates
+        dependency-type: production
+      tooling:
+        applies-to: version-updates
+        dependency-type: development
+    labels: [dependencies, security]
+
+  # ---- Python: the cry classifier -----------------------------------------
+  # Small, but the least boring surface in the repo: it parses AUDIO A CALLER
+  # UPLOADED, through libsndfile and librosa. A parser advisory here is reached
+  # by anyone who can POST to /cry/analyze.
+  - package-ecosystem: pip
+    directory: /packages/cry-classifier
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Asia/Almaty
+    open-pull-requests-limit: 5
+    labels: [dependencies, security]
+
+  # ---- The workflows themselves -------------------------------------------
+  # A pinned action is a dependency too, and a compromised one runs with the
+  # repository's credentials.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies]
+
+# NOT covered here, deliberately: the Flutter app's pub dependencies.
+# Dependabot's `pub` ecosystem does version updates only — it has no security
+# advisory feed for pub.dev — so it would open cosmetic bump PRs while telling
+# nobody about a vulnerability, which is the appearance of a check without one.
+# `dart pub outdated` in the app directory is the honest substitute until that
+# changes.

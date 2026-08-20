@@ -105,11 +105,11 @@ else
                 window 5m
             }
         }
-        reverse_proxy ${BACKEND}
+        import backend
     }
 
     handle /admin* {
-        reverse_proxy ${BACKEND}
+        import backend
     }"
   echo "==> /admin is served by the app's own sign-in (phone + password)"
 fi
@@ -125,6 +125,29 @@ $MARKER — written by deploy/landing-takeover.sh
 # explicitly. Kept so the block below can use it.
 {
     order rate_limit before reverse_proxy
+}
+
+# ---- How the backend is reached, defined once -------------------------------
+#
+# Every handle below imports this instead of writing its own reverse_proxy, so
+# there is one place that decides what the app is told about the caller.
+#
+# header_up X-Forwarded-For {remote_host} REPLACES whatever the client sent.
+# Caddy's default is to APPEND, which is safe on its own — but the app now runs
+# with Fastify's \`trustProxy: 1\` (packages/backend/src/server.ts), and the
+# whole point of that setting is that the last entry in this header is the truth.
+# Writing the header ourselves makes the chain exactly one entry long, so the
+# address in the rate-limit bucket and in the access log is the address Caddy
+# accepted the connection from and nothing a caller can choose.
+#
+# Why the app trusts this at all: before it did, req.ip was 127.0.0.1 for every
+# request on earth, so every anonymous write shared ONE bucket — one script
+# could make POST /shop/leads answer 429 to every real customer — and no log
+# line could be attributed to anyone.
+(backend) {
+    reverse_proxy ${BACKEND} {
+        header_up X-Forwarded-For {remote_host}
+    }
 }
 
 ana-bala.kz, www.ana-bala.kz {
@@ -153,6 +176,40 @@ ana-bala.kz, www.ana-bala.kz {
     # The back-office. Must come BEFORE the allow-list: Caddy takes the first
     # matching handle, and /admin is deliberately not in @public.
 $ADMIN_BLOCK
+
+    # ---- The callback form --------------------------------------------------
+    #
+    # POST /shop/leads is the only unauthenticated WRITE on the public
+    # internet: no session, no key, a row in shop_leads and a Telegram message
+    # to a person. It was reached through the /shop/* entry in the allow-list
+    # below, with no limit of its own, so the queue staff read and the channel
+    # they are alerted on could be filled by anyone with curl.
+    #
+    # A captcha was considered and refused. This form is the only step between
+    # a woman who wants a callback and a callback — it is the landing page's
+    # entire conversion path — and a challenge in front of it is paid for in
+    # lost customers. A third-party one would also hand her IP and user-agent
+    # to Google or hCaptcha on page load, and legal/legal.json enumerates every
+    # processor by name, so that is a privacy-policy amendment rather than a
+    # script tag.
+    #
+    # This instead, keyed by source address. 10 an hour: a household, an office
+    # or a village behind one NAT will never see it; a flood is thousands. The
+    # app carries the same ceiling at 20/hour (server.ts) so a box running
+    # without this config is not defenceless.
+    #
+    # Only meaningful because the app now trusts the address this proxy sends —
+    # see the (backend) snippet at the top.
+    handle /shop/leads {
+        rate_limit {
+            zone shop_leads {
+                key    {remote_host}
+                events 10
+                window 1h
+            }
+        }
+        import backend
+    }
 
     # /robots.txt and /sitemap.xml are served by the backend per request, so
     # they have to be listed here too — the allow-list 404s anything it does
@@ -222,7 +279,7 @@ $ADMIN_BLOCK
                 window 10m
             }
         }
-        reverse_proxy ${BACKEND}
+        import backend
     }
 
     # Every session-scoped route the app calls. This list is written by hand
@@ -262,10 +319,10 @@ $ADMIN_BLOCK
               /medications* /metrics* /newborn-events* /notifications/* /profile* /sleep* \
               /support* /vaccines* /vitals* /weight*
     handle @app {
-        reverse_proxy ${BACKEND}
+        import backend
     }
     handle @public {
-        reverse_proxy $BACKEND
+        import backend
     }
 
     handle {
@@ -279,16 +336,53 @@ $ADMIN_BLOCK
         # server can do about it — the browser stops asking.
         #
         #   0        first days, while the cert and the redirect settle
-        #   86400    now (2026-08-05): two days stable, auto-renewal working,
-        #            and uptime-check.sh watches expiry with 10 days' warning.
+        #   86400    2026-08-05: two days stable, auto-renewal working, and
+        #            uptime-check.sh watches expiry with 10 days' warning.
         #            A mistake self-heals within a day.
-        #   31536000 after about a week at 86400 with nothing going wrong.
+        #   31536000 now (2026-08-20). The plan said "after about a week at
+        #            86400 with nothing going wrong"; it has been fifteen days
+        #            with nothing going wrong, and a staging plan nobody
+        #            finishes is a plan that quietly stopped being followed.
         #
         # Do not add \`preload\` at any point without meaning it: that one is a
         # hardcoded browser list and getting off it takes months.
-        Strict-Transport-Security "max-age=86400"
+        #
+        # No \`includeSubDomains\` either, and that is a decision rather than an
+        # omission: admin.ana-bala.kz is a name this product intends to start
+        # using, and a subdomain that goes live before its certificate does
+        # would be unreachable for a YEAR in every browser that had loaded the
+        # apex. Add it once that record exists and serves HTTPS.
+        Strict-Transport-Security "max-age=31536000"
         X-Content-Type-Options "nosniff"
         Referrer-Policy "strict-origin-when-cross-origin"
+
+        # ---- Framing --------------------------------------------------------
+        #
+        # The back office is a PATH on this hostname (/admin), not a separate
+        # origin, so anything that can frame the landing page can frame the
+        # panel and drive it with whatever session the operator has open. The
+        # app sends \`frame-ancestors 'none'\` on its own responses
+        # (packages/backend/src/http/securityHeaders.ts); this covers the ones
+        # it never sees — the catch-all 404 below is written by Caddy — and the
+        # browsers that predate CSP.
+        X-Frame-Options "DENY"
+
+        # A CSP for anything answered WITHOUT one — Caddy's own 404 below, and
+        # any response from a backend older than 2026-08-20.
+        #
+        # The leading \`?\` is not cosmetic: it means "set only if absent". A bare
+        # header name here would REPLACE what the app sent, flattening the
+        # panel's nonce policy into this one and serving a blank back office
+        # while every check on the box still passed.
+        #
+        # And note what is NOT in it: no \`default-src\`. This config can be
+        # applied before the matching backend is running — that is the normal
+        # order of a bad afternoon — and \`default-src 'none'\` on a panel that
+        # has not yet learned to send its own policy would refuse every script,
+        # style and font in it. What is left restricts nothing a page loads: it
+        # only forbids being framed, having its <base> rewritten, and plugins.
+        # Safe in any deploy order, in either direction.
+        ?Content-Security-Policy "base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
     }
 }
 
@@ -358,7 +452,11 @@ sleep 3
 printf '    landing  : '; curl -sS https://ana-bala.kz/ | grep -o '<title>[^<]*</title>' | head -1
 printf '    assets   : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' "https://ana-bala.kz/landing/wire.js"
 printf '    lead API : HTTP '; curl -s -o /dev/null -w '%{http_code}\n' -X POST https://ana-bala.kz/shop/leads \
-  -H 'content-type: application/json' -d '{"customerName":"","phone":""}'   # expect 400 = reached the app
+  -H 'content-type: application/json' -d '{"customerName":"","phone":""}'
+# 400 = reached the app and it refused an empty form, which is the pass.
+# 429 is ALSO a pass and means this script has been run more than ten times in
+# an hour from this address — the new per-source limit on the form counting a
+# deploy check like any other caller. 404 is the failure: Caddy answered.
 # The back office: the page is public, its data is not, and the browser
 # password dialog must be gone — a WWW-Authenticate here means the edge is
 # still asking for a password the app now asks for itself.
@@ -375,6 +473,30 @@ HDRS="$(curl -sI --max-time 15 https://ana-bala.kz/admin/ui || true)"
 case "$(printf '%s' "$HDRS" | tr 'A-Z' 'a-z')" in
   *www-authenticate*) echo 'STILL PROMPTING — the edge password did not go away' ;;
   *)                  echo 'gone (the app signs staff in)' ;;
+esac
+# The CSP on the back office. It is written by the APP, per response, with a
+# fresh nonce — the edge only supplies a default for responses that arrive
+# without one (the `?` prefix on the header above). If that `?` is ever lost,
+# Caddy REPLACES the app's policy with the generic one, every inline script in
+# the panel is refused, and the operator gets a blank page while this script
+# still reports a successful deploy. That is what this line is for.
+printf '    panel CSP: '
+PANEL_HDRS="$(curl -sI --max-time 15 https://ana-bala.kz/admin | tr 'A-Z' 'a-z' || true)"
+case "$PANEL_HDRS" in
+  *nonce-*)           echo 'nonce policy, from the app' ;;
+  *frame-ancestors*)  echo 'GENERIC — the edge overwrote the app policy; the panel will be blank' ;;
+  *)                  echo 'MISSING — no Content-Security-Policy at all' ;;
+esac
+printf '    framing  : '
+case "$PANEL_HDRS" in
+  *"x-frame-options: deny"*) echo 'X-Frame-Options: DENY' ;;
+  *)                         echo 'MISSING — /admin can be put in an iframe' ;;
+esac
+printf '    hsts     : '
+case "$PANEL_HDRS" in
+  *"max-age=31536000"*) echo 'max-age=31536000' ;;
+  *max-age=*)           echo "not at the full year yet: $(printf '%s' "$PANEL_HDRS" | tr -d '\r' | sed -n 's/.*strict-transport-security: *//p')" ;;
+  *)                    echo 'MISSING — no Strict-Transport-Security' ;;
 esac
 # Both forms of the retired storefront URL land on the landing. The one with
 # the trailing slash is what a browser leaves on a bookmark, and it 404'd.

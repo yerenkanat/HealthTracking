@@ -69,6 +69,51 @@ jobs:
       - run: npm run typecheck
       - run: npm test
 
+  dependencies:
+    name: Dependency advisories (high + critical)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No install: `npm audit` reads package-lock.json, and both workspaces
+      # are in the one at the root.
+      #
+      # Not `npm audit --audit-level=high` directly. That is red today and would
+      # be red every day after — the tree already carries eight advisories at
+      # high or above, and the fix for the two worst is a major upgrade of
+      # fastify and of vitest. A build that is always red is one nobody reads.
+      # tools/audit-deps.mjs fails on anything at high or critical that is not
+      # named, dated and justified in its ACCEPTED list, so a NEW one stops the
+      # build the day it appears and an old one cannot be forgotten.
+      - name: npm advisories
+        run: node tools/audit-deps.mjs
+
+  python-dependencies:
+    name: Python advisories (cry classifier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: pip install pip-audit
+      # Its own job, so a finding here reads as a finding rather than as the
+      # smoke tests breaking.
+      #
+      # pip-audit has no severity threshold — PyPI advisories frequently carry
+      # no CVSS at all — so unlike the npm gate this one fails on ANY advisory.
+      # That is tolerable because requirements.txt is nine pinned packages with
+      # no dev tools in it, and because of what they do: librosa and soundfile
+      # parse an audio file a caller uploaded to /cry/analyze.
+      #
+      # If it goes red on something with no fix available, the response is
+      # `--ignore-vuln <ID>` on this line with a dated comment saying why —
+      # never deleting the step.
+      - name: pip advisories
+        run: pip-audit -r packages/cry-classifier/requirements.txt
+
   cry-classifier:
     name: Cry classifier (smoke tests)
     runs-on: ubuntu-latest

@@ -25,6 +25,37 @@ import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
 import { registerJoinPage } from './joinPage';
 import { registerLegalPages } from './legalPages';
+import { cspNonce, panelCsp } from './securityHeaders';
+
+/**
+ * Where the per-response CSP nonce is stitched into the panel.
+ *
+ * The file is read once at startup (873 KB of it), so the nonce cannot be baked
+ * in — a nonce fixed at boot is a constant an attacker reads once. The
+ * placeholder is put in at startup and swapped for a fresh value per response,
+ * which is two string replacements on a page served a few times a day.
+ */
+const NONCE_SLOT = '__CSP_NONCE__';
+
+/**
+ * Add `nonce="…"` to every INLINE <script> in the panel.
+ *
+ * Matches script tags with no `src=`, rather than the literal `<script>`, so a
+ * future `<script type="module">` in the panel does not silently lose its nonce
+ * and take the whole back office down with it. Tags WITH a src are left alone —
+ * `script-src 'self'` already covers same-origin files.
+ *
+ * @returns the marked-up HTML and how many tags were marked, so the caller can
+ *   refuse to serve a policy that would blank the page.
+ */
+export function nonceInlineScripts(html: string): { html: string; count: number } {
+  let count = 0;
+  const out = html.replace(/<script(?![^>]*\ssrc=)([^>]*)>/gi, (_m, attrs: string) => {
+    count++;
+    return `<script nonce="${NONCE_SLOT}"${attrs}>`;
+  });
+  return { html: out, count };
+}
 
 export interface StaticPages {
   /** The admin panel HTML and the /admin → /admin/ui redirects. */
@@ -91,13 +122,28 @@ export function registerStaticPages(app: FastifyInstance): StaticPages {
   // ---- The back office ------------------------------------------------------
   try {
     const adminBody = readFileSync(fileURLToPath(new URL('../../../admin/index.html', import.meta.url)), 'utf8');
+    const marked = nonceInlineScripts(adminBody);
+    // Refuse to ship a policy that would blank the panel. If the file ever
+    // arrives with no inline script at all, something is wrong with the file,
+    // and serving it under `script-src 'nonce-…'` would produce a white page
+    // with an explanation only in the browser console — the exact shape of
+    // failure this repo keeps being bitten by.
+    if (marked.count < 1) throw new Error('admin/index.html has no inline <script> to nonce');
     const adminHtml = `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
       `<meta name="viewport" content="width=device-width,initial-scale=1">` +
-      `<title>Ana-Bala Back-office</title></head><body>${adminBody}</body></html>`;
+      `<title>Ana-Bala Back-office</title></head><body>${marked.html}</body></html>`;
     for (const p of ADMIN_PANEL_PATHS) {
-      app.get(p, async (_req, reply) =>
-        reply
+      app.get(p, async (_req, reply) => {
+        // Fresh per response, and the SAME value in the header and the markup.
+        // Getting these two out of step is a blank panel, so they are produced
+        // in one place, one line apart.
+        const nonce = cspNonce();
+        return reply
           .type('text/html')
+          // The strict policy — the panel is the one page in this product that
+          // renders strangers' text, and the one whose session is worth
+          // stealing. See http/securityHeaders.ts.
+          .header('content-security-policy', panelCsp(nonce))
           // no-store, and it is not a nicety.
           //
           // This one file IS the application: every line of the panel's
@@ -114,7 +160,8 @@ export function registerStaticPages(app: FastifyInstance): StaticPages {
           // names and health data, and a back office has no business being
           // written to a shared laptop's disk cache.
           .header('cache-control', 'no-store, must-revalidate')
-          .send(adminHtml));
+          .send(adminHtml.replaceAll(NONCE_SLOT, nonce));
+      });
     }
 
     // 302, not 301: the panel is due to move to admin.ana-bala.kz once that DNS

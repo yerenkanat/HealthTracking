@@ -34,6 +34,7 @@ import { registerEntitlementRoutes } from './routes/entitlements';
 import { registerPublicApiRoutes } from './routes/publicApi';
 import type { SmsSender } from './routes/phoneAuth';
 import { RateLimiter } from './http/rateLimit';
+import { registerSecurityHeaders } from './http/securityHeaders';
 import { antenatalProtocol } from './antenatal/protocol';
 import { servedCalendar, weekOf } from './pregnancy/served';
 import { servedEmergencyHelp } from './emergency/served';
@@ -60,6 +61,10 @@ export interface ServerDeps {
   /// 1000 per 5 minutes per identity — far above any real client, so it only
   /// ever bounds a runaway/abusive one. /ingest and /ai/chat keep their own.
   writeLimiter?: RateLimiter;
+  /// The one unauthenticated write on the public internet: POST /shop/leads,
+  /// the landing page's callback form. Defaults to 20 per hour per source
+  /// address. See the hook for why it is separate and why it is not a captcha.
+  leadLimiter?: RateLimiter;
   cacheLastLocation: (childId: string) => Promise<unknown>;
   /** Tell staff about a new callback request. Omitted = no channel configured;
    *  the lead is still recorded. Must never throw — see notifications/leadAlert. */
@@ -444,6 +449,39 @@ export function buildServer(
   } = {},
 ): FastifyInstance {
   const app = Fastify({
+    // ONE hop, not `true`.
+    //
+    // Every request on earth arrives from Caddy, so without this `req.ip` is
+    // 127.0.0.1 for all of them. Two things depended on that being the real
+    // address and neither worked: the access log attributed everything to
+    // localhost, and the anonymous write bucket below — which keys on `req.ip`
+    // when there is no session — was ONE bucket for the whole internet. A
+    // single script exhausting it made POST /shop/leads answer 429 to every
+    // real customer, and the lead form is the landing page's only conversion
+    // path.
+    //
+    // Why the number 1 rather than `true`: with `true` Fastify trusts the
+    // WHOLE X-Forwarded-For chain and takes its leftmost entry — which the
+    // client writes. Anyone could then mint a fresh rate-limit bucket per
+    // request by sending `X-Forwarded-For: <random>`, and forge any address
+    // they liked into our logs. `1` trusts exactly one hop, so `req.ip` is the
+    // address the LAST proxy appended: Caddy's view of the caller.
+    //
+    // Trusting a proxy is only safe if nothing can reach this port except that
+    // proxy. Verified, not assumed: deploy/landing-stack.sh starts the backend
+    // with `docker run … --network supabase_default` and NO `-p`, so port 8080
+    // is published nowhere on the host (the same reason umay-db is safe, see
+    // docs/SECURITY_FOLLOWUP.md §7), and deploy/backend.env.example/index.ts
+    // default HOST to 127.0.0.1 for the non-container case. The residual
+    // exposure is other containers on that Docker network — the retired CRM's
+    // Supabase stack still runs there — which is an argument for finishing
+    // deploy/retire-test-crm.sh, not for keeping every visitor anonymous.
+    //
+    // Caddy is also told to REPLACE any inbound X-Forwarded-For with the real
+    // peer (`header_up X-Forwarded-For {remote_host}` in
+    // deploy/landing-takeover.sh), so the chain we trust is one entry long and
+    // written by us.
+    trustProxy: 1,
     logger:
       opts.logger === false
         ? false
@@ -460,6 +498,11 @@ export function buildServer(
             ...(opts.logStream ? { stream: opts.logStream } : {}),
           },
   });
+
+  // CSP, frame-ancestors, nosniff — on everything this instance answers,
+  // including the 404 below. See http/securityHeaders.ts for what each policy
+  // does and, more importantly, what it does not cover.
+  registerSecurityHeaders(app);
 
   // Fastify's own 404 answer logs `Route ${method}:${url} not found` — a
   // message STRING, which no `req` serializer touches. So a NEAR-MISS URL went
@@ -543,6 +586,48 @@ export function buildServer(
     }
   });
 
+  // ---- The callback form ----------------------------------------------------
+  //
+  // POST /shop/leads is the only unauthenticated write on the public internet.
+  // It has no session to key on, it writes a row, and it rings a Telegram
+  // channel a person is expected to read — so filling the queue with junk both
+  // costs storage and buries the real заявки under it.
+  //
+  // NOT A CAPTCHA, deliberately. This form is the single step between a woman
+  // who wants a callback and a callback; it is the whole conversion path of the
+  // landing page, and a challenge in front of it is paid for in lost customers
+  // on exactly the phones least able to solve one. A third-party captcha would
+  // also put her IP, user-agent and behavioural signals into Google's or
+  // hCaptcha's hands on page load — and legal/legal.json enumerates every
+  // processor we use, so adding one is a privacy-policy amendment, not a script
+  // tag. The cost of the abuse does not justify either.
+  //
+  // What it is instead: a per-source ceiling, here and at the edge
+  // (deploy/landing-takeover.sh has a `rate_limit` zone on the same path). Both,
+  // because the edge is a file on one box that has been out of date with this
+  // repo before, and this one is what a memory-mode or a re-provisioned
+  // deployment still has.
+  //
+  // 20 an hour: a household, an office or a whole village behind one NAT will
+  // never reach it, and a flood is thousands. It is only meaningful now that
+  // `trustProxy` is set — before that every request in the world shared the key
+  // `127.0.0.1` and this hook would have been one global bucket, which is worse
+  // than none.
+  const leadLimiter = deps.leadLimiter ?? new RateLimiter({ limit: 20, windowMs: 60 * 60_000 });
+  app.addHook('preHandler', async (req, reply) => {
+    if (req.method !== 'POST') return;
+    if (req.url.split('?')[0] !== '/shop/leads') return;
+    const rl = leadLimiter.take(req.ip);
+    if (!rl.allowed) {
+      reply.header('retry-after', String(rl.retryAfterSec));
+      // The landing's wire.js turns any non-2xx into «Не удалось отправить.
+      // Напишите нам в WhatsApp» — which is the right thing to tell a real
+      // person who somehow lands here: she is NOT in the queue, and WhatsApp
+      // is a channel that still works.
+      return reply.code(429).send({ error: 'rate_limited', retryAfterSec: rl.retryAfterSec });
+    }
+  });
+
   // Expired windows are dropped periodically — otherwise the map keeps one
   // entry per user who ever chatted, which is a leak that only surfaces months
   // into production. unref() so this timer never holds the process open.
@@ -550,6 +635,7 @@ export function buildServer(
     chatLimiter.sweep();
     ingestLimiter.sweep();
     writeLimiter.sweep();
+    leadLimiter.sweep();
   }, 5 * 60_000);
   if (typeof sweeper.unref === 'function') sweeper.unref();
   app.addHook('onClose', async () => clearInterval(sweeper));

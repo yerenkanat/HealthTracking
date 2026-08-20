@@ -50,7 +50,10 @@ sudo sed -i "s#CHANGE_ME_DB_PASSWORD#$DB_PASS#" /etc/umay/backend.env
 sudo chmod 600 /etc/umay/backend.env && sudo chown umay:umay /etc/umay/backend.env
 sudo cp "$APP_DIR/deploy/umay-backend.service" /etc/systemd/system/
 sudo cp "$APP_DIR/deploy/Caddyfile" /etc/caddy/Caddyfile
-echo "   -> set the admin basic-auth hash in /etc/caddy/Caddyfile (caddy hash-password)"
+# No edge password to paste any more: staff sign in with a phone number and a
+# password (src/routes/staffLogin.ts). Seed the first account instead, or the
+# back office is a login form nobody has an account for.
+echo "   -> seed the first staff account: see packages/backend/db/seed-staff.mjs"
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now umay-backend
@@ -64,8 +67,11 @@ cat <<'DONE'
 
 ==> Bootstrap done. Remaining MANUAL steps:
   1. Edit /etc/umay/backend.env: REAL_AUTH Firebase service account, any keys.
-  2. Set the admin basic-auth hash in /etc/caddy/Caddyfile, then: systemctl reload caddy
-  3. Confirm DNS A records (ana-bala.kz, www, admin) point here so Caddy gets TLS.
+  2. Seed the first staff account (the back office is phone + password now):
+       DATABASE_URL=... STAFF_PHONE=7... STAFF_PASSWORD=... STAFF_ROLE=owner \
+         node packages/backend/db/seed-staff.mjs
+  3. Confirm DNS A records (ana-bala.kz, www) point here so Caddy gets TLS.
+     admin.ana-bala.kz is NOT needed — the panel is /admin on the main name.
   4. Build the app:  flutter build apk --release --dart-define=API_BASE=https://ana-bala.kz --dart-define=MAPS_ENABLED=true
   5. (Optional) deploy packages/cry-classifier with a trained model.pkl, set CRY_API_URL.
 DONE

@@ -1,43 +1,80 @@
-# Umay — Caddy reverse proxy (automatic HTTPS via Let's Encrypt).
+# Ana-Bala — Caddy reverse proxy (automatic HTTPS via Let's Encrypt).
 #
-# Prerequisite: DNS A (and AAAA) records for ana-bala.kz, www.ana-bala.kz and
-# admin.ana-bala.kz must already point at this server, or the TLS challenge
-# fails. Caddy obtains + renews certificates on its own once they resolve.
+# WHICH FILE IS LIVE. Not this one. The production box (188.137.231.252) runs
+# Caddy in a container and its config is written by deploy/landing-takeover.sh,
+# which also carries the fail-closed allow-list, the per-IP rate limits and the
+# X-Forwarded-For rewrite. This file is the fresh-box / systemd path used by
+# deploy/bootstrap.sh. Anything security-relevant changed here must be changed
+# there too — the two drifting apart is how this file came to describe a back
+# office that stopped existing.
+#
+# Prerequisite: DNS A (and AAAA) records for ana-bala.kz and www.ana-bala.kz
+# must already point at this server, or the TLS challenge fails. Caddy obtains
+# and renews certificates on its own once they resolve.
 #
 # The Node backend serves EVERYTHING on 127.0.0.1:8080 — the JSON API, the
-# Ana-Bala landing page (/), the storefront (/shop…), the admin panel
-# (/admin/ui + /admin/*) and the API docs (/docs/api). These two site blocks
-# just route the public names to it and add TLS; the app talks to
-# https://ana-bala.kz for its API.
+# Ana-Bala landing page (/), the storefront redirects (/shop…), the admin panel
+# (/admin) and the API docs (/api-docs). The site block below routes the public
+# names to it and adds TLS; the app talks to https://ana-bala.kz for its API.
 
-# ---- Landing + storefront + app API ------------------------------------------
+# ---- Landing + storefront + app API + back office ----------------------------
 ana-bala.kz, www.ana-bala.kz {
 	encode gzip zstd
-	# Root is the Ana-Bala landing page, served by the backend itself — no redirect.
-	# The product pages stay reachable at /shop, /shop/umay-watch and /shop/tracker.
-	reverse_proxy 127.0.0.1:8080
+
+	# Root is the Ana-Bala landing page, served by the backend itself — no
+	# redirect. The back office is /admin on this same hostname.
+	#
+	# header_up X-Forwarded-For {remote_host} REPLACES whatever the caller sent.
+	# The app runs with Fastify's `trustProxy: 1`, so the last entry in this
+	# header is what it takes for the caller's address — the key its per-source
+	# rate limits and its access log are built on. Writing it ourselves makes
+	# that chain exactly one entry long and not something a caller can choose.
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
+
 	header {
-		# Modest hardening (the pages are self-contained; tune CSP if you add CDNs).
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# The back office is a PATH on this hostname, not a separate origin, so
+		# anything that can frame the landing page can frame /admin and drive it
+		# with the operator's own session. The app sends frame-ancestors on its
+		# own responses (packages/backend/src/http/securityHeaders.ts); this
+		# covers the ones it never sees and the browsers that predate CSP.
+		X-Frame-Options "DENY"
+
+		# A policy for anything answered WITHOUT one. The leading `?` means "set
+		# only if absent" — a bare header name here would REPLACE what the app
+		# sent, flattening the panel's nonce policy into this one and serving a
+		# blank back office while every check still passed.
+		#
+		# It deliberately carries no `default-src`: this file can be in place
+		# before the matching backend is, and `default-src 'none'` on a panel
+		# that does not yet send its own policy refuses every script and style
+		# in it. What is here restricts nothing a page loads.
+		?Content-Security-Policy "base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
 	}
 }
 
-# ---- Staff back-office -------------------------------------------------------
-# The admin API has no real staff RBAC yet (see docs/DEPLOY.md §5), so gate the
-# WHOLE subdomain at the edge. Generate the hash on the server with:
-#     caddy hash-password --plaintext 'choose-a-strong-password'
-# and paste it below (it starts with $2a$…). Keep this file readable only by root.
-admin.ana-bala.kz {
-	encode gzip zstd
-	basic_auth {
-		admin REPLACE_WITH_BCRYPT_HASH
-	}
-	redir / /admin/ui temporary
-	reverse_proxy 127.0.0.1:8080
-	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options "nosniff"
-	}
-}
+# ---- The back office ---------------------------------------------------------
+#
+# There is no second site block and no `basic_auth` any more, and this note is
+# what is left of it.
+#
+# What used to be here: an `admin.ana-bala.kz` block behind an edge password,
+# because the admin API trusted an `x-staff-id` / `x-staff-role` header that
+# anyone could send. The edge password WAS the whole boundary.
+#
+# That is no longer true. Staff sign in with a phone number and a password and
+# get a session cookie (migration 019, packages/backend/src/routes/staffLogin.ts,
+# roles in src/auth/capabilities.ts); the header stub is gone, and
+# deploy/landing-takeover.sh actively checks that no WWW-Authenticate comes back
+# from the live site, because an edge password on top of a real login is a
+# second credential nobody rotates.
+#
+# admin.ana-bala.kz has no DNS record. When it gets one, give it its own block
+# and its own certificate — and add `includeSubDomains` to the HSTS header above
+# only once it is serving HTTPS, or that name is unreachable for a year in every
+# browser that has loaded the apex.
