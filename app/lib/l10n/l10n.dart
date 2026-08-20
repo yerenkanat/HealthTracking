@@ -4401,12 +4401,30 @@ const Map<String, Map<AppLocale, String>> _catalog = {
   // the slider to 28» from «nobody chose anything» — and «прогноз по вашей
   // настройке» would be its own invented number if she never set one.
   //
-  // KAZAKH IS A DRAFT WRITTEN OUTSIDE THE LANGUAGE GATE — see docs/TODO.md
-  // §10.17. «Цикл ұзақтығы» carries the noun so «өлшенген жоқ» has a subject,
-  // and «{n} күнмен» keeps the case ending off the numeral, the same dodge
-  // cyc_future_mark_title was accepted for.
-  'cyc_avg_cycle_assumed': {AppLocale.ru: 'Цикл ещё не измерен — прогноз по стандартным {n} дн.', AppLocale.kk: 'Цикл ұзақтығы әлі өлшенген жоқ — болжам стандартты {n} күнмен есептелген.', AppLocale.en: 'Cycle not measured yet — forecast assumes a standard {n} days.'},
-  'cyc_avg_cycle_setting': {AppLocale.ru: 'Цикл ещё не измерен — прогноз по вашей настройке: {n} дн.', AppLocale.kk: 'Цикл ұзақтығы әлі өлшенген жоқ — болжам сіз көрсеткен {n} күнмен есептелген.', AppLocale.en: 'Cycle not measured yet — forecast uses your setting of {n} days.'},
+  // KAZAKH RULED ON BY THE LANGUAGE GATE, 2026-08-20 — docs/TODO.md §10.17.
+  // Kept from the draft: «Цикл ұзақтығы» carries the noun so «өлшенген жоқ»
+  // has a subject, and «{n} күнмен» keeps the case ending off the numeral,
+  // the same dodge cyc_future_mark_title was accepted for.
+  //
+  // Two words were not kept. «стандартты {n} күнмен» is REJECTED: this table
+  // already spends «стандартты» on the RK Ministry of Health antenatal
+  // protocol (an_intro, an_disclaimer — a fingerprinted `an_` clinical
+  // string), so in Kazakh the word reads as a MEDICAL standard, i.e. the
+  // textbook 28-day cycle. That is the exact claim these two keys exist to
+  // withhold, and Kazakh has no consumer-software sense of «стандартты» to
+  // fall back on the way Russian «стандартный» does. «қолданбадағы әдепкі»
+  // names the number as OURS, which is what the line is for.
+  //
+  // And «сіз көрсеткен» («that you stated») became «сіз таңдаған» («that you
+  // chose»): the control is a 21–35 slider, not a field she typed into, and
+  // `baselineChosen` is literally the distinction being drawn.
+  //
+  // The RUSSIAN «по стандартным {n} дн.» carries the same ambiguity, and the
+  // gate does not change Russian copy — it is reported in §10.17 for the
+  // copy owner. Until it is answered the Kazakh is the clearer of the two,
+  // deliberately and on the record.
+  'cyc_avg_cycle_assumed': {AppLocale.ru: 'Цикл ещё не измерен — прогноз по стандартным {n} дн.', AppLocale.kk: 'Цикл ұзақтығы әлі өлшенген жоқ — болжам қолданбадағы әдепкі {n} күнмен есептелген.', AppLocale.en: 'Cycle not measured yet — forecast assumes a standard {n} days.'},
+  'cyc_avg_cycle_setting': {AppLocale.ru: 'Цикл ещё не измерен — прогноз по вашей настройке: {n} дн.', AppLocale.kk: 'Цикл ұзақтығы әлі өлшенген жоқ — болжам сіз таңдаған {n} күнмен есептелген.', AppLocale.en: 'Cycle not measured yet — forecast uses your setting of {n} days.'},
   'gest_due': {AppLocale.ru: 'Дата родов: {date}', AppLocale.kk: 'Босану күні: {date}', AppLocale.en: 'Due date: {date}'},
   'cyc_no_data_title': {AppLocale.ru: 'Отслеживайте цикл', AppLocale.kk: 'Циклді қадағалаңыз', AppLocale.en: 'Track your cycle'},
   'cyc_no_data_body': {AppLocale.ru: 'Отметьте день менструации, чтобы видеть прогнозы.', AppLocale.kk: 'Болжамды көру үшін етеккір күнін белгілеңіз.', AppLocale.en: 'Log a period day to see predictions.'},
