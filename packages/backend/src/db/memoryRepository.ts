@@ -7,7 +7,7 @@
 
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
 import { CRY_MIN_CONFIDENCE_DEFAULT, type CryThresholdRow } from '../cry/settings';
-import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, EpdsRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, NotificationPrefs, PushDeliveryRecord, PushDeliverySummary } from './repository';
+import type { AnnouncementRow, BroadcastRow, ContentItemRow, Repository, StaffAccount, SleepNight, WearableDayRow, CryRow, WeightRow, KickSessionRow, ContractionSessionRow, MedicalIdRow, NewbornEventRow, GrowthRow, DoseRow, DayLogRow, EpdsRow, SafetyAlertRow, ProfileRow, PregnancyWeekOverride, EmergencyHelpOverride, VaccinationOverride, VaccinationSettings, VaccinationLogEntry, ShopOrderStatus, ShopLeadLocale, ShopLeadStatus, InventoryProduct, StockMoveReason, OrderRefund, OrderRefundReason, CourseLesson, CourseProgress, DeviceRegistryRow, ProductStage, ShopCategoryRow, SupportTicketRow, SupportReplyRow, SupportTemplateRow, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseOrderStatus, NotificationPrefs, PushDeliveryRecord, PushDeliverySummary } from './repository';
 import { bundleDiscountMinor, markInStock } from './repository';
 import { DEFAULT_PREFS, FALLBACK_TZ } from '../notifications/gate.js';
 import { gestationalWeekOn, utcMidnightOf } from '../pregnancy/overrides.js';
@@ -588,8 +588,42 @@ const UUID_RE =
   /** The stock ledger. Every change, with its reason — never edited, never deleted. */
   const stockMoves: Array<{
     id: number; variantId: string; delta: number; reason: StockMoveReason;
-    note: string | null; staffId: string | null; orderId: string | null; at: string;
+    note: string | null; staffId: string | null; orderId: string | null;
+    // Which refund put this back, or null. Same discriminator as the column
+    // migration 051 adds: a cancellation and a refund both write 'return'.
+    refundId: number | null; at: string;
   }> = [];
+  /** Возвраты покупателям (frame 05a). Newest last, like every other table here. */
+  const shopRefunds: Array<{
+    id: number; orderId: string; amountMinor: number; reason: OrderRefundReason;
+    note: string | null; staffId: string | null; at: string;
+  }> = [];  /**
+   * A stored refund as the interface returns it: the author resolved where we
+   * have a name, and the units counted from the refund's own stock moves rather
+   * than stored — the same rule as the SQL, so the two cannot disagree.
+   */
+  const refundRow = (
+    x: { id: number; orderId: string; amountMinor: number; reason: OrderRefundReason;
+      note: string | null; staffId: string | null; at: string },
+    restockedUnits: number,
+  ): OrderRefund => ({
+    ...x,
+    // The id is kept whatever happens to the account, exactly like
+    // shopOrderEvents: a refund booked by somebody since removed must stay
+    // readable rather than vanish from the order.
+    staffName: (x.staffId
+      ? [...staffAccounts.values()].find((a) => a.id === x.staffId)?.displayName
+      : null) ?? null,
+    restockedUnits,
+  });
+  const refundsView = (pred: (x: { orderId: string; at: string }) => boolean): OrderRefund[] =>
+    shopRefunds
+      .filter(pred)
+      .map((x) => refundRow(x, stockMoves
+        .filter((m) => m.refundId === x.id)
+        .reduce((n, m) => n + Math.abs(m.delta), 0)))
+      // Newest first, matching `ORDER BY r.at DESC, r.id DESC`.
+      .sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);
   const shopVars: Array<{ id: string; productId: string; color: string; colorHex: string; stock: number; sort: number }> = [
     { id: 'v-w-black', productId: 'watch', color: 'Чёрный', colorHex: '#1C1E2A', stock: 0, sort: 1 },
     { id: 'v-w-rose', productId: 'watch', color: 'Розовое золото', colorHex: '#E8B4A0', stock: 0, sort: 2 },
@@ -647,7 +681,7 @@ const UUID_RE =
     };
   }
 
-  type ShopOrderRow = { bundleId?: string | null; phoneNormalized?: string; id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }> };
+  type ShopOrderRow = { bundleId?: string | null; phoneNormalized?: string; id: string; customerName: string; phone: string; city: string; address: string; note: string | null; totalMinor: number; discountMinor: number; status: string; createdAt: string; items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number; variantId: string }> };
   const shopOrders: ShopOrderRow[] = [];
   /**
    * The status history frame 03 draws (migration 039).
@@ -2663,7 +2697,7 @@ const UUID_RE =
         s.variant.stock -= s.qty;
         stockMoves.push({
           id: stockMoves.length + 1, variantId: s.variant.id, delta: -s.qty,
-          reason: 'sale', note: null, staffId: null, orderId: id,
+          reason: 'sale', note: null, staffId: null, orderId: id, refundId: null,
           at: new Date().toISOString(),
         });
       }
@@ -2671,7 +2705,15 @@ const UUID_RE =
         id, customerName: o.customerName, phone: o.phone, city: o.city, address: o.address,
         note: o.note ?? null, totalMinor: total, discountMinor: discount, status: 'new', createdAt: new Date().toISOString(),
         bundleId: o.bundleId ?? null, phoneNormalized: normalizePhone(o.phone),
-        items: snap.map((s) => ({ productName: s.productName, color: s.color, qty: s.qty, unitPriceMinor: s.unitPriceMinor })),
+        // variantId on the line, exactly as shop_order_items stores it. Without
+        // it the cancellation path below had to find the variant back by
+        // product name and colour, which picks the wrong row the day two
+        // products share a colour — and frame 05a's refund could not name what
+        // it was putting on the shelf at all.
+        items: snap.map((s) => ({
+          productName: s.productName, color: s.color, qty: s.qty,
+          unitPriceMinor: s.unitPriceMinor, variantId: s.variant.id,
+        })),
       });
       return { ok: true as const, id, totalMinor: total, discountMinor: discount };
     },
@@ -2714,6 +2756,7 @@ const UUID_RE =
         stockMoves.push({
           id: stockMoves.length + 1, variantId, delta, reason: 'correction',
           note: by?.note ?? null, staffId: by?.staffId ?? null, orderId: null,
+          refundId: null,
           at: new Date().toISOString(),
         });
       }
@@ -2903,6 +2946,9 @@ const UUID_RE =
       stockMoves.push({
         id: stockMoves.length + 1, variantId: m.variantId, delta, reason: m.reason,
         note: m.note ?? null, staffId: m.staffId ?? null, orderId: m.orderId ?? null,
+        // A hand-booked move is never part of a refund: POST /admin/inventory/
+        // moves has no way to name one, and recordOrderRefund writes its own.
+        refundId: null,
         at: new Date().toISOString(),
       });
       return { ok: true as const, stock: next };
@@ -3112,6 +3158,88 @@ const UUID_RE =
           at: e.at,
         }));
     },
+    /**
+     * Frame 05a — the refund, faithfully.
+     *
+     * Every rule the SQL enforces is enforced here, in the same order and with
+     * the same error names: the cumulative amount against the order total, the
+     * variant against the order's own lines, and the cumulative restock against
+     * what actually went out. A fake that accepted what Postgres refuses would
+     * make every route test green over a route that 500s in production — which
+     * is why the in-memory cancellation path above now looks the variant up by
+     * id, as the SQL always has.
+     *
+     * All-or-nothing, like the transaction: nothing is written until every line
+     * is known good, because this store cannot roll back a partial write.
+     */
+    recordOrderRefund: async (r) => {
+      const amount = Math.trunc(r.amountMinor);
+      if (!(amount > 0)) return { ok: false as const, error: 'refund_exceeds_order' as const };
+      const o = shopOrders.find((x) => x.id === r.orderId);
+      if (!o) return { ok: false as const, error: 'not_found' as const };
+
+      // Duplicate lines in one request are one line, as in the SQL.
+      const wanted = new Map<string, number>();
+      for (const l of r.restock ?? []) {
+        const q = Math.trunc(l.qty);
+        if (q > 0) wanted.set(l.variantId, (wanted.get(l.variantId) ?? 0) + q);
+      }
+
+      const already = shopRefunds
+        .filter((x) => x.orderId === r.orderId)
+        .reduce((n, x) => n + x.amountMinor, 0);
+      if (already + amount > o.totalMinor) {
+        return { ok: false as const, error: 'refund_exceeds_order' as const };
+      }
+
+      const ordered = new Map<string, number>();
+      for (const it of o.items) ordered.set(it.variantId, (ordered.get(it.variantId) ?? 0) + it.qty);
+      const restockedBefore = new Map<string, number>();
+      for (const m of stockMoves) {
+        if (m.orderId !== r.orderId || m.refundId == null) continue;
+        restockedBefore.set(m.variantId, (restockedBefore.get(m.variantId) ?? 0) + m.delta);
+      }
+      for (const [variantId, qty] of wanted) {
+        if (!ordered.has(variantId)) {
+          return { ok: false as const, error: 'unknown_line' as const, variantId };
+        }
+        if ((restockedBefore.get(variantId) ?? 0) + qty > (ordered.get(variantId) ?? 0)) {
+          return { ok: false as const, error: 'restock_exceeds_order' as const, variantId };
+        }
+      }
+
+      const at = new Date().toISOString();
+      const id = shopRefunds.length + 1;
+      shopRefunds.push({
+        id, orderId: r.orderId, amountMinor: amount, reason: r.reason,
+        note: r.note ?? null, staffId: r.staffId ?? null, at,
+      });
+      let restockedUnits = 0;
+      for (const [variantId, qty] of wanted) {
+        const v = shopVars.find((x) => x.id === variantId);
+        if (!v) continue;
+        v.stock += qty;
+        restockedUnits += qty;
+        stockMoves.push({
+          id: stockMoves.length + 1, variantId, delta: qty, reason: 'return',
+          note: r.note ?? 'возврат от покупателя', staffId: r.staffId ?? null,
+          orderId: r.orderId, refundId: id, at,
+        });
+      }
+      return { ok: true as const, refund: refundRow({
+        id, orderId: r.orderId, amountMinor: amount, reason: r.reason,
+        note: r.note ?? null, staffId: r.staffId ?? null, at,
+      }, restockedUnits) };
+    },
+
+    orderRefunds: async (orderId) => refundsView((x) => x.orderId === orderId),
+
+    refundsBetween: async (fromDate, toDate) =>
+      // UTC date comparison on the ISO prefix, the same bucketing
+      // admin/finance.ts uses for orders and stock moves, and inclusive at both
+      // ends like the SQL.
+      refundsView((x) => x.at.slice(0, 10) >= fromDate && x.at.slice(0, 10) <= toDate),
+
     shopOrdersByPhone: async (phone, limit) =>
       shopOrders
         // phoneNormalized, like the pg query. Filtering on the raw `phone`
@@ -3162,13 +3290,20 @@ const UUID_RE =
       // INTO cancelled, so cancelling twice cannot return the stock twice.
       if (status === 'cancelled' && was !== 'cancelled') {
         for (const it of o.items) {
-          const v = shopVars.find((x) => x.color === it.color
-            && shopProds.find((p) => p.id === x.productId)?.name === it.productName);
+          // By id, not by name-and-colour. The old lookup matched the FIRST
+          // variant whose colour and product name happened to agree, so two
+          // products sharing a colour name returned the stock to whichever one
+          // was created first — an unfaithful fake that would have hidden the
+          // same bug in the SQL, which has always used variant_id.
+          const v = shopVars.find((x) => x.id === it.variantId);
           if (!v) continue;
           v.stock += it.qty;
           stockMoves.push({
             id: stockMoves.length + 1, variantId: v.id, delta: it.qty,
             reason: 'return', note: 'заказ отменён', staffId: null, orderId,
+            // NOT a refund: nothing was handed back to anybody, the order simply
+            // never happened. This is the distinction frame 05 was missing.
+            refundId: null,
             at: new Date().toISOString(),
           });
         }

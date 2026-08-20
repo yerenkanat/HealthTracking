@@ -23,7 +23,7 @@ import { computeChildrenStats } from '../analytics/childStats.js';
 import { emergencyReason } from '../emergency/reason.js';
 import { MAX_CODE_ATTEMPTS } from '../routes/phoneAuth.js';
 import { normalizeSerial } from '../deviceSerial.js';
-import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, ShopOrderStatus, ShopProduct , SupportTicketRow, PurchaseOrder, PurchaseOrderStatus } from './repository';
+import type { ContentItemRow, DeviceRegistryRow, InventoryProduct, OrderRefund, OrderRefundReason, ShopOrderStatus, ShopProduct , SupportTicketRow, PurchaseOrder, PurchaseOrderStatus } from './repository';
 import type {
   BandTelemetry,
   BpCalibration,
@@ -252,6 +252,42 @@ export function createPgRepository(pool: Pool): Repository {
     const { rows } = await pool.query(
       'SELECT id FROM devices WHERE user_id = $1 AND ble_mac = $2', [userId, deviceId]);
     return rows[0]?.id ?? null;
+  }
+
+  /**
+   * Refund rows with the two things a screen always needs beside them: who
+   * booked it, and how many units came back with it.
+   *
+   * LEFT JOIN and the id is kept, exactly like shopOrderEvents: a refund booked
+   * by an account since removed must stay readable rather than vanish.
+   *
+   * `restockedUnits` is counted from the refund's OWN stock moves rather than
+   * stored on the row, so it cannot drift from the ledger — a refund that put
+   * nothing back reads 0 because there are no moves, not because a column says
+   * so.
+   */
+  async function readRefunds(where: string, params: unknown[]): Promise<OrderRefund[]> {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.order_id, r.amount_minor, r.reason, r.note, r.staff_id, r.at,
+              a.display_name AS staff_name,
+              COALESCE((SELECT SUM(ABS(m.delta)) FROM shop_stock_moves m
+                         WHERE m.refund_id = r.id), 0) AS restocked_units
+         FROM shop_order_refunds r
+         LEFT JOIN staff_accounts a ON a.id::text = r.staff_id
+        ${where}
+        ORDER BY r.at DESC, r.id DESC`,
+      params);
+    return rows.map((r) => ({
+      id: Number(r.id),
+      orderId: r.order_id,
+      amountMinor: Number(r.amount_minor),
+      reason: r.reason as OrderRefundReason,
+      note: r.note ?? null,
+      staffId: r.staff_id ?? null,
+      staffName: r.staff_name ?? null,
+      at: new Date(r.at).toISOString(),
+      restockedUnits: Number(r.restocked_units),
+    }));
   }
 
   return {
@@ -3602,7 +3638,8 @@ export function createPgRepository(pool: Pool): Repository {
       // midnight belongs to the day that is starting.
       if (sinceIso) { params.push(sinceIso); where.push(`m.at >= $${params.length}`); }
       const { rows } = await pool.query(
-        `SELECT m.id, m.variant_id, m.delta, m.reason, m.note, m.staff_id, m.order_id, m.at,
+        `SELECT m.id, m.variant_id, m.delta, m.reason, m.note, m.staff_id, m.order_id,
+                m.refund_id, m.at,
                 v.color, p.name AS product_name
            FROM shop_stock_moves m
            JOIN shop_variants v ON v.id = m.variant_id
@@ -3615,6 +3652,10 @@ export function createPgRepository(pool: Pool): Repository {
         id: Number(r.id), variantId: r.variant_id, productName: r.product_name,
         color: r.color, delta: r.delta, reason: r.reason, note: r.note,
         staffId: r.staff_id, orderId: r.order_id,
+        // Null for a cancellation's return move and for everything written
+        // before migration 051 — which frame 05 needs, because those are not
+        // customer returns and were counted as though they were.
+        refundId: r.refund_id == null ? null : Number(r.refund_id),
         at: new Date(r.at).toISOString(),
       }));
     },
@@ -3955,8 +3996,14 @@ export function createPgRepository(pool: Pool): Repository {
                 discount_minor, status, created_at
            FROM shop_orders WHERE id = $1`, [id]);
       if (!rows[0]) return null;
+      // variant_id travels with the line here and nowhere else: frame 05a's
+      // refund form has to NAME the variant it puts back on the shelf, and
+      // re-deriving one from the product name and the colour — which the
+      // in-memory cancellation path used to do — picks the wrong row the day two
+      // products share a colour name. The list and the customer's own orders do
+      // not restock anything, so they keep the narrower select.
       const { rows: items } = await pool.query(
-        `SELECT product_name, color, qty, unit_price_minor
+        `SELECT variant_id, product_name, color, qty, unit_price_minor
            FROM shop_order_items WHERE order_id = $1`, [id]);
       const r = rows[0];
       return {
@@ -3965,6 +4012,7 @@ export function createPgRepository(pool: Pool): Repository {
         createdAt: new Date(r.created_at).toISOString(),
         items: items.map((i) => ({
           productName: i.product_name, color: i.color, qty: i.qty, unitPriceMinor: i.unit_price_minor,
+          variantId: i.variant_id,
         })),
       };
     },
@@ -3991,6 +4039,128 @@ export function createPgRepository(pool: Pool): Repository {
         staffName: r.staff_name ?? null,
         at: new Date(r.at).toISOString(),
       }));
+    },
+
+    /**
+     * Frame 05a — the refund, and whatever came back with it, in ONE
+     * transaction.
+     *
+     * The order row is locked FOR UPDATE before the sum is checked: two
+     * operators refunding the same order at the same moment would otherwise
+     * each read «ничего ещё не возвращали» and hand back the whole amount
+     * twice. That is the read-modify-write the cancellation path spent a
+     * release learning about.
+     */
+    async recordOrderRefund(r) {
+      // Same guard as every other UUID lookup: an id that cannot be a uuid is
+      // «такого заказа нет», not a 500 from 22P02.
+      if (!looksLikeUuid(r.orderId)) return { ok: false as const, error: 'not_found' as const };
+      const amount = Math.trunc(r.amountMinor);
+      if (!(amount > 0)) return { ok: false as const, error: 'refund_exceeds_order' as const };
+
+      // Duplicate lines in one request are one line: 2 + 1 of the same variant
+      // must be checked against the order as 3, not twice as smaller numbers.
+      const wanted = new Map<string, number>();
+      for (const l of r.restock ?? []) {
+        const q = Math.trunc(l.qty);
+        if (q > 0) wanted.set(l.variantId, (wanted.get(l.variantId) ?? 0) + q);
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const { rows: ord } = await client.query(
+          'SELECT id, total_minor FROM shop_orders WHERE id = $1 FOR UPDATE', [r.orderId]);
+        if (!ord[0]) {
+          await client.query('ROLLBACK');
+          return { ok: false as const, error: 'not_found' as const };
+        }
+        const { rows: prev } = await client.query(
+          'SELECT COALESCE(SUM(amount_minor),0)::int AS n FROM shop_order_refunds WHERE order_id = $1',
+          [r.orderId]);
+        // Refused rather than clamped. Handing back more than the order was
+        // worth means the operator has the wrong order or the wrong number,
+        // and silently paying out the maximum hides both.
+        if (Number(prev[0].n) + amount > Number(ord[0].total_minor)) {
+          await client.query('ROLLBACK');
+          return { ok: false as const, error: 'refund_exceeds_order' as const };
+        }
+
+        if (wanted.size) {
+          const { rows: lines } = await client.query(
+            'SELECT variant_id, qty FROM shop_order_items WHERE order_id = $1', [r.orderId]);
+          const ordered = new Map<string, number>();
+          for (const l of lines) ordered.set(l.variant_id, (ordered.get(l.variant_id) ?? 0) + l.qty);
+          // What earlier refunds on this order already put back. Without it the
+          // same unit can be returned to the shelf once per refund, and the
+          // ledger then describes stock that does not exist.
+          const { rows: back } = await client.query(
+            `SELECT m.variant_id, COALESCE(SUM(m.delta),0)::int AS n
+               FROM shop_stock_moves m
+              WHERE m.order_id = $1 AND m.refund_id IS NOT NULL
+              GROUP BY m.variant_id`,
+            [r.orderId]);
+          const restocked = new Map<string, number>();
+          for (const b of back) restocked.set(b.variant_id, Number(b.n));
+          for (const [variantId, qty] of wanted) {
+            if (!ordered.has(variantId)) {
+              await client.query('ROLLBACK');
+              return { ok: false as const, error: 'unknown_line' as const, variantId };
+            }
+            if ((restocked.get(variantId) ?? 0) + qty > (ordered.get(variantId) ?? 0)) {
+              await client.query('ROLLBACK');
+              return { ok: false as const, error: 'restock_exceeds_order' as const, variantId };
+            }
+          }
+        }
+
+        const { rows: ins } = await client.query(
+          `INSERT INTO shop_order_refunds (order_id, amount_minor, reason, note, staff_id)
+           VALUES ($1,$2,$3,$4,$5)
+           RETURNING id`,
+          [r.orderId, amount, r.reason, r.note ?? null, r.staffId ?? null]);
+        const refundId = Number(ins[0].id);
+
+        for (const [variantId, qty] of wanted) {
+          await client.query(
+            'UPDATE shop_variants SET stock = stock + $2 WHERE id = $1', [variantId, qty]);
+          // reason='return' with the order AND the refund on it. The order id is
+          // what «какой заказ» reads; the refund id is what tells frame 05 this
+          // is a customer return rather than a cancellation putting stock back.
+          await client.query(
+            `INSERT INTO shop_stock_moves (variant_id, delta, reason, note, staff_id, order_id, refund_id)
+             VALUES ($1,$2,'return',$3,$4,$5,$6)`,
+            [variantId, qty, r.note ?? 'возврат от покупателя', r.staffId ?? null, r.orderId, refundId]);
+        }
+        await client.query('COMMIT');
+
+        const [refund] = await readRefunds('WHERE r.id = $1', [refundId]);
+        return refund
+          ? { ok: true as const, refund }
+          : { ok: false as const, error: 'not_found' as const };
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+
+    async orderRefunds(orderId) {
+      if (!looksLikeUuid(orderId)) return [];
+      return readRefunds('WHERE r.order_id = $1', [orderId]);
+    },
+
+    async refundsBetween(fromDate, toDate) {
+      // UTC, spelled out, because admin/finance.ts buckets every other row by
+      // `at.slice(0, 10)` — which is UTC — and a server in another timezone
+      // would otherwise put a refund in a different month from the sale it
+      // reverses. Upper bound is exclusive on the NEXT day, so the whole of
+      // `toDate` is included.
+      return readRefunds(
+        `WHERE r.at >= ($1 || 'T00:00:00Z')::timestamptz
+           AND r.at < (($2 || 'T00:00:00Z')::timestamptz + INTERVAL '1 day')`,
+        [fromDate, toDate]);
     },
 
     async setShopOrderStatus(orderId, status, staffId) {

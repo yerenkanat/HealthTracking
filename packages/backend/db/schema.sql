@@ -827,6 +827,33 @@ CREATE TABLE IF NOT EXISTS shop_bundle_items (
   CHECK (bundle_id <> part_id)
 );
 
+-- Возвраты покупателям (migration 051, frame 05a). One row per refund an
+-- operator booked against a delivered order.
+--
+-- Declared BEFORE shop_stock_moves because that table references it inline, and
+-- Postgres has no forward references: schema.sql must run top to bottom on an
+-- empty database.
+--
+-- What it deliberately does NOT record: where the money went back to (Kaspi /
+-- наличные). No order has ever carried a payment method, so a destination here
+-- could only be a guess, and this is the table somebody reconciles a bank
+-- statement against. The panel says the destination is not stored.
+CREATE TABLE IF NOT EXISTS shop_order_refunds (
+  id           BIGSERIAL PRIMARY KEY,
+  order_id     UUID NOT NULL REFERENCES shop_orders(id) ON DELETE CASCADE,
+  -- Strictly positive: a refund of nothing is not an event, and a negative one
+  -- is a sale wearing the wrong word.
+  amount_minor INTEGER NOT NULL CHECK (amount_minor > 0),
+  reason       TEXT NOT NULL CHECK (reason IN ('defect','not_suitable','changed_mind','not_delivered','other')),
+  note         TEXT,
+  -- TEXT, as shop_order_events.staff_id: a refund booked by an account since
+  -- removed must stay readable, so no foreign key.
+  staff_id     TEXT,
+  at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS shop_order_refunds_order ON shop_order_refunds (order_id, at DESC);
+CREATE INDEX IF NOT EXISTS shop_order_refunds_at ON shop_order_refunds (at DESC);
+
 -- The stock ledger. shop_variants.stock is the running total; this says WHY it
 -- changed. Rows are never updated or deleted — a miscount is corrected by
 -- another row, so what somebody believed survives beside what was true.
@@ -838,11 +865,18 @@ CREATE TABLE IF NOT EXISTS shop_stock_moves (
   note       TEXT,
   staff_id   TEXT,
   order_id   UUID REFERENCES shop_orders(id) ON DELETE SET NULL,
+  -- Which return moves are a REFUND, and which are a cancellation putting the
+  -- goods back on the shelf (migration 051). Both are reason='return' with an
+  -- order_id, and «Возвратов, шт» counted them together — over orders that were
+  -- never in revenue. NULL means not part of a refund, which is true of every
+  -- row written before 051.
+  refund_id  BIGINT REFERENCES shop_order_refunds(id) ON DELETE SET NULL,
   at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS shop_stock_moves_variant_at ON shop_stock_moves (variant_id, at DESC);
 CREATE INDEX IF NOT EXISTS shop_stock_moves_at ON shop_stock_moves (at DESC);
 CREATE INDEX IF NOT EXISTS shop_stock_moves_order ON shop_stock_moves (order_id);
+CREATE INDEX IF NOT EXISTS shop_stock_moves_refund ON shop_stock_moves (refund_id);
 
 -- Daily audio for the pregnancy + child-development calendars (see migration 012).
 CREATE TABLE IF NOT EXISTS daily_audio (

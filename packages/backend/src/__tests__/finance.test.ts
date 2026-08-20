@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { buildFinanceReport, financeCsv } from '../admin/finance';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
-import type { InventoryProduct, ShopOrder, StockMove } from '../db/repository';
+import type { InventoryProduct, OrderRefund, ShopOrder, StockMove } from '../db/repository';
 
 const NO_CATALOGUE = {
   nameKk: null, stage: null, category: null, descriptionRu: null, descriptionKk: null,
@@ -34,7 +34,27 @@ const order = (o: Partial<ShopOrder> & { status: ShopOrder['status'] }): ShopOrd
 
 const move = (m: Partial<StockMove> & { reason: StockMove['reason']; delta: number }): StockMove => ({
   id: ++n, variantId: 'v1', productName: 'Часы', color: 'rose',
-  note: null, staffId: null, orderId: null, at: '2026-08-10T10:00:00.000Z', ...m,
+  note: null, staffId: null, orderId: null, refundId: null, at: '2026-08-10T10:00:00.000Z', ...m,
+});
+
+/**
+ * The two things a reason='return' move can be, spelled out.
+ *
+ * They were one number — «Возвратов, шт» — and that is the defect: cancelling
+ * an order puts its goods back on the shelf with the same ledger reason a
+ * customer's return does, so the count and the rate were computed over orders
+ * that had never been in revenue at all. Every case below now says which of the
+ * two it means.
+ */
+const refunded = (delta: number, over: Partial<StockMove> = {}): StockMove =>
+  move({ reason: 'return', delta, orderId: 'o-refunded', refundId: 1, ...over });
+const cancelled = (delta: number, over: Partial<StockMove> = {}): StockMove =>
+  move({ reason: 'return', delta, orderId: 'o-cancelled', refundId: null, ...over });
+
+const refund = (r: Partial<OrderRefund> = {}): OrderRefund => ({
+  id: 1, orderId: 'o-refunded', amountMinor: 100_000, reason: 'defect',
+  note: null, staffId: null, staffName: null, restockedUnits: 1,
+  at: '2026-08-10T10:00:00.000Z', ...r,
 });
 
 const WINDOW = { from: '2026-08-01', to: '2026-08-31' };
@@ -135,14 +155,109 @@ describe('returns and write-offs (05a)', () => {
     const r = build({
       moves: [
         move({ reason: 'sale', delta: -10 }),
-        move({ reason: 'return', delta: 2 }),
+        refunded(2),
         move({ reason: 'writeoff', delta: -3 }),
       ],
+      refunds: [refund({ restockedUnits: 2 })],
     });
     expect(r.returns.soldUnits).toBe(10);
     expect(r.returns.returnedUnits).toBe(2);
     expect(r.returns.writtenOffUnits).toBe(3);
     expect(r.returns.returnRate).toBeCloseTo(0.2);
+  });
+
+  /**
+   * The number frame 05 printed wrongly.
+   *
+   * Cancelling an order returns its goods to the shelf with reason='return' and
+   * the order id — the same shape a customer's return has — and «Возвратов, шт»
+   * and «Доля возвратов, %» counted the two together, over units SOLD. So a
+   * month of cancellations read as a month of returns, and, since there was no
+   * way to record a real return at all, every figure on that card was about
+   * something else entirely.
+   */
+  it('does not count a cancelled order as a customer return', () => {
+    const r = build({
+      moves: [
+        move({ reason: 'sale', delta: -10 }),
+        refunded(1),
+        cancelled(3),
+      ],
+      refunds: [refund({})],
+    });
+    expect(r.returns.returnedUnits, 'a cancellation is being counted as a return').toBe(1);
+    expect(r.returns.cancelledUnits, 'the cancelled units vanished instead of being reported').toBe(3);
+    // 1 ÷ 10, not 4 ÷ 10. That is the whole fix.
+    expect(r.returns.returnRate).toBeCloseTo(0.1);
+  });
+
+  it('reports a return with neither an order nor a refund as neither', () => {
+    // Nothing in the product writes one; a row here means somebody edited the
+    // ledger by hand. Folding it into either real bucket would move a number a
+    // person is answerable for.
+    const r = build({
+      moves: [move({ reason: 'sale', delta: -10 }), move({ reason: 'return', delta: 2 })],
+    });
+    expect(r.returns.returnedUnits).toBe(0);
+    expect(r.returns.cancelledUnits).toBe(0);
+    expect(r.returns.otherReturnUnits).toBe(2);
+    expect(r.returns.returnRate).toBe(0);
+    expect(r.caveats.join(' ')).toContain('без оформленного возврата');
+  });
+
+  it('adds up the money handed back, and takes it off the revenue', () => {
+    const r = build({
+      orders: [order({ status: 'delivered', totalMinor: 1_000_000 })],
+      refunds: [
+        refund({ id: 1, amountMinor: 300_000 }),
+        refund({ id: 2, amountMinor: 200_000, reason: 'changed_mind' }),
+      ],
+    });
+    expect(r.money.refundedMinor).toBe(500_000);
+    expect(r.money.earnedNetMinor).toBe(500_000);
+    expect(r.returns.refundCount).toBe(2);
+    expect(r.returns.reasonCounts.defect).toBe(1);
+    expect(r.returns.reasonCounts.changed_mind).toBe(1);
+    expect(r.returns.reasonCounts.not_delivered).toBe(0);
+  });
+
+  it('does not floor a month whose refunds outran its own sales', () => {
+    // A real and alarming answer. Clamping it at zero would draw that month as
+    // merely empty.
+    const r = build({ refunds: [refund({ amountMinor: 900_000 })] });
+    expect(r.money.earnedNetMinor).toBe(-900_000);
+  });
+
+  it('never invents a reason for a refund taken before reasons existed', () => {
+    // There are none to invent one for — the table did not exist — and the
+    // report says so for any window reaching back before that date instead of
+    // redistributing old cancellations into «другое».
+    const r = build({ from: '2026-01-01', to: '2026-12-31' });
+    expect(r.returns.reasonsRecordedSince).toBe('2026-08-20');
+    expect(r.caveats.join(' ')).toContain('Причины возвратов записываются с 2026-08-20');
+    expect(Object.values(r.returns.reasonCounts).every((v) => v === 0)).toBe(true);
+  });
+
+  it('says the money back is UNKNOWN when the refunds could not be read', () => {
+    // 0 ₸ and «мы не смогли прочитать» are different sentences, and the first
+    // one is the flattering one.
+    const r = build({ refundsUnavailable: true });
+    expect(r.slice.refundsComplete).toBe(false);
+    expect(financeCsv(r)).toContain('Возвращено денег, ₸;неизвестно');
+    expect(financeCsv(r)).not.toContain('Возвращено денег, ₸;0,00');
+  });
+
+  it('labels each event as what it is, and carries the refund reason', () => {
+    const r = build({
+      moves: [refunded(1), cancelled(1), move({ reason: 'writeoff', delta: -1 })],
+      refunds: [refund({ reason: 'not_suitable' })],
+    });
+    expect(r.returns.events.map((e) => e.kind).sort())
+      .toEqual(['cancel', 'refund', 'writeoff']);
+    const ret = r.returns.events.find((e) => e.kind === 'refund')!;
+    expect(ret.refundReason).toBe('not_suitable');
+    // A cancellation has no reason to carry, and none is invented for it.
+    expect(r.returns.events.find((e) => e.kind === 'cancel')!.refundReason).toBeNull();
   });
 
   it('values write-offs at cost where cost is known', () => {
@@ -154,7 +269,7 @@ describe('returns and write-offs (05a)', () => {
   });
 
   it('reports a rate of zero rather than dividing by nothing', () => {
-    const r = build({ moves: [move({ reason: 'return', delta: 1 })] });
+    const r = build({ moves: [refunded(1)], refunds: [refund({})] });
     expect(r.returns.returnRate).toBe(0);
     expect(Number.isFinite(r.returns.returnRate)).toBe(true);
   });
@@ -162,7 +277,7 @@ describe('returns and write-offs (05a)', () => {
   it('lists the events newest first', () => {
     const r = build({
       moves: [
-        move({ reason: 'return', delta: 1, at: '2026-08-02T10:00:00.000Z' }),
+        refunded(1, { at: '2026-08-02T10:00:00.000Z' }),
         move({ reason: 'writeoff', delta: -1, at: '2026-08-09T10:00:00.000Z' }),
       ],
     });
@@ -215,10 +330,11 @@ describe('a period deeper than the rows it was given', () => {
       ...truncatedToAugust,
       moves: [
         move({ reason: 'sale', delta: -1, at: '2026-08-10T10:00:00.000Z' }),
-        move({ reason: 'return', delta: 1, at: '2026-02-10T10:00:00.000Z' }),
+        refunded(1, { at: '2026-02-10T10:00:00.000Z' }),
       ],
+      refunds: [refund({ at: '2026-02-10T10:00:00.000Z' })],
     }));
-    expect(csv).toContain('Возвратов, шт;не менее 1');
+    expect(csv).toContain('Возвратов от покупателей, шт;не менее 1');
   });
 
   it('a full slice that still reaches past the start is complete', () => {
@@ -229,7 +345,7 @@ describe('a period deeper than the rows it was given', () => {
       ...FEB,
       moves: [
         move({ reason: 'sale', delta: -10, at: '2026-01-20T10:00:00.000Z' }),
-        move({ reason: 'return', delta: 2, at: '2026-02-10T10:00:00.000Z' }),
+        refunded(2, { at: '2026-02-10T10:00:00.000Z' }),
         move({ reason: 'sale', delta: -10, at: '2026-02-11T10:00:00.000Z' }),
       ],
       movesTruncated: true,
@@ -262,7 +378,8 @@ describe('a period deeper than the rows it was given', () => {
     // and its numbers are printed plainly.
     const r = build({ moves: [move({ reason: 'sale', delta: -5 })] });
     expect(r.slice).toEqual({
-      ordersComplete: true, movesComplete: true, ordersWindow: null, movesWindow: null,
+      ordersComplete: true, movesComplete: true, refundsComplete: true,
+      ordersWindow: null, movesWindow: null,
     });
     expect(financeCsv(r)).not.toContain('не менее');
   });
@@ -389,7 +506,7 @@ describe('GET /admin/finance reports on the period it can actually see', () => {
     // stop being read the same week it shipped.
     const app = financeApp(async () => [
       move({ reason: 'sale', delta: -10, at: '2026-02-10T10:00:00.000Z' }),
-      move({ reason: 'return', delta: 2, at: '2026-02-12T10:00:00.000Z' }),
+      refunded(2, { at: '2026-02-12T10:00:00.000Z' }),
     ]);
     const body = (await app.inject({
       method: 'GET', url: '/admin/finance?from=2026-02-01&to=2026-02-28',

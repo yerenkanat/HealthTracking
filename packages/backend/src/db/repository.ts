@@ -2134,6 +2134,46 @@ export interface Repository {
    */
   shopOrderEvents(orderId: string): Promise<ShopOrderEvent[]>;
   /**
+   * Frame 05a — take a комплект back and give the money back, in ONE
+   * transaction: the refund row, plus a +qty stock move per restocked line
+   * carrying reason='return', the order id AND this refund's id.
+   *
+   * Atomic on purpose. A refund row with no stock move means the money left and
+   * the shelf never learned; a stock move with no refund row is a unit that
+   * appears from nowhere and is counted as a return by frame 05 with no amount
+   * behind it. Half of this is worse than none of it.
+   *
+   * [restock] may be empty — a broken unit that is refunded and binned does not
+   * go back on the shelf, and pretending it did would sell it again.
+   *
+   * WHAT THIS DOES NOT DO, and why the panel says so:
+   *  · does not touch the device registry. It has three states — stock / sold /
+   *    blocked (routes/inventory.ts) — and none of them is «вернули», so a
+   *    serial keeps saying «Активировано».
+   *  · does not revoke the course. Entitlement is granted on dispatch and is
+   *    removed only by a person (DELETE /admin/entitlements/...): a mother
+   *    losing her course because a box came back is not a decision this makes.
+   *  · does not move the order's status. A refunded order was still delivered.
+   */
+  recordOrderRefund(r: {
+    orderId: string;
+    amountMinor: number;
+    reason: OrderRefundReason;
+    note?: string | null;
+    staffId?: string | null;
+    restock?: Array<{ variantId: string; qty: number }>;
+  }): Promise<OrderRefundResult>;
+  /// One order's refunds, newest first. Empty when it has none.
+  orderRefunds(orderId: string): Promise<OrderRefund[]>;
+  /**
+   * Every refund booked in an inclusive date window, newest first.
+   *
+   * Dates are UTC `YYYY-MM-DD`, matching how admin/finance.ts buckets orders
+   * and stock moves. Unlike those two this is NOT a newest-N slice: refunds are
+   * rare, the whole window is read, so «Возвращено денег» is never a floor.
+   */
+  refundsBetween(fromDate: string, toDate: string): Promise<OrderRefund[]>;
+  /**
    * Move an order's status, recording WHO moved it and from what.
    *
    * [staffId] is optional because the storefront and the app can move an order
@@ -2454,8 +2494,71 @@ export type ShopOrderStatus = (typeof SHOP_ORDER_STATUSES)[number];
 export interface ShopOrder {
   id: string; customerName: string; phone: string; city: string; address: string;
   note: string | null; totalMinor: number; discountMinor: number; status: ShopOrderStatus; createdAt: string;
-  items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number }>;
+  /**
+   * [variantId] is which colour of which product the line took off the shelf.
+   *
+   * Optional because it was not on the wire before frame 05a and a panel served
+   * by an older backend must not guess: a refund that restocks needs to name a
+   * variant, and matching one back by product name and colour — which the
+   * in-memory cancellation path used to do — picks the wrong row the day two
+   * products share a colour name. Absent means «сервер не сказал», and the
+   * refund form says so instead of sending something plausible.
+   */
+  items: Array<{ productName: string; color: string; qty: number; unitPriceMinor: number; variantId?: string }>;
 }
+
+/**
+ * Why a комплект came back — frame 05a, migration 051.
+ *
+ * Five reasons, and «other» carries the operator's own note. There is no sixth
+ * meaning "we do not know": a refund is booked by a person who was holding the
+ * box, so the reason is always available AT THE TIME. What is never available
+ * afterwards is a reason for a refund taken before this list existed, and
+ * nothing backfills those — see REFUND_REASONS_SINCE in admin/finance.ts.
+ */
+export const ORDER_REFUND_REASONS =
+  ['defect', 'not_suitable', 'changed_mind', 'not_delivered', 'other'] as const;
+export type OrderRefundReason = (typeof ORDER_REFUND_REASONS)[number];
+
+/**
+ * One refund booked against one order.
+ *
+ * WHAT IS NOT HERE: where the money went back to. shop_orders has never stored
+ * how an order was paid for (see admin/finance.ts), so a Kaspi/наличные column
+ * could only ever be filled in by guessing, on the one screen somebody
+ * reconciles against a bank statement.
+ */
+export interface OrderRefund {
+  id: number;
+  orderId: string;
+  /** Minor units, always > 0. */
+  amountMinor: number;
+  reason: OrderRefundReason;
+  note: string | null;
+  /** Kept even when the account is gone, like ShopOrderEvent.staffId. */
+  staffId: string | null;
+  /** Resolved from the roster where it can be; null for a removed account. */
+  staffName: string | null;
+  at: string;
+  /** Units this refund put back on the shelf, from its own stock moves. */
+  restockedUnits: number;
+}
+
+export type OrderRefundResult =
+  | { ok: true; refund: OrderRefund }
+  | {
+    ok: false;
+    /**
+     * 'refund_exceeds_order' — the refunds booked so far plus this one come to
+     * more than the order was worth. Refused rather than clamped: the operator
+     * has either the wrong order or the wrong number, and both need a person.
+     * 'restock_exceeds_order' — more units back than went out on that line.
+     * 'unknown_line' — a variant that is not on this order at all.
+     */
+    error: 'not_found' | 'refund_exceeds_order' | 'restock_exceeds_order' | 'unknown_line';
+    /** For the two line errors, which variant. */
+    variantId?: string;
+  };
 /**
  * One recorded move of an order's status — frame 03's timeline (migration 039).
  *
@@ -2565,6 +2668,16 @@ export interface StockMove {
   note: string | null;
   staffId: string | null;
   orderId: string | null;
+  /**
+   * Which refund this move belongs to (migration 051), or null.
+   *
+   * The discriminator frame 05 was missing. A cancellation and a refund both
+   * write reason='return' with an order_id, and «Возвратов, шт» / «Доля
+   * возвратов, %» added them together — counting orders that never entered
+   * revenue as returns against units sold. Null on every row written before
+   * 051, which is honest: those are all cancellations.
+   */
+  refundId?: number | null;
   at: string;
 }
 

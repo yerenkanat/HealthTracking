@@ -15,7 +15,7 @@ import { vaccinationSchedule } from '../vaccination/schedule';
 import { pregnancyCalendar } from '../pregnancy/weeks';
 import { childDevCalendar } from '../child/development';
 import type { ContentItemRow, Repository, ShopOrder, ShopOrderStatus } from '../db/repository';
-import { PRODUCT_STAGES, SHOP_ORDER_STATUSES, SUPPORT_CHANNELS, SUPPORT_STATUSES } from '../db/repository';
+import { ORDER_REFUND_REASONS, PRODUCT_STAGES, SHOP_ORDER_STATUSES, SUPPORT_CHANNELS, SUPPORT_STATUSES } from '../db/repository';
 import { buildOrderTimeline, orderRef, orderWhatsappLink } from '../admin/orders';
 import {
   buildIntegrations, integrationSummary, maskSecret,
@@ -3114,9 +3114,21 @@ export function registerAdminRoutes(
     await repo.writeAudit({ staffId: s.staffId, action: 'view_shop_order', target: id });
 
     const timeline = buildOrderTimeline(order, await repo.shopOrderEvents(id));
+
+    /**
+     * Refunds booked against this order — frame 05a.
+     *
+     * NULL, not [], when the read throws. An empty list is «возвратов не было»,
+     * which is a claim; a failed read is «мы не знаем», and the card says so
+     * rather than drawing an order as clean when it may not be.
+     */
+    const refunds = await repo.orderRefunds(id).catch(() => null);
+    const refundedMinor = refunds ? refunds.reduce((n, r) => n + r.amountMinor, 0) : null;
+
     return reply.send({
       order,
       ref: orderRef(order.id),
+      refunds,
       timeline: timeline.entries,
       // The card prints this sentence when it is true. See admin/orders.ts.
       historyGap: timeline.gap,
@@ -3136,6 +3148,17 @@ export function registerAdminRoutes(
         totalMinor: order.totalMinor,
         discountMinor: order.discountMinor,
         recorded: false,
+        /** Already handed back. Null when the refunds read failed. */
+        refundedMinor,
+        /**
+         * The most this order can still be refunded — the SAME arithmetic the
+         * repository refuses on, sent once so the form and the server cannot
+         * disagree about the limit. Null when we could not read the refunds:
+         * the form then refuses to guess rather than offering the full total.
+         */
+        refundableMinor: refundedMinor == null
+          ? null
+          : Math.max(0, order.totalMinor - refundedMinor),
         note: 'Оплата при получении. Способ и факт оплаты в базе не хранятся — '
           + 'отметить заказ оплаченным здесь нельзя, и сумма ниже это только цена заказа.',
       },
@@ -3513,16 +3536,25 @@ export function registerAdminRoutes(
       return reply.code(400).send({ error: 'from must not be after to' });
     }
 
-    const [orders, products, moves, settings] = await Promise.all([
+    // Refunds are read for the WHOLE window rather than as a newest-N slice:
+    // there are few of them, and «Возвращено денег» must not be a floor on the
+    // one screen somebody reconciles against a bank statement.
+    //
+    // The failure is carried instead of swallowed. Every other read here falls
+    // back to [], which for a COUNT means «ноль» — and zero refunds is a
+    // flattering lie. `refundsUnavailable` makes the report say «неизвестно».
+    let refundsUnavailable = false;
+    const [orders, products, moves, refunds, settings] = await Promise.all([
       repo.adminShopOrders(FINANCE_ORDER_WINDOW).catch(() => []),
       repo.adminProducts().catch(() => []),
       repo.stockMoves(FINANCE_MOVE_WINDOW).catch(() => []),
+      repo.refundsBetween(from, to).catch(() => { refundsUnavailable = true; return []; }),
       repo.getShopSettings().catch(() => ({} as Record<string, string>)),
     ]);
 
     const planRaw = (settings.revenuePlanMinor ?? '').trim();
     const report = buildFinanceReport({
-      orders, products, moves,
+      orders, products, moves, refunds, refundsUnavailable,
       planMinor: /^\d+$/.test(planRaw) ? Number(planRaw) : null,
       from, to,
       // The mother card's pattern, applied to the books: a full slice means
@@ -3707,6 +3739,79 @@ export function registerAdminRoutes(
     await repo.setShopOrderStatus((req.params as { id: string }).id, parsed.data.status, s.staffId);
     await repo.writeAudit({ staffId: s.staffId, action: 'shop_order_status', target: (req.params as { id: string }).id });
     return reply.send({ ok: true });
+  });
+
+  /**
+   * Кадр 05a «Возвраты и брак» — the write side.
+   *
+   * An operator taking a delivered комплект back from a mother had nowhere to
+   * put it. The only writer of a reason='return' move was order CANCELLATION,
+   * so the choice was to write the unit off — which destroys stock and inflates
+   * «Списано на сумму» — or to record nothing, and the refunded money stayed in
+   * «Заработано» for ever.
+   *
+   * WHY `orders` AND NOT THE OTHER TWO:
+   *  · not `stock`, even though this moves stock. `stock` is the warehouse
+   *    capability — receipts, write-offs, serials — and a warehouse hand must
+   *    not be able to declare that a customer got her money back. This route
+   *    writes a financial fact whose stock move is a consequence.
+   *  · not `finance`, even though it writes money. `finance` is the READ of the
+   *    books and is held by the owner and admins only (ROLE_CAPS); the person
+   *    who actually takes the box back at the door is an operator. Guarding the
+   *    refund with a capability the operator does not hold is how it goes on
+   *    being recorded as a write-off.
+   *  · `orders` is what already guards creating an order and moving its status
+   *    — the two other irreversible things one can do to somebody's order.
+   *
+   * Never changes the order's status: a refunded order was still delivered, and
+   * quietly marking it «отменён» would move real revenue into «Потеряно на
+   * отменах» and return the stock a second time.
+   */
+  app.post('/admin/shop/orders/:id/refund', async (req, reply) => {
+    const s = await requireCap(req, reply, 'orders');
+    if (!s) return;
+    const { id } = req.params as { id: string };
+    const parsed = z.object({
+      // Minor units. Positive, because a refund of nothing is not an event; the
+      // upper bound is a typo guard, not a policy — the real limit is the
+      // order's own total, which only the repository can check.
+      amountMinor: z.number().int().min(1).max(1_000_000_000),
+      reason: z.enum(ORDER_REFUND_REASONS),
+      note: z.string().trim().max(500).optional(),
+      // Which lines actually came back on the shelf. Optional and allowed to be
+      // empty: a broken unit is refunded and NOT restocked, and pretending it
+      // was would sell it again.
+      restock: z.array(z.object({
+        variantId: z.string().min(1).max(64),
+        qty: z.number().int().min(1).max(100),
+      })).max(20).optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const res = await repo.recordOrderRefund({
+      orderId: id,
+      amountMinor: parsed.data.amountMinor,
+      reason: parsed.data.reason,
+      note: parsed.data.note ?? null,
+      staffId: s.staffId,
+      restock: parsed.data.restock ?? [],
+    });
+    if (!res.ok) {
+      // Each refusal keeps its own name and its own status: «столько вернуть
+      // нельзя» and «такого заказа нет» need different things from the person
+      // holding the box, and one shared 400 would tell them neither.
+      const code = res.error === 'not_found' ? 404
+        : res.error === 'unknown_line' ? 400
+          : 409;
+      return reply.code(code).send({ error: res.error, variantId: res.variantId });
+    }
+    // The reason travels into the log as well as into the row: «кто вернул
+    // 39 000 ₸ и почему» is exactly the question this log is read for.
+    await repo.writeAudit({
+      staffId: s.staffId, action: 'order_refund', target: id,
+      reason: `${parsed.data.amountMinor / 100} ₸ · ${parsed.data.reason}`,
+    });
+    return reply.code(201).send({ refund: res.refund });
   });
 
   /**

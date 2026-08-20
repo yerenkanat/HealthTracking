@@ -31,7 +31,10 @@ const PAGE = {
       id: ORDER_ID, customerName: 'Мадина', phone: '+7 701 000 00 00', city: 'Астана',
       address: 'ул. Абая 1', note: null, status: 'new', totalMinor: 3900000, discountMinor: 800000,
       createdAt: '2026-08-01T10:00:00Z',
-      items: [{ productName: 'Часы', color: 'Чёрный', qty: 1, unitPriceMinor: 3900000 }],
+      // variantId travels with the line so frame 05a can name what it puts
+      // back on the shelf; a line without one is the old-backend case, tested
+      // separately below.
+      items: [{ productName: 'Часы', color: 'Чёрный', qty: 1, unitPriceMinor: 3900000, variantId: 'v-w-black' }],
     },
     {
       id: 'aaaaaaaa-2222-3333-4444-555555555555', customerName: 'Айгерім', phone: '+7 707 345 22 44',
@@ -56,8 +59,12 @@ const CARD = {
   ],
   historyGap: false,
   whatsapp: 'https://wa.me/77010000000?text=hello',
+  // [] and null are different answers: none were booked, versus the read
+  // failed. The card must not draw the second as the first.
+  refunds: [],
   payment: {
     totalMinor: 3900000, discountMinor: 800000, recorded: false,
+    refundedMinor: 0, refundableMinor: 3900000,
     note: 'Оплата при получении. Способ и факт оплаты в базе не хранятся.',
   },
 };
@@ -79,6 +86,12 @@ interface Opts {
   devicesForbidden?: boolean;
   /** Every non-GET fails. */
   failWrites?: boolean;
+  /** A specific refusal, so the named 409s can be told apart on screen. */
+  writeStatus?: number;
+  writeBody?: unknown;
+  /** What GET /admin/shop/orders/:id says about refunds. */
+  cardRefunds?: unknown;
+  cardPayment?: Record<string, unknown>;
   /** What confirm() returns. */
   confirmAnswer?: boolean;
   /** Serve the list WITHOUT total/counts, as an older backend would. */
@@ -148,6 +161,12 @@ async function openShop(opts: Opts = {}) {
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
           sent.push({ path: p, method, body: init?.body ? JSON.parse(String(init.body)) : null });
+          if (opts.writeStatus) {
+            return {
+              ok: opts.writeStatus < 400, status: opts.writeStatus,
+              text: async () => '', json: async () => opts.writeBody ?? {},
+            };
+          }
           if (opts.failWrites) return { ok: false, status: 500, text: async () => '', json: async () => ({}) };
           return { ok: true, status: 200, text: async () => '', json: async () => ({ ok: true, linked: ['AABBCCDDEE02'], unknown: [] }) };
         }
@@ -165,7 +184,11 @@ async function openShop(opts: Opts = {}) {
           const order = PAGE.orders.find((o) => o.id === one[1]) ?? PAGE.orders[0];
           return {
             ok: true, status: 200, text: async () => '',
-            json: async () => ({ ...CARD, order, ref: order.id.slice(0, 8) }),
+            json: async () => ({
+              ...CARD, order, ref: order.id.slice(0, 8),
+              refunds: 'cardRefunds' in opts ? opts.cardRefunds : CARD.refunds,
+              payment: { ...CARD.payment, ...(opts.cardPayment ?? {}) },
+            }),
           };
         }
         const body = p.includes('/admin/shop/orders')
@@ -386,6 +409,193 @@ describe('the card’s dangerous actions ask first, and report the answer', () =
     expect(confirms[0]).toMatch(/Ма!Ма!/);
     expect(sent.filter((s) => s.method === 'PATCH')).toEqual([]);
     expect(sel.value, 'the dropdown kept a value the operator backed out of').toBe('shipped');
+  });
+});
+
+/**
+ * КАДР 05a — «Оформить возврат», drawn and driven.
+ *
+ * The write side of «Возвраты и брак». Before it existed, an operator holding a
+ * returned комплект had two options: write the unit off — destroying stock and
+ * inflating «Списано на сумму» — or record nothing at all, leaving refunded
+ * money in «Заработано» for ever.
+ */
+describe('кадр 05a — оформление возврата', () => {
+  /** Open the card, then the refund form. */
+  const openRefund = async (opts: Opts = {}) => {
+    const shop = await openShop(opts);
+    await click(shop.window, shop.window.document.querySelector('tr[data-order]'));
+    await click(shop.window, shop.window.document.getElementById('ocRefund'));
+    return shop;
+  };
+
+  it('offers the action in the danger block, and it opens a form', async () => {
+    const { window, errors } = await openShop();
+    expect(errors, errors.join('\n')).toEqual([]);
+    await click(window, window.document.querySelector('tr[data-order]'));
+
+    const btn = window.document.getElementById('ocRefund');
+    expect(btn, 'there is no way to record a return at all').toBeTruthy();
+    const modal = window.document.getElementById('refundModal')!;
+    expect(modal.hasAttribute('hidden')).toBe(true);
+
+    await click(window, btn);
+    expect(modal.hasAttribute('hidden'), 'the button opened nothing').toBe(false);
+    expect(window.document.getElementById('rfTitle')!.textContent).toContain(ORDER_ID.slice(0, 8));
+  });
+
+  it('offers no more than the server will accept', async () => {
+    const { window } = await openRefund({
+      cardRefunds: [{
+        id: 1, orderId: ORDER_ID, amountMinor: 900000, reason: 'defect', note: null,
+        staffId: 's1', staffName: 'Нуржан', restockedUnits: 1, at: '2026-08-03T10:00:00Z',
+      }],
+      cardPayment: { refundedMinor: 900000, refundableMinor: 3000000 },
+    });
+    const amount = window.document.getElementById('rfAmount') as HTMLInputElement;
+    // The limit the form offers and the limit the repository refuses on are one
+    // rule, sent once — otherwise the operator meets a 409 the screen said
+    // could not happen.
+    expect(amount.value).toBe('30000');
+    expect((window.document.getElementById('rfLimit')!.textContent ?? '').replace(/\s+/g, ' '))
+      .toContain('9 000');
+  });
+
+  it('states the four things a refund does NOT do', async () => {
+    const { window } = await openRefund();
+    const facts = window.document.getElementById('rfFacts')!.textContent ?? '';
+    // The device registry has no «возвращён» state (routes/inventory.ts).
+    expect(facts).toContain('Активировано');
+    // Entitlement is revoked only by a person, never by this.
+    expect(facts).toMatch(/НЕ отзывается/);
+    expect(facts).toContain('Ма!Ма!');
+    // The destination of the money is not stored, and must not be implied.
+    expect(facts).toMatch(/Kaspi/);
+    // And the reasons only exist from the day this shipped.
+    expect(facts).toContain('20.08.2026');
+    expect(facts).toMatch(/задним числом/);
+    // The link is offered rather than the course being silently taken away.
+    expect(window.document.getElementById('rfCourseLink')).toBeTruthy();
+  });
+
+  it('asks before it sends, naming the person and the money', async () => {
+    const { window, sent, confirms } = await openRefund({ confirmAnswer: false });
+    const amount = window.document.getElementById('rfAmount') as HTMLInputElement;
+    amount.value = '12000';
+    await click(window, window.document.getElementById('rfSubmit'));
+
+    expect(confirms.length, 'money was returned without asking').toBe(1);
+    expect(confirms[0]).toContain('Мадина');
+    expect(confirms[0].replace(/\s+/g, ' ')).toContain('12 000');
+    expect(confirms[0], 'the question hid that the course stays').toMatch(/Ма!Ма!/);
+    expect(sent.filter((s) => s.method === 'POST' && s.path.includes('/refund')),
+      'a declined refund still reached the server').toEqual([]);
+  });
+
+  it('sends the amount, the reason and the restocked lines when confirmed', async () => {
+    const { window, sent } = await openRefund({ confirmAnswer: true });
+    (window.document.getElementById('rfAmount') as HTMLInputElement).value = '39000';
+    (window.document.getElementById('rfReason') as HTMLSelectElement).value = 'not_suitable';
+    (window.document.getElementById('rfNote') as HTMLInputElement).value = 'мала по размеру';
+    const qty = window.document.querySelector('#rfLines .rfqty') as HTMLInputElement;
+    expect(qty, 'the form offered no way to put the unit back on the shelf').toBeTruthy();
+    qty.value = '1';
+
+    await click(window, window.document.getElementById('rfSubmit'));
+
+    const post = sent.find((s) => s.method === 'POST' && s.path.includes('/refund'));
+    expect(post, 'confirming refunded nothing').toBeTruthy();
+    expect(post!.path).toContain(ORDER_ID);
+    expect(post!.body).toEqual({
+      amountMinor: 3900000, reason: 'not_suitable', note: 'мала по размеру',
+      restock: [{ variantId: 'v-w-black', qty: 1 }],
+    });
+  });
+
+  it('reports the result of the request, not the fact that one was sent', async () => {
+    const { window, sent } = await openRefund({ confirmAnswer: true, failWrites: true });
+    (window.document.getElementById('rfAmount') as HTMLInputElement).value = '1000';
+    await click(window, window.document.getElementById('rfSubmit'));
+
+    expect(sent.some((s) => s.path.includes('/refund')), 'it did try').toBe(true);
+    const err = window.document.getElementById('rfError')!;
+    expect(err.hasAttribute('hidden'), 'a failed refund said nothing').toBe(false);
+    expect(err.textContent).toMatch(/НЕ оформлен/);
+    // And the form stays open with the numbers in it, so the operator can retry.
+    expect(window.document.getElementById('refundModal')!.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('says WHICH refusal it was — «столько вернуть нельзя» is not a server fault', async () => {
+    const { window } = await openRefund({
+      confirmAnswer: true, writeStatus: 409, writeBody: { error: 'refund_exceeds_order' },
+    });
+    (window.document.getElementById('rfAmount') as HTMLInputElement).value = '39000';
+    await click(window, window.document.getElementById('rfSubmit'));
+
+    const err = window.document.getElementById('rfError')!.textContent ?? '';
+    expect(err).toMatch(/больше суммы заказа/);
+    expect(err, 'a refusal was reported as a breakage').not.toMatch(/сервер не принял запись/);
+    expect(err).toMatch(/ничего не записано/i);
+  });
+
+  it('says so plainly when it worked', async () => {
+    // The operator has already handed the money over by the time they get here;
+    // «ничего не произошло» must never be a state they have to guess at.
+    const { window } = await openRefund({ confirmAnswer: true });
+    (window.document.getElementById('rfAmount') as HTMLInputElement).value = '39000';
+    await click(window, window.document.getElementById('rfSubmit'));
+
+    expect(window.document.getElementById('refundModal')!.hasAttribute('hidden')).toBe(true);
+    const said = window.document.getElementById('ocError')!;
+    expect(said.hasAttribute('hidden')).toBe(false);
+    expect(said.textContent).toMatch(/Возврат оформлен/);
+  });
+
+  it('lists the refunds already booked against the order', async () => {
+    const { window } = await openShop({
+      cardRefunds: [{
+        id: 1, orderId: ORDER_ID, amountMinor: 900000, reason: 'defect', note: 'не заряжается',
+        staffId: 's1', staffName: 'Нуржан', restockedUnits: 1, at: '2026-08-03T10:00:00Z',
+      }],
+      cardPayment: { refundedMinor: 900000, refundableMinor: 3000000 },
+    });
+    await click(window, window.document.querySelector('tr[data-order]'));
+    const box = window.document.getElementById('ocRefunds')!.textContent ?? '';
+    expect(box).toContain('брак');
+    expect(box).toContain('не заряжается');
+    expect(box).toContain('Нуржан');
+    expect(box.replace(/\s+/g, ' ')).toContain('9 000 ₸');
+    // And it does not imply the money's destination was recorded.
+    expect(box).toMatch(/не хранится/);
+  });
+
+  it('says «не прочиталось» rather than «возвратов нет» when the read failed', async () => {
+    // [] and null are opposite answers. Drawing the second as the first is how
+    // the same order gets refunded twice.
+    const { window } = await openShop({
+      cardRefunds: null, cardPayment: { refundedMinor: null, refundableMinor: null },
+    });
+    await click(window, window.document.querySelector('tr[data-order]'));
+    const box = window.document.getElementById('ocRefunds')!.textContent ?? '';
+    expect(box).toMatch(/не прочитались/);
+    expect(box).not.toMatch(/возвратов не оформляли/);
+
+    // And the form refuses to guess a limit rather than offering the full total.
+    await click(window, window.document.getElementById('ocRefund'));
+    expect((window.document.getElementById('rfSubmit') as HTMLButtonElement).disabled).toBe(true);
+    expect(window.document.getElementById('rfLimit')!.textContent).toMatch(/неизвестно/);
+  });
+
+  it('will not restock a line whose variant the server did not send', async () => {
+    // An older backend answers without variantId. Putting a unit back on the
+    // shelf by guessing which colour it was is how the ledger starts lying.
+    // The second row in the fixture is exactly that: a line with no variantId.
+    const { window } = await openShop();
+    await click(window, window.document.querySelectorAll('tr[data-order]')[1]);
+    await click(window, window.document.getElementById('ocRefund'));
+    const lines = window.document.getElementById('rfLines')!;
+    expect(lines.querySelector('.rfqty'), 'it offered to restock a line it cannot name').toBeNull();
+    expect(lines.textContent).toMatch(/сервер не сказал/);
   });
 });
 

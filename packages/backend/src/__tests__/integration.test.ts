@@ -219,6 +219,14 @@ function makeDeps(
     setBundleParts: async () => {},
     moveStock: async () => ({ ok: false as const, error: 'unknown_variant' as const }),
     stockMoves: async () => [],
+    // Frame 05a's refund is exercised against the real memory repository in
+    // orderRefunds.test.ts, where a write can be read back off the ledger. This
+    // fake serves the app's request flows, none of which refund anything, and a
+    // stub that pretended to succeed would let a caller here look correct while
+    // moving no stock.
+    recordOrderRefund: async () => ({ ok: false as const, error: 'not_found' as const }),
+    orderRefunds: async () => [],
+    refundsBetween: async () => [],
     soldUnitsSince: async () => ({}),
     courseLessonWatchers: async () => 0,
     // The retention sweeps. This fake serves the request flows below, none of

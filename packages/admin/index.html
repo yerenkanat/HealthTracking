@@ -2950,6 +2950,11 @@
                   <div class="ocsec"><h4>Клиент</h4><div id="ocCustomer"></div></div>
                   <div class="ocsec"><h4>Доставка</h4><div id="ocDelivery"></div></div>
                   <div class="ocsec"><h4>Оплата</h4><div id="ocPayment"></div></div>
+                  <!-- КАДР 05a · возвраты по этому заказу. Пустой блок здесь
+                       читался бы как «возвратов не было», поэтому он говорит
+                       и про «не было», и про «не прочиталось» — это разные
+                       вещи, и вторая не должна выглядеть как первая. -->
+                  <div class="ocsec"><h4>Возвраты</h4><div id="ocRefunds"></div></div>
                   <div class="ocsec"><h4>Опасные действия</h4><div id="ocDanger"></div></div>
                 </div>
               </div>
@@ -2959,6 +2964,59 @@
               <span class="acts">
                 <a class="btn ghost" id="ocWa" target="_blank" rel="noopener" hidden>Написать в WhatsApp</a>
                 <button class="btn" type="button" id="ocDone">Закрыть</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- КАДР 05a · «ОФОРМИТЬ ВОЗВРАТ».
+             The write side of «Возвраты и брак». Until this existed an operator
+             taking a комплект back either wrote the unit off — which destroys
+             stock and inflates «Списано на сумму» — or recorded nothing, and
+             the money stayed in «Заработано» for ever.
+
+             Four sentences on this form are about what the system does NOT do.
+             They are here because each one is a thing somebody would otherwise
+             assume happened: the serial does not change state, the course is
+             not taken away, the destination of the money is not stored, and
+             reasons only exist from the day this shipped. -->
+        <div class="modal" id="refundModal" hidden>
+          <div class="sheet" style="max-width:640px" role="dialog" aria-modal="true" aria-labelledby="rfTitle">
+            <div class="mh">
+              <div style="flex:1;min-width:0">
+                <h3 id="rfTitle">Оформить возврат</h3>
+                <div class="sub" id="rfSub">—</div>
+              </div>
+              <button class="mx" id="rfClose" type="button" aria-label="Закрыть">✕</button>
+            </div>
+            <div class="mb">
+              <div id="rfError" class="ocnote crit" hidden></div>
+              <div class="stafform">
+                <label style="font-size:12px;color:var(--muted)">Сумма возврата, ₸
+                  <input id="rfAmount" type="number" min="1" step="1" style="width:140px" aria-label="Сумма возврата в тенге"></label>
+                <label style="font-size:12px;color:var(--muted)">Причина
+                  <select id="rfReason" aria-label="Причина возврата">
+                    <option value="defect">Брак</option>
+                    <option value="not_suitable">Не подошёл</option>
+                    <option value="changed_mind">Передумала</option>
+                    <option value="not_delivered">Не доставлен</option>
+                    <option value="other">Другое</option>
+                  </select></label>
+              </div>
+              <div class="t" id="rfLimit" style="white-space:normal"></div>
+              <input id="rfNote" maxlength="500" placeholder="Комментарий: что именно вернули и в каком состоянии" aria-label="Комментарий к возврату">
+              <div class="ocsec">
+                <h4>Что вернуть на склад</h4>
+                <div id="rfLines"></div>
+                <div class="t" style="margin-top:8px;white-space:normal">Ставьте 0, если вещь не вернётся в продажу — брак на склад не кладут. Возврат денег и возврат на склад считаются отдельно.</div>
+              </div>
+              <div class="ocnote neutral" id="rfFacts"></div>
+            </div>
+            <div class="mf">
+              <span class="t">Действие спросит подтверждение и попадёт в журнал под вашим именем</span>
+              <span class="acts">
+                <button class="btn ghost" type="button" id="rfCancel">Отмена</button>
+                <button class="btn" type="button" id="rfSubmit">Оформить возврат</button>
               </span>
             </div>
           </div>
@@ -4651,6 +4709,9 @@
     view_shop_leads:"Просмотр заявок",
     shop_order_create:"Создал(а) заказ",
     shop_order_status:"Изменил(а) статус заказа",
+    // Кадр 05a. Отдельная строка, а не «изменил заказ»: это единственное
+    // действие в панели, которым деньги уходят обратно клиенту.
+    order_refund:"Оформил(а) возврат покупателю",
     shop_lead_status:"Изменил(а) статус заявки",
     shop_set_stock:"Изменил(а) остаток",
     shop_add_variant:"Добавил(а) вариант товара",
@@ -7888,13 +7949,26 @@
     if(m) m.hidden=true;
     ocId=null; ocOrder=null;
   }
-  /** Say what failed, in the card, where the operator is looking. */
-  function ocFail(text){
+  /**
+   * Say what happened, in the card, where the operator is looking.
+   *
+   * Both outcomes go through one box. A refund that SUCCEEDED has to say so as
+   * plainly as one that failed: the operator has already handed the money over
+   * by the time they reach this screen, and «ничего не произошло» is the state
+   * they must never have to guess at.
+   */
+  function ocSay(text,kind){
     const box=ocEl("ocError");
     if(!box) return;
     box.hidden=!text;
     box.textContent=text||"";
+    const good=kind==="ok";
+    box.style.borderColor=good?"var(--good-text)":"var(--crit-line)";
+    box.style.background=good?"var(--good-soft)":"var(--crit-soft)";
+    box.style.color=good?"var(--good-text)":"var(--crit-text)";
   }
+  /** Say what failed, in the card, where the operator is looking. */
+  function ocFail(text){ ocSay(text,"bad"); }
 
   async function ocOpen(id){
     const m=ocEl("orderCard");
@@ -7981,9 +8055,46 @@
       `<div class="ocnote warn" style="margin-top:8px">${esc(p.note
         ||"Оплата при получении. Способ и факт оплаты в базе не хранятся — отметить заказ оплаченным здесь нельзя.")}</div>`;
 
+    // ---- Возвраты (кадр 05a) ----
+    ocRenderRefunds(d);
+
     // ---- Статус и опасные действия ----
     ocRenderStatus(o);
-    ocRenderDanger(o);
+    ocRenderDanger(o,d);
+  }
+
+  /**
+   * Возвраты по этому заказу — the three states, told apart.
+   *
+   * `refunds: null` means the read FAILED and the card must not draw the order
+   * as clean; `[]` means there really were none. Those are different sentences
+   * and only one of them is an invitation to book another.
+   */
+  function ocRenderRefunds(d){
+    const box=ocEl("ocRefunds");
+    if(!box) return;
+    const list=d.refunds;
+    if(!list){
+      box.innerHTML=`<div class="ocnote crit">Возвраты по заказу не прочитались — это НЕ значит, что их нет.
+        Обновите страницу, прежде чем оформлять новый: иначе можно вернуть деньги дважды.</div>`;
+      return;
+    }
+    if(!list.length){
+      box.innerHTML=`<div class="ocnote neutral">По этому заказу возвратов не оформляли.
+        Если клиентка вернула товар — нажмите «Оформить возврат» ниже.</div>`;
+      return;
+    }
+    const p=d.payment||{};
+    box.innerHTML=
+      `<div class="kv">`+list.map(r=>
+        `<div><span class="k">${stamp(r.at)} · ${esc(REFUND_REASON_RU[r.reason]||r.reason)}`+
+        `${r.staffName?` · ${esc(r.staffName)}`:""}`+
+        `${r.restockedUnits?` · на склад ${r.restockedUnits} шт`:" · на склад не вернули"}`+
+        `${r.note?`<br><span class="t">${esc(r.note)}</span>`:""}</span>`+
+        `<span class="v mono">${fmt(Math.round((r.amountMinor||0)/100))} ₸</span></div>`).join("")+
+      `</div>`+
+      `<div class="t" style="margin-top:8px;white-space:normal">Возвращено всего ${fmt(Math.round((p.refundedMinor||0)/100))} ₸.
+        Куда именно ушли деньги — на Kaspi или наличными — в базе не хранится.</div>`;
   }
 
   function ocTimelineHtml(entries,gap,status){
@@ -8057,16 +8168,23 @@
     };
   }
 
-  function ocRenderDanger(o){
+  function ocRenderDanger(o,d){
     const box=ocEl("ocDanger");
     if(!box) return;
     if(o.status==="cancelled"){
-      box.innerHTML=`<div class="ocnote neutral">Заказ отменён. Ничего необратимого с ним сделать уже нельзя — если клиент передумал, оформите новый заказ.</div>`;
+      box.innerHTML=`<div class="ocnote neutral">Заказ отменён. Ничего необратимого с ним сделать уже нельзя — если клиент передумал, оформите новый заказ.
+        Возврат по отменённому заказу не оформляется: он не попадал в выручку, а товар вернулся на склад при отмене.</div>`;
       return;
     }
     box.innerHTML=
-      `<div class="ocdanger"><button class="btn" type="button" id="ocCancel">Отменить заказ</button></div>`+
-      `<div class="ocnote neutral" style="margin-top:8px">Действие спрашивает подтверждение и попадает в журнал действий под вашим именем. Заказы не удаляются — отменённый остаётся в списке.</div>`;
+      `<div class="ocdanger">`+
+        `<button class="btn" type="button" id="ocRefund">Оформить возврат</button>`+
+        `<button class="btn" type="button" id="ocCancel">Отменить заказ</button>`+
+      `</div>`+
+      `<div class="ocnote neutral" style="margin-top:8px">Действие спрашивает подтверждение и попадает в журнал действий под вашим именем. Заказы не удаляются — отменённый остаётся в списке.
+        Возврат не отменяет заказ: доставленный заказ остаётся доставленным, а деньги уходят в «Возвращено денег» на экране «Финансы».</div>`;
+    const refundBtn=ocEl("ocRefund");
+    if(refundBtn) refundBtn.onclick=()=>rfOpen(o,(d&&d.payment)||{});
     ocEl("ocCancel").onclick=async()=>{
       const sum=orderMoney(o);
       if(!confirm(`Отменить заказ: ${o.customerName||"клиент"} · ${sum}?\n\n`+
@@ -8168,6 +8286,189 @@
     if(done) done.addEventListener("click",ocClose);
     // Clicking the backdrop closes it; clicking inside the sheet must not.
     if(modal) modal.addEventListener("click",(e)=>{ if(e.target===modal) ocClose(); });
+  }
+
+  // ---- КАДР 05a · «Оформить возврат» -------------------------------------
+  //
+  // Everything here lives in the SAME script block as the order card, so
+  // nothing is shared through window.UI: the panel's two blocks cannot see each
+  // other, and a helper declared in one and called bare in the other throws
+  // ReferenceError at the worst possible moment. ocRenderDanger above calls
+  // rfOpen, which is a function DECLARATION and therefore hoisted — a const
+  // arrow would sit in the temporal dead zone until execution reached it.
+
+  /** «брак», not «defect» — the same five words the CSV prints. */
+  const REFUND_REASON_RU={defect:"брак",not_suitable:"не подошёл",changed_mind:"передумала",not_delivered:"не доставлен",other:"другое"};
+  /** The day frame 05a shipped. См. REFUND_REASONS_SINCE в admin/finance.ts. */
+  const REFUND_SINCE_RU="20.08.2026";
+
+  let rfOrder=null, rfLimitMinor=null;
+
+  function rfClose(){
+    const m=ocEl("refundModal");
+    if(m) m.hidden=true;
+    rfOrder=null; rfLimitMinor=null;
+  }
+  function rfFail(text){
+    const box=ocEl("rfError");
+    if(!box) return;
+    box.hidden=!text;
+    box.textContent=text||"";
+  }
+
+  /**
+   * Open the form over one order.
+   *
+   * [payment] carries the two numbers the SERVER computed — what has already
+   * been returned, and what is left. They are not recomputed here: the limit
+   * the form offers and the limit the repository refuses on have to be one
+   * rule, or the operator meets a 409 the screen said could not happen.
+   */
+  function rfOpen(o,payment){
+    const m=ocEl("refundModal");
+    if(!m) return;
+    rfOrder=o;
+    rfFail("");
+    m.hidden=false;
+    ocEl("rfTitle").textContent="Возврат по заказу №"+orderRef(o.id);
+    ocEl("rfSub").textContent=`${o.customerName||"клиент"} · ${orderMoney(o)}`;
+
+    const limit=payment&&payment.refundableMinor;
+    rfLimitMinor=(typeof limit==="number")?limit:null;
+    const amount=ocEl("rfAmount"), submit=ocEl("rfSubmit");
+    const already=payment&&typeof payment.refundedMinor==="number"?payment.refundedMinor:null;
+    if(rfLimitMinor===null){
+      // We could not read the refunds, so we do not know what is left. Offering
+      // the full total here is how one order gets refunded twice.
+      amount.value="";
+      amount.disabled=true;
+      submit.disabled=true;
+      ocEl("rfLimit").textContent=
+        "Сколько ещё можно вернуть — неизвестно: возвраты по заказу не прочитались. Закройте карточку, обновите страницу и откройте её снова.";
+    }else{
+      amount.disabled=false;
+      submit.disabled=false;
+      amount.max=String(Math.round(rfLimitMinor/100));
+      amount.value=String(Math.round(rfLimitMinor/100));
+      ocEl("rfLimit").textContent=
+        `Больше ${fmt(Math.round(rfLimitMinor/100))} ₸ вернуть нельзя: это сумма заказа `+
+        (already
+          ? `за вычетом уже возвращённых ${fmt(Math.round(already/100))} ₸.`
+          : "минус уже возвращённое.");
+    }
+    ocEl("rfNote").value="";
+    ocEl("rfReason").value="defect";
+
+    // Строки заказа. Позиция без variantId — это старый бэкенд: класть её на
+    // склад вслепую нельзя, поэтому поле выключено и сказано почему.
+    const items=o.items||[];
+    ocEl("rfLines").innerHTML=items.length
+      ? `<div class="kv">`+items.map((i,idx)=>
+          `<div><span class="k">${esc(i.productName)} · ${esc(i.color)} (в заказе ${i.qty} шт)</span>`+
+          `<span class="v">`+(i.variantId
+            ? `<input class="rfqty" type="number" min="0" step="1" max="${i.qty}" value="0" style="width:72px" data-vid="${esc(i.variantId)}" data-idx="${idx}" aria-label="Сколько вернуть на склад">`
+            : `<span class="t">сервер не сказал, какой это вариант — на склад отсюда не вернуть</span>`)+
+          `</span></div>`).join("")+`</div>`
+      : `<div class="ocnote warn">В заказе нет ни одной строки, возвращать на склад нечего.</div>`;
+
+    // Четыре вещи, которые возврат НЕ делает. Каждая из них — то, что иначе
+    // считают сделанным, и узнают об обратном через неделю.
+    ocEl("rfFacts").innerHTML=
+      `Что возврат НЕ делает:<br>`+
+      `• Серийный номер в реестре не меняется — он останется «Активировано»: состояния «возвращён» в реестре устройств нет.<br>`+
+      `• Доступ к курсу «Ма!Ма!» НЕ отзывается. Если его нужно снять — это отдельное решение: `+
+      `<span class="link" data-view="course" id="rfCourseLink">открыть «Кому открыт курс»</span>.<br>`+
+      `• Куда вернули деньги — на Kaspi или наличными — не сохраняется: в заказе нет способа оплаты.<br>`+
+      `• Статус заказа не меняется: доставленный останется доставленным.<br>`+
+      `Причины возвратов записываются с ${REFUND_SINCE_RU} — у возвратов до этой даты причины нет, и задним числом она не проставляется.`;
+    const courseLink=ocEl("rfCourseLink");
+    // Закрыть оба окна перед уходом на другой экран: иначе панель уводит вид
+    // из-под открытой модалки, и вернувшийся оператор видит форму поверх
+    // чужого раздела.
+    if(courseLink) courseLink.addEventListener("click",()=>{ rfClose(); ocClose(); });
+  }
+
+  /** POST the refund and read the BODY: the 409 has a name, and the name matters. */
+  async function rfPost(id,body){
+    const r=await fetch("/admin/shop/orders/"+encodeURIComponent(id)+"/refund",{
+      method:"POST", credentials:"same-origin",
+      headers:{"x-staff-id":STAFF.id,"x-staff-role":STAFF.role,"content-type":"application/json"},
+      body:JSON.stringify(body),
+    });
+    if(r.status===401) sessionLost();
+    const data=await r.json().catch(()=>({}));
+    return {ok:r.ok,status:r.status,data:data};
+  }
+
+  /** Every refusal in words, and every one of them says nothing was written. */
+  function rfErrorText(res){
+    const err=res.data&&res.data.error;
+    if(res.status===403) return "Возврат вам не разрешён: нужна роль с правом «Заказы». Ничего не записано.";
+    if(res.status===404) return "Заказ не найден — возможно, его уже нет. Ничего не записано.";
+    if(err==="refund_exceeds_order") return "Столько вернуть нельзя: вместе с уже возвращённым это больше суммы заказа. Уменьшите сумму — пока ничего не записано.";
+    if(err==="restock_exceeds_order") return "На склад нельзя вернуть больше, чем было в заказе. Ничего не записано.";
+    if(err==="unknown_line") return "Эта позиция не из этого заказа — на склад её вернуть нельзя. Ничего не записано.";
+    if(res.status===400) return "Сервер не принял форму: проверьте сумму и причину. Ничего не записано.";
+    return "Возврат НЕ оформлен: сервер не принял запись. Если деньги уже отданы — повторите, иначе они нигде не учтены.";
+  }
+
+  async function rfSubmit(){
+    if(!rfOrder) return;
+    const o=rfOrder;
+    const amountTenge=Math.round(Number(ocEl("rfAmount").value||0));
+    if(!(amountTenge>0)){ rfFail("Укажите сумму возврата в тенге — больше нуля."); return; }
+    if(rfLimitMinor!==null && amountTenge*100>rfLimitMinor){
+      rfFail(`Больше ${fmt(Math.round(rfLimitMinor/100))} ₸ по этому заказу вернуть нельзя.`);
+      return;
+    }
+    const restock=[...document.querySelectorAll("#rfLines .rfqty")]
+      .map(el=>({variantId:el.dataset.vid,qty:Math.round(Number(el.value||0))}))
+      .filter(l=>l.qty>0);
+    const reason=ocEl("rfReason").value;
+
+    // Money leaving, and a row that cannot be deleted afterwards. The sum and
+    // the name are IN the question: «Оформить возврат?» is easy to wave
+    // through, «Вернуть 39 000 ₸ Айгерім?» is not.
+    const back=restock.reduce((n,l)=>n+l.qty,0);
+    if(!confirm(`Вернуть ${fmt(amountTenge)} ₸ клиенту: ${o.customerName||"клиент"}?\n\n`+
+      `Причина: ${REFUND_REASON_RU[reason]||reason}. На склад вернётся ${back} шт.\n`+
+      `Деньги отдаёте вы — панель только записывает факт. Запись нельзя удалить, ошибку исправляют новой записью. `+
+      `Доступ к курсу «Ма!Ма!» при этом НЕ отзывается.`)) return;
+
+    const submit=ocEl("rfSubmit");
+    submit.disabled=true;
+    let res;
+    try{
+      res=await rfPost(o.id,{
+        amountMinor:amountTenge*100, reason:reason,
+        note:ocEl("rfNote").value.trim()||undefined,
+        restock:restock,
+      });
+    }catch(e){
+      submit.disabled=false;
+      rfFail("Нет связи с сервером — возврат НЕ оформлен. Ничего не записано.");
+      return;
+    }
+    if(!res.ok){
+      submit.disabled=false;
+      rfFail(rfErrorText(res));
+      return;
+    }
+    rfClose();
+    // Read the card back rather than patching it in place: the refunds block,
+    // the remaining refundable sum and the ledger all move, and the server is
+    // the only thing that knows what they moved to.
+    await ocOpen(o.id);
+    ocSay(`Возврат оформлен: ${fmt(amountTenge)} ₸`+(back?`, на склад вернули ${back} шт.`:", на склад ничего не вернули."),"ok");
+    renderOrders();
+  }
+
+  {
+    const close=ocEl("rfClose"), cancel=ocEl("rfCancel"), submit=ocEl("rfSubmit"), modal=ocEl("refundModal");
+    if(close) close.addEventListener("click",rfClose);
+    if(cancel) cancel.addEventListener("click",rfClose);
+    if(submit) submit.addEventListener("click",rfSubmit);
+    if(modal) modal.addEventListener("click",(e)=>{ if(e.target===modal) rfClose(); });
   }
 
   // ---- Daily calendar audio ----
@@ -12775,11 +13076,43 @@
       : kpi("Средний чек", "не считается",
           `за период не отгружено ни одного заказа — делить не на что`, "warn");
 
+    /**
+     * Возвращено денег, и выручка за вычетом возвратов (кадр 05a).
+     *
+     * «Заработано» остаётся валовым: это то, что продали. Возврат — отдельная
+     * строка рядом, потому что он приходит СВОИМ числом месяца, а не тем, когда
+     * заказ был оформлен, и вычитать его молча из выручки значило бы менять
+     * задним числом уже названную цифру.
+     *
+     * refundsComplete === false — это НЕ ноль. Чтение возвратов упало, и «0 ₸»
+     * читалось бы как «возвратов не было» — ложь в приятную сторону.
+     */
+    // A backend one deploy behind sends no refund figures at all. That is the
+    // same «мы не знаем» as a failed read, and printing 0 ₸ for it would be the
+    // same flattering lie — so it is treated the same way rather than defaulted.
+    const refundsKnown = typeof r.money.refundedMinor === "number"
+      && !(r.slice && r.slice.refundsComplete === false);
+    const refundKpi = refundsKnown
+      ? kpi("Возвращено денег", finTenge(r.money.refundedMinor),
+          r.returns.refundCount
+            ? `${r.returns.refundCount} ${finRefundWord(r.returns.refundCount)} за период`
+            : "за период возвратов не оформляли",
+          r.money.refundedMinor > 0 ? "crit" : "good")
+      : kpi("Возвращено денег", "неизвестно",
+          "сумма возвратов не пришла с сервера — это не ноль", "warn");
+    const netKpi = refundsKnown
+      ? kpi("Выручка за вычетом возвратов", finTenge(r.money.earnedNetMinor),
+          "заработано минус возвращённые деньги", "good")
+      : kpi("Выручка за вычетом возвратов", "неизвестно",
+          "неизвестно, сколько вернули", "warn");
+
     $("#finKpis").innerHTML = [
       kpi("Заработано", finTenge(r.money.earnedMinor), plan, "good"),
       // Promised is NOT revenue and is coloured as a warning, not a win.
       kpi("Обещано", finTenge(r.money.promisedMinor), "заказы, за которые ещё не заплатили", "warn"),
       kpi("Потеряно на отменах", finTenge(r.money.lostMinor), `скидок выдано ${finTenge(r.money.discountMinor)}`, "crit"),
+      refundKpi,
+      netKpi,
       avg,
       kpi("Маржа", finTenge(r.margin.marginMinor),
         `посчитана по ${Math.round(r.margin.coverage * 100)}% выручки`,
@@ -12792,13 +13125,29 @@
     // «неизвестно», not «0,0%». The rate is null when the stock moves behind it
     // do not reach the start of the period, and a fabricated zero on this line
     // reads as "почти не возвращают" — the opposite of "мы не смотрели".
+    //
+    // And the numerator is now REFUNDS ONLY. It used to count cancellations
+    // too — both write a 'return' move — so the rate was orders that never
+    // entered revenue, divided by units sold. The cancelled units are still
+    // reported, in their own clause, because the warehouse needs them; they are
+    // simply not returns.
     const partial = r.slice && r.slice.movesComplete === false;
+    const atLeast = partial ? "не менее " : "";
     $("#finRetSub").textContent =
-      `${partial ? "не менее " : ""}${fmt(ret.returnedUnits)} возвратов из ` +
-      `${partial ? "не менее " : ""}${fmt(ret.soldUnits)} продаж · ` +
+      `${atLeast}${fmt(ret.returnedUnits)} возвратов от покупателей из ` +
+      `${atLeast}${fmt(ret.soldUnits)} продаж · ` +
       (ret.returnRate == null
         ? "доля возвратов неизвестна: период глубже прочитанных движений склада"
-        : `${(ret.returnRate * 100).toFixed(1).replace(".", ",")}%`);
+        : `${(ret.returnRate * 100).toFixed(1).replace(".", ",")}%`) +
+      // Only when the server actually sent the split. An older backend sends
+      // neither number, and «ещё 0 шт из-за отмен» would be a statement it
+      // never made.
+      (typeof ret.cancelledUnits === "number"
+        ? ` · ещё ${atLeast}${fmt(ret.cancelledUnits)} шт вернулось на склад из-за отмен заказов — это не возвраты`
+        : "") +
+      (ret.otherReturnUnits
+        ? ` · и ${fmt(ret.otherReturnUnits)} шт без заказа и без оформления`
+        : "");
     $("#finReturns").innerHTML = ret.events.length
       ? `<table><thead><tr><th>Когда</th><th>Товар</th><th>Шт</th><th>Что было</th><th>Примечание</th></tr></thead>
          <tbody>${ret.events.slice(0, 50).map((e) => `<tr>
@@ -12810,13 +13159,18 @@
                 plain white lozenge indistinguishable from chrome. .pill is
                 the vocabulary the spec describes and both modifiers exist
                 in it. (No backticks in here: this comment sits inside a
-                template literal and one would end the string.) -->
-           <td>${e.reason === "return"
-             ? "<span class='pill warn'>возврат</span>"
-             : "<span class='pill crit'>списание</span>"}</td>
+                template literal and one would end the string.)
+
+                Four kinds, not two: a cancellation and a refund are the same
+                ledger reason and two different events, and drawing them the
+                same is what made «Возвратов, шт» wrong. -->
+           <td>${finEventPill(e)}</td>
            <td>${esc(e.note || "—")}</td></tr>`).join("")}</tbody></table>
          <div class="note">Списано на ${finTenge(ret.writeOffCostMinor)} по себестоимости —
-           там, где она указана. Возврат возвращает товар на склад, списание нет.</div>`
+           там, где она указана. Возврат и отмена возвращают товар на склад, списание нет.
+           «Возврат» — оформленный возврат покупателю: только он входит в долю возвратов и в «Возвращено денег».
+           Причины возвратов записываются с ${finDateRu(ret.reasonsRecordedSince)};
+           у более ранних возвратов причины нет, и задним числом она не проставляется.</div>`
       : `<div class="note">За период ничего не возвращали и не списывали.</div>`;
 
     // The caveats are part of the report, not a footnote to skip: the margin
@@ -12875,6 +13229,53 @@
         `товар без цены закупки, который никто не купил, сюда не попадает.`;
     }
   }
+
+  /** «возврат / возврата / возвратов» — a count of refunds in a Russian sentence. */
+  function finRefundWord(n) {
+    const t = Math.abs(n) % 100;
+    const o = t % 10;
+    if (t > 10 && t < 20) return "возвратов";
+    if (o === 1) return "возврат";
+    if (o >= 2 && o <= 4) return "возврата";
+    return "возвратов";
+  }
+
+  /** 2026-08-20 → 20.08.2026. The panel writes dates the way its readers do. */
+  function finDateRu(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    // No guessing: an unparseable value is printed as it came rather than
+    // turned into a plausible date.
+    return m ? `${m[3]}.${m[2]}.${m[1]}` : String(iso || "—");
+  }
+
+  /**
+   * What one row of «Возвраты и брак» actually is.
+   *
+   * The ledger has one word — 'return' — for two different events, and the
+   * screen must not. `kind` comes from the server (admin/finance.ts), which is
+   * the only place that can tell them apart: a refund carries the refund it
+   * belongs to, a cancellation only the order it un-did.
+   */
+  function finEventPill(e) {
+    // A backend one deploy behind sends `reason` and no `kind`. Its write-offs
+    // are still write-offs; its returns are simply unclassified, and are drawn
+    // as «возврат» with nothing claimed about which sort — never as one of the
+    // two specific kinds, which is a fact only the newer server can supply.
+    const kind = e.kind || (e.reason === "writeoff" ? "writeoff" : null);
+    if (kind === "writeoff") return "<span class='pill crit'>списание</span>";
+    if (kind === "cancel") return "<span class='pill'>отмена заказа</span>";
+    if (kind === "other") return "<span class='pill'>возврат без заказа</span>";
+    const why = e.refundReason ? FIN_REFUND_REASON_RU[e.refundReason] : null;
+    // The reason where the report sent one. Null means it was not read in this
+    // window, never «причина не указана» — every refund has one.
+    return `<span class='pill warn'>возврат</span>${why ? ` <span class="t">${esc(why)}</span>` : ""}`;
+  }
+
+  /** The same five words the CSV and the order card print. */
+  const FIN_REFUND_REASON_RU = {
+    defect: "брак", not_suitable: "не подошёл", changed_mind: "передумала",
+    not_delivered: "не доставлен", other: "другое",
+  };
 
   /** «товар / товара / товаров» — a count of goods in a Russian sentence. */
   function finGoods(n) {

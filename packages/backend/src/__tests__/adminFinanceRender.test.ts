@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { panelSettle } from './helpers/panelSettle';
 import { buildFinanceReport } from '../admin/finance';
-import type { InventoryProduct, ShopOrder, StockMove } from '../db/repository';
+import type { InventoryProduct, OrderRefund, ShopOrder, StockMove } from '../db/repository';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -52,17 +52,35 @@ const orders: ShopOrder[] = [
     totalMinor: 900_000, discountMinor: 0, status: 'new',
     createdAt: '2026-08-06T10:00:00.000Z', items: [] },
 ];
+/**
+ * Three kinds of movement, not two.
+ *
+ * The return here is a REFUND — it carries the refund it belongs to. The
+ * cancellation carries only the order it un-did, and until frame 05a the screen
+ * added the two together and called the total «Возвратов, шт», over units sold.
+ */
 const moves: StockMove[] = [
   { id: 1, variantId: 'v1', productName: 'Часы', color: 'rose', delta: -4, reason: 'sale',
-    note: null, staffId: null, orderId: 'o1', at: '2026-08-05T10:00:00.000Z' },
+    note: null, staffId: null, orderId: 'o1', refundId: null, at: '2026-08-05T10:00:00.000Z' },
   { id: 2, variantId: 'v1', productName: 'Часы', color: 'rose', delta: 1, reason: 'return',
-    note: 'не подошёл размер', staffId: 's1', orderId: null, at: '2026-08-07T10:00:00.000Z' },
+    note: 'не подошёл размер', staffId: 's1', orderId: 'o1', refundId: 7,
+    at: '2026-08-07T10:00:00.000Z' },
   { id: 3, variantId: 'v1', productName: 'Часы', color: 'rose', delta: -1, reason: 'writeoff',
-    note: 'разбит экран', staffId: 's1', orderId: null, at: '2026-08-08T10:00:00.000Z' },
+    note: 'разбит экран', staffId: 's1', orderId: null, refundId: null,
+    at: '2026-08-08T10:00:00.000Z' },
+  { id: 4, variantId: 'v1', productName: 'Часы', color: 'rose', delta: 2, reason: 'return',
+    note: 'заказ отменён', staffId: null, orderId: 'o3', refundId: null,
+    at: '2026-08-06T10:00:00.000Z' },
+];
+const refunds: OrderRefund[] = [
+  { id: 7, orderId: 'o1', amountMinor: 500_000, reason: 'not_suitable',
+    note: 'не подошёл размер', staffId: 's1', staffName: 'Нуржан', restockedUnits: 1,
+    at: '2026-08-07T10:00:00.000Z' },
 ];
 
 const REPORT = buildFinanceReport({
-  orders, products, moves, planMinor: 10_000_000, from: '2026-08-01', to: '2026-08-31',
+  orders, products, moves, refunds,
+  planMinor: 10_000_000, from: '2026-08-01', to: '2026-08-31',
 });
 
 interface Rendered { text(s: string): string; count(s: string): number; errors: string[]; }
@@ -169,9 +187,64 @@ describe('frame 05a — Возвраты и брак', () => {
     expect(t).toContain('списание');
   });
 
-  it('gives the rate against sales, not a bare count', () => {
-    expect(page.text('#finRetSub')).toContain('из 4 продаж');
-    expect(page.text('#finRetSub')).toContain('25,0%');
+  it('draws a cancellation as a cancellation, not as a return', () => {
+    // Both are reason='return' in the ledger. Drawing them the same is what
+    // made «Возвратов, шт» count orders that were never in revenue.
+    const t = page.text('#finReturns');
+    expect(t).toContain('отмена заказа');
+    // And the refund row carries WHY she sent it back.
+    expect(t).toContain('не подошёл');
+  });
+
+  it('gives the rate against sales, and only over real returns', () => {
+    const t = page.text('#finRetSub');
+    expect(t).toContain('из 4 продаж');
+    // 1 refunded unit ÷ 4 sold. The two cancelled units are NOT in it — as
+    // 2 + 1 ÷ 4 = 75,0% they would have been, over a shop that sold four.
+    expect(t).toContain('25,0%');
+    expect(t, 'the cancelled units were folded back into the rate').not.toContain('75,0%');
+  });
+
+  it('reports the cancelled units separately rather than dropping them', () => {
+    // The stock really did move and the warehouse needs the number; it is just
+    // not a return.
+    const t = page.text('#finRetSub');
+    expect(t).toContain('2 шт вернулось на склад из-за отмен заказов');
+  });
+
+  it('names the money handed back, and the revenue net of it', () => {
+    const t = page.text('#finKpis');
+    expect(t).toContain('Возвращено денег');
+    expect(t.replace(/[   ]/g, ' ')).toContain('5 000 ₸');
+    expect(t).toContain('Выручка за вычетом возвратов');
+    // 20 000 earned − 5 000 refunded.
+    expect(t.replace(/[   ]/g, ' ')).toContain('15 000 ₸');
+  });
+
+  it('says from when reasons are recorded, instead of implying they always were', () => {
+    // Backfilling «другое» onto older returns would invent a fact about an
+    // event nobody recorded.
+    const t = page.text('#finReturns');
+    expect(t).toContain('20.08.2026');
+    expect(t).toMatch(/задним числом/);
+  });
+});
+
+describe('refunds that could not be read', () => {
+  it('prints «неизвестно» rather than 0 ₸', async () => {
+    // A caught repository error left refundedMinor at 0, which is exactly what
+    // a month with no refunds looks like — false, and false in the flattering
+    // direction.
+    const page = await boot(buildFinanceReport({
+      orders, products, moves, planMinor: 10_000_000,
+      from: '2026-08-01', to: '2026-08-31', refundsUnavailable: true,
+    }));
+    expect(page.errors, page.errors.join('\n')).toEqual([]);
+    const t = page.text('#finKpis');
+    expect(t).toContain('Возвращено денег');
+    expect(t).toContain('неизвестно');
+    expect(t, 'a fabricated zero reached the screen').not.toMatch(/Возвращено денег\s*0 ₸/);
+    expect(page.text('#finCaveats')).toContain('НЕ прочитались');
   });
 });
 

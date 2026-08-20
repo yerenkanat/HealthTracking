@@ -26,10 +26,34 @@
  * PURE: orders, products and stock moves in, the three screens' numbers out.
  */
 
-import type { InventoryProduct, ShopOrder, StockMove } from '../db/repository';
+import { ORDER_REFUND_REASONS } from '../db/repository';
+import type {
+  InventoryProduct, OrderRefund, OrderRefundReason, ShopOrder, StockMove,
+} from '../db/repository';
 
 /** Shipped or delivered — money that has actually been collected. */
 export const EARNED_STATUSES = new Set(['shipped', 'delivered']);
+
+/**
+ * The day frame 05a shipped, and therefore the first day a refund can carry a
+ * reason.
+ *
+ * Printed on the screen beside the reason breakdown, because the alternative —
+ * counting every older return as «другое» — invents a fact about an event
+ * nobody recorded. There is nothing to backfill: no refund could be booked
+ * before migration 051 created the table. Return moves older than this are
+ * order cancellations, and they are counted as exactly that.
+ */
+export const REFUND_REASONS_SINCE = '2026-08-20';
+
+/** «брак», not «defect» — this is read by a person, in Russian, in a CSV. */
+export const REFUND_REASON_RU: Record<OrderRefundReason, string> = {
+  defect: 'брак',
+  not_suitable: 'не подошёл',
+  changed_mind: 'передумала',
+  not_delivered: 'не доставлен',
+  other: 'другое',
+};
 /** Placed but not yet out of the door. Stock is reserved; nothing is collected. */
 export const PROMISED_STATUSES = new Set(['new', 'confirmed']);
 
@@ -43,6 +67,27 @@ export interface MoneyBlock {
   orders: number;
   /** Average of the EARNED orders only. Zero when there are none. */
   averageCheckMinor: number;
+  /**
+   * Money handed back in this window — frame 05a, migration 051.
+   *
+   * Bucketed by the date of the REFUND, not of the order it reverses: a July
+   * комплект refunded in August is August's loss, which is the month the cash
+   * actually left. Complete rather than a floor — refunds are read for the
+   * whole window instead of as a newest-N slice, so this figure never carries
+   * «не менее».
+   *
+   * Not a payment breakdown. WHERE the money went back to (Kaspi / наличные) is
+   * not stored, for the same reason the split above it does not exist.
+   */
+  refundedMinor: number;
+  /**
+   * earned − refunded.
+   *
+   * Deliberately NOT clamped at zero. A month whose refunds exceed its own
+   * sales is a real and alarming answer, and flooring it to 0 would draw that
+   * month as merely empty.
+   */
+  earnedNetMinor: number;
 }
 
 export interface MarginBlock {
@@ -58,15 +103,56 @@ export interface MarginBlock {
 }
 
 export interface ReturnsBlock {
-  /** Units that came back. */
+  /**
+   * Units a CUSTOMER sent back, i.e. covered by a booked refund.
+   *
+   * This used to count cancellations too. Both write reason='return' with an
+   * order id — cancelling an order puts its goods back on the shelf — so
+   * «Возвратов, шт» and «Доля возвратов, %» were computed over orders that had
+   * never been in revenue at all, divided by units sold. The rate was
+   * meaningless in both directions: inflated by every cancelled order, and
+   * blind to every real return, because until frame 05a there was no way to
+   * record one. Refund-linked moves only, now (StockMove.refundId).
+   */
   returnedUnits: number;
+  /**
+   * Units back on the shelf because an ORDER WAS CANCELLED.
+   *
+   * Reported beside the returns rather than folded into them or dropped: the
+   * stock really did move, and the warehouse needs the number. It is just not
+   * a return, and it is not in the rate.
+   */
+  cancelledUnits: number;
+  /**
+   * Return moves belonging to neither — no refund and no order.
+   *
+   * Nothing in the product writes one: the two writers of reason='return' are
+   * cancellation (with an order) and a refund (with both). A row here means
+   * somebody wrote to the ledger by hand, and it is surfaced rather than
+   * quietly added to one of the two real buckets, where it would move a number
+   * a person is held to.
+   */
+  otherReturnUnits: number;
+  /** Refunds booked in the window. Not units — one refund can cover several. */
+  refundCount: number;
+  /**
+   * How many refunds gave each reason.
+   *
+   * Only refunds booked from REFUND_REASONS_SINCE can appear here, because only
+   * they have a reason. Older returns are not redistributed into «другое».
+   */
+  reasonCounts: Record<OrderRefundReason, number>;
+  /** The date above, carried to the screen so it can say it rather than imply it. */
+  reasonsRecordedSince: string;
   /** Units written off — breakage, loss, expiry. */
   writtenOffUnits: number;
   /** Units sold in the window, for a rate that means something. */
   soldUnits: number;
   /**
-   * returned ÷ sold, 0 when nothing was sold — and NULL when the stock moves
-   * behind it do not cover the whole window.
+   * REFUNDED units ÷ sold, 0 when nothing was sold — and NULL when the stock
+   * moves behind it do not cover the whole window.
+   *
+   * Cancellations are not in the numerator any more. See returnedUnits.
    *
    * The route reads a fixed number of the newest moves, and a sale writes one
    * per order line, so an older window can fall entirely off the end of that
@@ -81,7 +167,23 @@ export interface ReturnsBlock {
   /** The individual events, newest first, for the table. */
   events: Array<{
     at: string; productName: string; color: string;
-    units: number; reason: 'return' | 'writeoff'; note: string | null;
+    units: number;
+    /** The ledger's own word for the row. */
+    reason: 'return' | 'writeoff';
+    /**
+     * What the row IS — the distinction `reason` cannot make on its own, and
+     * the one the screen has to draw: «возврат» and «отмена заказа» are the
+     * same ledger reason and two different events.
+     */
+    kind: 'refund' | 'cancel' | 'other' | 'writeoff';
+    /**
+     * Why she sent it back, for a refund whose refund row is in this window.
+     *
+     * Null means «не показана здесь», never «не указана»: a refund always has a
+     * reason, but a move can be read in a window whose refund row was not.
+     */
+    refundReason: OrderRefundReason | null;
+    note: string | null;
   }>;
 }
 
@@ -118,6 +220,17 @@ export interface FinanceReport {
     ordersComplete: boolean;
     /** The stock moves behind returns and write-offs cover the window. */
     movesComplete: boolean;
+    /**
+     * The refunds behind «Возвращено денег» were read at all.
+     *
+     * Unlike the two above this is not about a slice — the whole window is read
+     * — it is about the read having FAILED. The route catches a repository
+     * error so one broken table cannot black out the whole screen, and a
+     * caught error left `refundedMinor: 0` looking exactly like a month with no
+     * refunds. False, and false in the flattering direction. The screen prints
+     * «неизвестно» when this is false.
+     */
+    refundsComplete: boolean;
     /** How many rows the caller asked for, for a message that names it. */
     ordersWindow: number | null;
     movesWindow: number | null;
@@ -128,6 +241,15 @@ export interface FinanceInput {
   orders: ShopOrder[];
   products: InventoryProduct[];
   moves: StockMove[];
+  /**
+   * Refunds booked in the window — the whole window, not a slice.
+   *
+   * Optional so the pure tests and any older caller still compile; absent means
+   * «ни одного», which is the truth for every period before frame 05a.
+   */
+  refunds?: OrderRefund[];
+  /** The refunds read threw. Absent means it did not. */
+  refundsUnavailable?: boolean;
   planMinor: number | null;
   /** Inclusive ISO date, YYYY-MM-DD. */
   from: string;
@@ -192,8 +314,16 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
   const sum = (list: ShopOrder[]) => list.reduce((n, o) => n + o.totalMinor, 0);
   const earnedMinor = sum(earned);
 
+  // Refunds are bucketed by their OWN date — the month the cash left — and are
+  // read whole rather than sliced, so this is never a floor.
+  const refunds = (input.refunds ?? []).filter((r) => inWindow(r.at, from, to));
+  const refundedMinor = refunds.reduce((n, r) => n + r.amountMinor, 0);
+
   const money: MoneyBlock = {
     earnedMinor,
+    refundedMinor,
+    // Not clamped: refunds outrunning a month's own sales is a real answer.
+    earnedNetMinor: earnedMinor - refundedMinor,
     promisedMinor: sum(promised),
     lostMinor: sum(lost),
     discountMinor: orders.reduce((n, o) => n + (o.discountMinor ?? 0), 0),
@@ -230,16 +360,37 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
 
   // ---- Returns and write-offs ------------------------------------------
   const moves = input.moves.filter((m) => inWindow(m.at, from, to));
-  const returns = moves.filter((m) => m.reason === 'return');
   const writeoffs = moves.filter((m) => m.reason === 'writeoff');
   const sales = moves.filter((m) => m.reason === 'sale');
+
+  /**
+   * Which of the three things a reason='return' row actually is.
+   *
+   * A refund carries the refund it belongs to; a cancellation carries only the
+   * order it un-did. Everything below hangs off this one function, because the
+   * bug being fixed is precisely that the report had no way to ask.
+   */
+  const kindOf = (m: StockMove): 'refund' | 'cancel' | 'other' =>
+    (m.refundId != null ? 'refund' : m.orderId ? 'cancel' : 'other');
+  const returns = moves.filter((m) => m.reason === 'return');
+  const refundMoves = returns.filter((m) => kindOf(m) === 'refund');
+  const cancelMoves = returns.filter((m) => kindOf(m) === 'cancel');
+  const orphanMoves = returns.filter((m) => kindOf(m) === 'other');
+  /** The reason a refund gave, for the moves it wrote. */
+  const reasonByRefund = new Map<number, OrderRefundReason>();
+  for (const r of refunds) reasonByRefund.set(r.id, r.reason);
 
   // Deltas are signed: a sale is negative, a return positive, a write-off
   // negative. Absolute values here, because these are counts of things that
   // happened rather than movements of a level.
   const units = (list: StockMove[]) => list.reduce((n, m) => n + Math.abs(m.delta), 0);
-  const returnedUnits = units(returns);
+  const returnedUnits = units(refundMoves);
   const soldUnits = units(sales);
+
+  const reasonCounts = Object.fromEntries(
+    ORDER_REFUND_REASONS.map((r) => [r, 0]),
+  ) as Record<OrderRefundReason, number>;
+  for (const r of refunds) reasonCounts[r.reason] += 1;
 
   let writeOffCostMinor = 0;
   for (const m of writeoffs) {
@@ -249,6 +400,11 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
 
   const returnsBlock: ReturnsBlock = {
     returnedUnits,
+    cancelledUnits: units(cancelMoves),
+    otherReturnUnits: units(orphanMoves),
+    refundCount: refunds.length,
+    reasonCounts,
+    reasonsRecordedSince: REFUND_REASONS_SINCE,
     writtenOffUnits: units(writeoffs),
     soldUnits,
     // Unknown, not zero, when the moves behind it do not reach the window.
@@ -262,6 +418,8 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
         at: m.at, productName: m.productName, color: m.color,
         units: Math.abs(m.delta),
         reason: m.reason as 'return' | 'writeoff',
+        kind: m.reason === 'writeoff' ? ('writeoff' as const) : kindOf(m),
+        refundReason: m.refundId != null ? reasonByRefund.get(m.refundId) ?? null : null,
         note: m.note,
       })),
   };
@@ -280,6 +438,34 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
   if (money.promisedMinor > 0) {
     caveats.push(
       'Заказы в статусах «новый» и «подтверждён» в выручку не входят — это обещание, а не деньги.');
+  }
+  // Only when there IS money to say it about: a permanent line about an absent
+  // column trains the reader to skip the block it lives in.
+  if (money.refundedMinor > 0) {
+    caveats.push(
+      'Куда именно вернули деньги — на Kaspi или наличными — в базе не хранится: ' +
+      'у заказа нет способа оплаты. Записаны сумма, причина, кто оформил и когда.');
+  }
+  // Said whenever the window reaches back before refunds could be recorded, so
+  // «возвратов не было» cannot be read off a period in which recording one was
+  // impossible.
+  if (from < REFUND_REASONS_SINCE) {
+    caveats.push(
+      `Причины возвратов записываются с ${REFUND_REASONS_SINCE}. До этой даты возврат в ` +
+      'системе оформить было нельзя: товар возвращали отменой заказа или списанием, ' +
+      'и причина у них не записана — задним числом она не проставляется.');
+  }
+  if (returnsBlock.otherReturnUnits > 0) {
+    caveats.push(
+      `Возвратов на склад без заказа и без оформленного возврата: ` +
+      `${returnsBlock.otherReturnUnits} шт. Их не пишет ни одна кнопка панели — ` +
+      'строки заведены напрямую в базе, и в долю возвратов они не входят.');
+  }
+  if (input.refundsUnavailable) {
+    caveats.push(
+      'Возвраты покупателям НЕ прочитались: «Возвращено денег» и причины возвратов ' +
+      'на этом экране неизвестны, а не равны нулю. Выручка ниже возвратов не учитывает. ' +
+      'Обновите страницу; если повторяется — скажите разработчику.');
   }
   // First in the list would be better still, but the payment-method line is
   // structural and always present; these two are conditional and rare, and a
@@ -308,6 +494,7 @@ export function buildFinanceReport(input: FinanceInput): FinanceReport {
     slice: {
       ordersComplete,
       movesComplete,
+      refundsComplete: !input.refundsUnavailable,
       ordersWindow: input.ordersWindow ?? null,
       movesWindow: input.movesWindow ?? null,
     },
@@ -344,7 +531,21 @@ export function financeCsv(r: FinanceReport): string {
     ['Себестоимость, ₸', atLeast(money(r.margin.costMinor), !r.slice.ordersComplete)],
     ['Маржа, ₸', atLeast(money(r.margin.marginMinor), !r.slice.ordersComplete)],
     ['Маржа посчитана по, % выручки', String(Math.round(r.margin.coverage * 100))],
-    ['Возвратов, шт', atLeast(String(r.returns.returnedUnits), !r.slice.movesComplete)],
+    // Money back, before the counts: it is the figure this frame exists for,
+    // and it is complete rather than a floor — refunds are read whole.
+    ['Возвращено денег, ₸', r.slice.refundsComplete
+      ? money(r.money.refundedMinor)
+      : 'неизвестно'],
+    ['Выручка за вычетом возвратов, ₸', r.slice.refundsComplete
+      ? atLeast(money(r.money.earnedNetMinor), !r.slice.ordersComplete)
+      : 'неизвестно'],
+    ['Возвратов оформлено', r.slice.refundsComplete ? String(r.returns.refundCount) : 'неизвестно'],
+    // Split, because they were one number and should never have been. A
+    // cancelled order's goods coming back is not a customer returning one.
+    ['Возвратов от покупателей, шт',
+      atLeast(String(r.returns.returnedUnits), !r.slice.movesComplete)],
+    ['Возвращено на склад при отмене заказов, шт',
+      atLeast(String(r.returns.cancelledUnits), !r.slice.movesComplete)],
     ['Списано, шт', atLeast(String(r.returns.writtenOffUnits), !r.slice.movesComplete)],
     ['Списано на сумму, ₸', atLeast(money(r.returns.writeOffCostMinor), !r.slice.movesComplete)],
     // «неизвестно», never 0,0. A fabricated zero in a spreadsheet outlives
@@ -353,6 +554,15 @@ export function financeCsv(r: FinanceReport): string {
       ? 'неизвестно'
       : (r.returns.returnRate * 100).toFixed(1).replace('.', ',')],
   ];
+  // The reasons, one row each and only where there is something to say. A row
+  // of zeroes for every reason reads as a survey nobody answered.
+  for (const reason of ORDER_REFUND_REASONS) {
+    const n = r.returns.reasonCounts[reason];
+    if (n > 0) rows.push([`Причина возврата · ${REFUND_REASON_RU[reason]}`, String(n)]);
+  }
+  if (r.returns.otherReturnUnits > 0) {
+    rows.push(['Возвраты без заказа и без оформления, шт', String(r.returns.otherReturnUnits)]);
+  }
   // The caveats travel WITH the file. A number pasted into a message loses its
   // footnote otherwise, and the margin one is load-bearing.
   for (const c of r.caveats) rows.push(['Оговорка', c]);
