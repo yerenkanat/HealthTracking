@@ -49,6 +49,20 @@ admin.ana-bala.kz   A     188.137.231.252
 > (18 containers → 4); the CRM's real production lives on another server and
 > was never touched. The Supabase passthrough on :8081 is still preserved
 > verbatim by landing-takeover.sh, so nothing there breaks.
+>
+> **⚠ CHECK THIS BEFORE TRUSTING THE PROXY HEADER.** «18 containers → 4» means
+> four are still running on the shared Docker network, and the security review
+> that turned on `trustProxy` (b26aa81) assumed they are. That assumption is
+> load-bearing: the backend now believes `X-Forwarded-For`, and anything that
+> can reach `umay-backend:8080` on that network directly — bypassing Caddy —
+> can therefore choose its own client IP and spend, or exhaust, somebody else's
+> rate-limit bucket.
+>
+> Port 8080 is published nowhere on the host, so this is not reachable from the
+> internet. It is reachable from a container. Before or shortly after deploying
+> that change, run `docker ps` and satisfy yourself which four remain and
+> whether any needs to. Nobody has been able to verify this from a workstation;
+> both statements above were written from the repository, not from the box.
 
 **Files in `deploy/`:**
 - `landing-stack.sh` — brings up Postgres, Redis and the backend containers.
