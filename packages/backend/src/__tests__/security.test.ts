@@ -333,9 +333,16 @@ describe('GET /admin/security', () => {
     // Nothing in this fresh repository is three years old.
     expect(await repo.pruneAuditLog(cutoff)).toBe(0);
     expect((await repo.listAudit(50)).entries.length).toBe(before);
-    // Everything is, once the cutoff moves past today.
-    expect(await repo.pruneAuditLog(new Date(now.getTime() + 86_400_000).toISOString()))
-      .toBe(before);
+    // Everything is, once the cutoff moves past the row.
+    //
+    // Derived from the row itself, not from `now`. This read
+    // `now + 1 day` against a row writeAudit stamps with the REAL clock, so it
+    // passed on 2026-08-19 and failed on 2026-08-20 the moment the wall clock
+    // went past 12:00Z — a test whose answer depended on the time of day it
+    // was run.
+    const written = (await repo.listAudit(50)).entries[0]!;
+    const past = new Date(new Date(written.at).getTime() + 1000).toISOString();
+    expect(await repo.pruneAuditLog(past)).toBe(before);
     expect((await repo.listAudit(50)).entries).toEqual([]);
   });
 

@@ -26,11 +26,25 @@ import { dirname, resolve } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(resolve(here, '../../../admin/index.html'), 'utf8');
 
-/** Drop comments and string/template literals so only real code is scanned. */
+/** Drop comments, regex literals and string/template literals so only real code
+ * is scanned.
+ *
+ * REGEX LITERALS MATTER, and this cost a red main to learn. The stored-XSS fix
+ * (7dd7061) added `esc` containing `/[&<>"]/g` — a bare double quote inside a
+ * regex literal, not inside a string. The quote-pairing pass below then paired
+ * it with the opening quote of the next real string and desynced every quote
+ * after it, so `window.UI={` stopped being findable in a file that plainly
+ * contains it. The panel was correct and the scanner was lying.
+ *
+ * This blanks only the CHARACTER CLASS after a `/`, which is narrow on
+ * purpose: a general regex-literal matcher cannot tell `/` from division
+ * without parsing, and a greedy one blanked half the panel. It runs BEFORE
+ * the quote passes, because that ordering is what the defect turned on. */
 function code(src: string): string {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+    .replace(/\/\[(?:\\.|[^\]\\\n])*\]/g, '/[]')
     .replace(/`(?:\\.|[^`\\])*`/g, '``')
     .replace(/'(?:\\.|[^'\\])*'/g, "''")
     .replace(/"(?:\\.|[^"\\])*"/g, '""');
@@ -101,7 +115,12 @@ describe('the two script blocks do not reach into each other', () => {
 
     // Names the second block references that only the first block declares.
     const borrowed = [...theirs].filter(
-      (n) => !mine.has(n) && new RegExp(String.raw`\b${n}\b`).test(second),
+      // NOT preceded by a dot. `window.UI.STAGE_RU` IS the handoff this test
+      // asks for, and a bare \b matched inside it — so the correct pattern was
+      // reported as the defect, naming two identifiers that were already being
+      // passed properly. A property access is never a free variable.
+      (n) => !mine.has(n)
+        && new RegExp(String.raw`(?<![.\w$])${n}\b`).test(second),
     );
 
     expect(

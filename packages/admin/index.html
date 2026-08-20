@@ -4338,7 +4338,7 @@
   // на строке устройства. Без этого оператор, увидевший молчащие часы, должен
   // был перейти в «Пользователи» и найти её заново по имени из соседней
   // колонки — а именно в карточке видно, что часы передают по дням.
-  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost,STAGE_RU,openUser,
+  window.UI={tableBusy,tableNote,stamp,ago,fmt,setBadge,STAFF,sessionLost,STAGE_RU,msgTo,openUser,
     // Frame 19's metrics live in the second block, next to the SOS table they
     // also need; the feed lives in here. The STATE travels with the rows on
     // purpose: an empty list because /admin/emergencies failed must never be
@@ -8205,10 +8205,15 @@
   // — enforced on the server, so this screen cannot leak the course by mistake.
   let courseWired = false;
 
-  const msgTo = (id, text, kind) => {
+  // A function DECLARATION, not a const arrow, and deliberately so: it is
+  // exported through window.UI near the top of this block, which evaluates long
+  // before this line. As a const it sat in the temporal dead zone and the
+  // handoff threw «Cannot access msgTo before initialization» — the export
+  // failing louder than the bug it was fixing. Declarations hoist.
+  function msgTo(id, text, kind) {
     const el = $(id); el.textContent = text || "";
     el.className = "formmsg" + (kind ? " " + kind : "");
-  };
+  }
 
   function resetLessonForm(){
     $("#lessonId").value = ""; $("#lessonTitle").value = ""; $("#lessonUrl").value = "";
@@ -11470,7 +11475,13 @@
   // The comment that used to sit here said STAFF was "deliberately not
   // redeclared — see the single STAFF identity above". The intent was right and
   // JavaScript does not work that way.
-  const { tableBusy, tableNote, stamp, ago, fmt, setBadge, STAFF, sessionLost } = window.UI;
+  // msgTo joined this list on 2026-08-20 for the same reason STAFF did, and it
+  // was worse: the three bare calls are in the product-photo path, and one of
+  // them is INSIDE a catch block — so the error handler threw a
+  // ReferenceError of its own and the operator saw nothing at all after a
+  // failed upload. Found by adminScopes once its tokenizer stopped desyncing
+  // on a regex literal.
+  const { tableBusy, tableNote, stamp, ago, fmt, setBadge, STAFF, sessionLost, msgTo } = window.UI;
 
   /**
    * A refusal is not an outage — and this block could not tell them apart.
