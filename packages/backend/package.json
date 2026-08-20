@@ -14,16 +14,16 @@
     "db:reset": "docker compose down -v && docker compose up -d --wait && node db/apply.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.30.0",
+    "@anthropic-ai/sdk": "^0.117.1",
     "@fcs/shared": "*",
-    "fastify": "^4.28.0",
-    "firebase-admin": "^12.0.0",
-    "ioredis": "^5.4.0",
-    "pg": "^8.12.0",
-    "zod": "^3.23.0"
+    "fastify": "^5.12.0",
+    "firebase-admin": "^14.2.0",
+    "ioredis": "^6.0.0",
+    "pg": "^8.23.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.0",
+    "@types/pg": "^8.21.0",
     "tsx": "^4.19.0"
   }
 }
