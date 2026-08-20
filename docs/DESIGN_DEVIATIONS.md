@@ -240,6 +240,42 @@ is the defect that shipped as a «Вес» quick action beside a «Вес» pill
 keeps the banner's content (last check, with its date) and its prominence
 (first position).
 
+### «Прививки» is listed once, not twice (15a)
+
+**Deviation, taken when 15a was built.** §15a lists Прививки in the «Каждый
+день» grid *and* again among «пять инструментов, привязанных к возрасту»
+(Развитие, Прикорм, Безопасность дома, Болезни, Прививки). Both readings of the
+spec cannot be satisfied without printing the same destination twice on one
+screen, which is what the cry banner was dropped for four paragraphs above.
+
+The tile wins: it carries a count, it is the only one of the two the spec gives
+a no-birth-date state to («Укажите дату рождения»), and it therefore does not
+need the age gate the other four do. The age-keyed list is Развитие, Прикорм,
+Безопасность дома, Болезни — four rows, under the existing `tr_tools` heading —
+and the «Укажите дату рождения» repair row still replaces all four when there is
+no birth date. `child_hub_test.dart` asserts `vac_title` is found exactly once.
+
+### The segment label «Сегодня» is also the first tab's label
+
+**Noted, not changed.** `child_seg_today` and `nav_today` are the same word in
+all three languages (Сегодня / Бүгін / Today), so the «Ребёнок» tab draws it
+twice: once in the segmented control at the top and once on the bottom tab bar,
+for two different destinations. Both labels are the ones their own specs name,
+they sit in visually distinct zones, and renaming either changes reviewed copy
+on a screen this frame does not own. Flagged here so the next reader does not
+have to rediscover it; `child_hub_test.dart` scopes its finders to
+`DsSegmented` for exactly this reason, and a test that did not would have
+matched the tab bar and passed for the wrong reason.
+
+### The signed-out cry tile leads to sign-in, not to the cry screen
+
+§15a says the tile «не прячется — она объясняет и ведёт на вход», and the sheet
+this replaced dropped the row entirely when signed out. The tile now stays, its
+subline is `cry_signed_out`, and tapping it opens `openSignIn` — **not**
+`openCryInsight`. The cry screen has no signed-out state yet (that is 15b), so
+sending her there would be a dead end that says nothing until she has recorded
+her baby for five seconds.
+
 ## Onboarding step 4 keeps its field order, and drops the gender icons
 
 **Spec:** frame 35 (`CLAUDE-app-design.md:371`) — «поля Имя, Пол (два сегмента),

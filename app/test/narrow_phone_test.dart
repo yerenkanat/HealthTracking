@@ -102,7 +102,8 @@ import 'package:fcs_app/ui/tracking/alerts_screen.dart';
 import 'package:fcs_app/ui/onboarding/onboarding_flow.dart';
 import 'package:fcs_app/ui/tracking/child_detail_screen.dart';
 import 'package:fcs_app/ui/tracking/child_map_screen.dart';
-import 'package:fcs_app/ui/tracking/child_tools_sheet.dart';
+import 'package:fcs_app/ui/tracking/child_today_screen.dart';
+import 'package:fcs_app/domain/newborn_log.dart';
 import 'package:fcs_app/ui/tracking/zones_screen.dart';
 
 /// A Redmi/Galaxy A-series in portrait: the floor this app has to fit.
@@ -1889,11 +1890,11 @@ void main() {
       );
     });
 
-    /// The child map carrying screen 15a's labelled tools control.
+    /// The child map with every floating control it can carry.
     ///
-    /// It is a full-width row over the map, above the check-in / история дня /
-    /// SOS trio, and «Күтім және денсаулық» is the longest label on it.
-    testWidgets('the child map fits with the tools control', (tester) async {
+    /// Screen 15a's care list is no longer one of them — it is the «Сегодня»
+    /// segment of the tab now (measured separately below).
+    testWidgets('the child map fits with its floating controls', (tester) async {
       await fits(
         tester,
         () => ChildMapScreen(
@@ -1913,7 +1914,6 @@ void main() {
           onOpenAlerts: () {},
           alertCount: 3,
           onOpenChildCard: () {},
-          onOpenTools: () {},
           batteryPct: 68,
           zoneEnteredAt: now.subtract(const Duration(minutes: 40)),
           lastCheckInAt: now.subtract(const Duration(hours: 2)),
@@ -1921,32 +1921,114 @@ void main() {
           onSos: () async => true,
           onDayHistory: () {},
         ),
-        'the child map with the tools control (kk)',
+        'the child map with its floating controls (kk)',
         locale: AppLocale.kk,
         width: kTinyWidth,
         textScale: 1.3,
       );
     });
 
-    /// Screen 15a's sheet itself — nine rows, in the longer language, with the
-    /// font slider up. It scrolls rather than growing past the screen, which is
-    /// the thing that has to be true here.
-    testWidgets('the child tools sheet fits', (tester) async {
-      final c = AppController(now: () => now, locale: AppLocale.kk)
-        ..addChild(ChildProfile(
-            id: 'c1',
-            name: 'Айгерім-Гүлнұр',
-            dateOfBirth: DateTime(2026, 1, 15)));
-      addTearDown(c.dispose);
-      await sheetFits(
-        tester,
-        (ctx) => showChildToolsSheet(ctx, c, childId: 'c1', now: now),
-        'the child tools sheet (kk)',
-        locale: AppLocale.kk,
-        width: kTinyWidth,
-        textScale: 1.3,
-      );
-    });
+    /// Screen 15a's «Сегодня» pane — a 2×2 grid whose tiles carry a subline
+    /// each, then two more sections, in ALL THREE languages with the font
+    /// slider up.
+    ///
+    /// Scrolled to the end inside `afterPump`. A case that opens a screen and
+    /// never scrolls proves only the first fold, and that has hidden three
+    /// real overflows this week — the grid here is above the fold and the
+    /// tools list is not.
+    for (final locale in AppLocale.values) {
+      testWidgets('the child «Сегодня» pane fits (${locale.name})',
+          (tester) async {
+        final c = AppController(now: () => now, locale: locale)
+          ..addChild(ChildProfile(
+              id: 'c1',
+              name: 'Айгерім-Гүлнұр',
+              dateOfBirth: DateTime(2026, 1, 15)));
+        addTearDown(c.dispose);
+        // Real data, so every subline is at its full length rather than the
+        // short empty-state wording.
+        c.logNewbornEvent(
+            'c1', NewbornEvent(kind: NewbornEventKind.feed, at: now));
+        c.recordGrowth(
+            'c1', GrowthPoint(at: now, weightKg: 7.4, heightCm: 68));
+        final child = c.children.first;
+        await fits(
+          tester,
+          () => ChildTodayView(
+            childName: child.name,
+            hasDateOfBirth: true,
+            ageMonths: child.ageInMonths(now),
+            counts: ChildTodayCounts.read(c, child, now),
+            onOpenCry: () {},
+            onOpenNewbornLog: () {},
+            onOpenGrowth: () {},
+            onOpenVaccinations: () {},
+            onOpenMedicalId: () {},
+            onOpenGuides: () {},
+            onOpenDevelopment: () {},
+            onOpenSolids: () {},
+            onOpenHomeSafety: () {},
+            onOpenIllness: () {},
+            onSetBirthDate: () {},
+          ),
+          'the child «Сегодня» pane (${locale.name})',
+          locale: locale,
+          width: kTinyWidth,
+          textScale: 1.3,
+          afterPump: (t) async {
+            final list = find.byType(Scrollable).last;
+            for (var i = 0; i < 8; i++) {
+              await t.drag(list, const Offset(0, -280));
+              await t.pump();
+            }
+            await t.pumpAndSettle();
+          },
+        );
+      });
+
+      /// The same pane with NO date of birth: the vaccination tile switches to
+      /// «Туған күнін көрсетіңіз» and the four age-keyed rows collapse into the
+      /// repair row, whose subtitle is the longest string on the screen.
+      testWidgets('the child «Сегодня» pane fits with no birth date '
+          '(${locale.name})', (tester) async {
+        final c = AppController(now: () => now, locale: locale)
+          ..addChild(const ChildProfile(id: 'c1', name: 'Айгерім-Гүлнұр'));
+        addTearDown(c.dispose);
+        final child = c.children.first;
+        await fits(
+          tester,
+          () => ChildTodayView(
+            childName: child.name,
+            hasDateOfBirth: false,
+            ageMonths: null,
+            counts: ChildTodayCounts.read(c, child, now),
+            onOpenCry: () {},
+            onOpenNewbornLog: () {},
+            onOpenGrowth: () {},
+            onOpenVaccinations: () {},
+            onOpenMedicalId: () {},
+            onOpenGuides: () {},
+            onOpenDevelopment: () {},
+            onOpenSolids: () {},
+            onOpenHomeSafety: () {},
+            onOpenIllness: () {},
+            onSetBirthDate: () {},
+          ),
+          'the child «Сегодня» pane with no birth date (${locale.name})',
+          locale: locale,
+          width: kTinyWidth,
+          textScale: 1.3,
+          afterPump: (t) async {
+            final list = find.byType(Scrollable).last;
+            for (var i = 0; i < 8; i++) {
+              await t.drag(list, const Offset(0, -280));
+              await t.pump();
+            }
+            await t.pumpAndSettle();
+          },
+        );
+      });
+    }
 
     /// The profile with «Поддержка» on it, badge and all.
     testWidgets('the profile fits with the support row', (tester) async {

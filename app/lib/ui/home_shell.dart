@@ -61,8 +61,10 @@ import 'tracking/notification_centre_screen.dart';
 import '../domain/day_history.dart';
 import '../domain/family_access.dart';
 import '../domain/my_order.dart';
+import 'tracking/child_care_routes.dart';
+import 'tracking/child_hub_screen.dart';
 import 'tracking/child_map_screen.dart';
-import 'tracking/child_tools_sheet.dart';
+import 'tracking/child_today_screen.dart';
 import 'tracking/tracking_map.dart';
 import 'tracking/day_history_screen.dart';
 import 'tracking/family_sheets.dart';
@@ -102,6 +104,22 @@ class _HomeShellState extends State<HomeShell> {
   /// Tab indices, so the deep-link handler names screens rather than counting.
   static const _tabDashboard = 0;
   static const _tabChild = 2;
+
+  /// Frame 15a's hub, so a caller that means «карта» can say so.
+  ///
+  /// The «Ребёнок» tab is two segments now, and its default is «Сегодня» for a
+  /// child with no tracker. Switching to the tab is therefore no longer the
+  /// same as opening the map — screen 21's «Открыть карту» would otherwise
+  /// close a red alarm onto a list of care tiles.
+  final _childHub = GlobalKey<ChildHubScreenState>();
+
+  /// Go to the «Ребёнок» tab AND put the map in front.
+  void _openChildMap() {
+    setState(() => _index = _tabChild);
+    // The hub is built by the IndexedStack above, so its state exists whether
+    // or not the tab was already selected.
+    _childHub.currentState?.showMap();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +201,7 @@ class _HomeShellState extends State<HomeShell> {
             case SetupStep.child:
               showAddChildSheet(context, c);
             case SetupStep.zone: // safe zones are added on the child map
-              setState(() => _index = 2);
+              _openChildMap();
             case SetupStep.backup: // export lives on the profile tab
               setState(() => _index = 3);
           }
@@ -321,7 +339,19 @@ class _HomeShellState extends State<HomeShell> {
         onOpenTip: _openContent,
         onSeeAllTips: () => setState(() => _index = 0), // the dashboard hosts the full shelf
       ),
-      ChildMapScreen(
+      // Frame 15a — the «Ребёнок» tab is two segments, not a map with a sheet
+      // floating over it. «Где ребёнок» is кадр 12; «Сегодня» is the grouped
+      // care list with a real count under each of its four daily tiles.
+      ChildHubScreen(
+        key: _childHub,
+        // The map is the default only when there is something to draw on it. A
+        // map with no tracker is an empty screen with a title on it, so without
+        // a paired brelok the tab opens on «Сегодня». With NO child the map
+        // wins anyway: it is the segment carrying «Добавить ребёнка».
+        openOnMap: c.selectedChild == null ||
+            (c.selectedChild?.tagId ?? '').isNotEmpty,
+        today: _childToday(context, c),
+        map: ChildMapScreen(
         childName: c.childName,
         hasNamedChild: c.hasNamedChild,
         childLocation: loc?.coords,
@@ -372,18 +402,12 @@ class _HomeShellState extends State<HomeShell> {
         onOpenChildCard: c.selectedChild == null
             ? null
             : () => _openChildCard(context, c, childId: c.selectedChild!.id),
-        // Screen 15a. The nine care screens, named, one tap from this tab —
-        // they used to be three taps behind that folder glyph and mentioned
-        // nowhere on the tab they belong to.
-        onOpenTools: c.selectedChild == null
-            ? null
-            : () => showChildToolsSheet(context, c,
-                childId: c.selectedChild!.id, now: DateTime.now()),
         // Screen 20. The strip at the top of the shell says the app is
         // offline; this is what the MAP does about it, which is the screen
         // where being wrong about staleness costs something.
         isOffline: c.isOffline,
         onRefresh: c.api == null ? null : () => c.refreshChildLocation(),
+        ),
       ),
       ProfileScreen(
         controller: c,
@@ -394,7 +418,7 @@ class _HomeShellState extends State<HomeShell> {
         // guessing there opens the wrong sibling's medical record.
         onOpenChildren: () => _openChildCard(context, c),
         // Trackers ARE managed on the map, so this one is unchanged.
-        onOpenDevices: () => setState(() => _index = 2),
+        onOpenDevices: () => _openChildMap(),
         // Screen 40. The grants live on the server; without one the row is
         // absent rather than opening a screen that can only fail.
         onOpenFamilyAccess:
@@ -497,6 +521,63 @@ class _HomeShellState extends State<HomeShell> {
           : l.t('share_status_cycle_late', {'day': cyc.cycleDay, 'n': -until});
     }
     return '';
+  }
+
+  /// Frame 15a's «Сегодня» pane, with every count read off the controller.
+  ///
+  /// Nothing here has a fallback: [ChildTodayCounts.read] is the only source of
+  /// the four sublines, and where it cannot answer (no measurement, no history,
+  /// no date of birth) the tile says so in words instead of printing a zero
+  /// that would read as a measurement.
+  Widget _childToday(BuildContext context, AppController c) {
+    final l = L10nScope.of(context);
+    final child = c.selectedChild;
+    if (child == null) {
+      // No child, no care list. The map segment is where «Добавить ребёнка»
+      // lives, and this pane says which way to go rather than showing four
+      // tiles about nobody.
+      return Material(
+        color: Palette.bg,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: DsEmptyState(
+              label: l.t('tr_add_child'),
+              onTap: () => showAddChildSheet(context, c),
+            ),
+          ),
+        ),
+      );
+    }
+    // The CONTROLLER's clock, not DateTime.now(). «Сегодня отмечено: N» counts
+    // events against a day, and the events were stamped by this same clock —
+    // reading a second one here is how a log written at 23:59 lands on the
+    // wrong day, and how a test with an injected clock silently measures the
+    // wall clock instead.
+    final now = c.now;
+    return ChildTodayView(
+      childName: child.name,
+      hasDateOfBirth: child.hasDateOfBirth,
+      ageMonths: child.hasDateOfBirth ? child.ageInMonths(now) : null,
+      counts: ChildTodayCounts.read(c, child, now),
+      // Signed out the classifier cannot answer at all — the proxy is
+      // authenticated — so the tile leads to the sign-in that fixes that,
+      // which is what its subline says it will do.
+      onOpenCry: c.isSignedIn
+          ? () => openCryInsight(context, c)
+          : () => openSignIn(context, c),
+      onOpenNewbornLog: () => openNewbornLog(context, c, child, now),
+      onOpenGrowth: () => openGrowth(context, c, child),
+      onOpenVaccinations: () => openVaccinations(context, c, child, now),
+      onOpenMedicalId: () => openMedicalId(context, c, child),
+      onOpenGuides: () => _openGuides(context, c),
+      onOpenDevelopment: () => openDevelopment(context, child, now),
+      onOpenSolids: () => openSolids(context, child, now),
+      onOpenHomeSafety: () => openHomeSafety(context, c, child, now),
+      onOpenIllness: () => openIllness(context, child, now),
+      onSetBirthDate: () => showEditChildSheet(context, c, child),
+    );
   }
 
 /// Screen 27 — «Гиды».
@@ -927,7 +1008,8 @@ class _HomeShellState extends State<HomeShell> {
       case NotifyDestination.notificationCentre:
         _openNotificationCentre(context, c);
       case NotifyDestination.childMap:
-        setState(() => _index = _tabChild);
+        // The MAP, not merely the tab — see _openChildMap.
+        _openChildMap();
       case NotifyDestination.sos:
       case NotifyDestination.emergency:
       // Both are app-wide takeovers raised by the controller; if one is not

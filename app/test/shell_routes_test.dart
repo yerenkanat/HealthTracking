@@ -29,6 +29,7 @@ import 'package:fcs_app/domain/family.dart';
 import 'package:fcs_app/domain/timeline_content.dart';
 import 'package:fcs_app/l10n/l10n.dart';
 import 'package:fcs_app/l10n/l10n_scope.dart';
+import 'package:fcs_app/ui/ds_widgets.dart';
 import 'package:fcs_app/ui/home_shell.dart';
 import 'package:fcs_app/ui/settings/reminders_center_screen.dart';
 import 'package:fcs_app/ui/theme.dart';
@@ -59,6 +60,20 @@ Future<void> pumpShell(WidgetTester tester, AppController c) async {
   await tester.pumpAndSettle();
 }
 
+/// Frame 15a made the «Бала» tab two segments, and it opens on «Сегодня» for a
+/// child with no paired tracker. The map's floating app-bar controls — the
+/// child card and the alerts bell — belong to «Где ребёнок», so a test that
+/// wants one has to be standing on that segment, exactly as a parent does.
+Future<void> openChildMapSegment(WidgetTester tester) async {
+  await tester.tap(find.text(l.t('nav_child')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.descendant(
+    of: find.byType(DsSegmented),
+    matching: find.text(l.t('child_seg_where')),
+  ));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('the child card is reachable from the «Бала» tab, without Settings',
       (tester) async {
@@ -68,8 +83,7 @@ void main() {
     addTearDown(c.dispose);
     await pumpShell(tester, c);
 
-    await tester.tap(find.text(l.t('nav_child')));
-    await tester.pumpAndSettle();
+    await openChildMapSegment(tester);
 
     // The entry point is on the tab itself — not behind Настройки, and not
     // behind a long-press or a gesture nobody discovers.
@@ -148,8 +162,7 @@ void main() {
     addTearDown(c.dispose);
     await pumpShell(tester, c);
 
-    await tester.tap(find.text(l.t('nav_child')));
-    await tester.pumpAndSettle();
+    await openChildMapSegment(tester);
     await tester.tap(find.byTooltip(l.t('alerts_title')).first);
     await tester.pumpAndSettle();
 

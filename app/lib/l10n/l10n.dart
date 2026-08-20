@@ -331,6 +331,43 @@ const Map<String, Map<AppLocale, String>> _catalog = {
     AppLocale.en: 'Add it to unlock vaccinations, development, solids and illness'
   },
 
+  // Frame 15a — «Ребёнок»: the two segments, the three section labels, and the
+  // four sublines that carry the tiles' numbers.
+  //
+  // KAZAKH BELOW IS NOT GATE-REVIEWED. Written with the widget that prints it,
+  // from the table in docs/CLAUDE-app-design.md § «Строки, которых ещё нет в
+  // l10n.dart», and flagged in docs/TODO.md §9.12 the way `cry_error` was.
+  //
+  // The numeral sits outside the noun in every one of them («Бүгін белгіленді:
+  // 5», not «5 жазба»): Russian case agreement and the Kazakh numeral
+  // possessive both break exactly there, and that has already cost one
+  // correction in §9.12.
+  'child_seg_where': {AppLocale.ru: 'Где ребёнок', AppLocale.kk: 'Бала қайда', AppLocale.en: 'Where they are'},
+  'child_seg_today': {AppLocale.ru: 'Сегодня', AppLocale.kk: 'Бүгін', AppLocale.en: 'Today'},
+  'child_sec_daily': {AppLocale.ru: 'Каждый день', AppLocale.kk: 'Күнде', AppLocale.en: 'Every day'},
+  'child_sec_justincase': {AppLocale.ru: 'На всякий случай', AppLocale.kk: 'Сақтық үшін', AppLocale.en: 'Just in case'},
+  'child_tile_never': {AppLocale.ru: 'Ещё не проверяли', AppLocale.kk: 'Әлі тексерілмеген', AppLocale.en: 'Not checked yet'},
+  'child_tile_logged': {AppLocale.ru: 'Сегодня отмечено: {n}', AppLocale.kk: 'Бүгін белгіленді: {n}', AppLocale.en: 'Logged today: {n}'},
+  'child_tile_no_growth': {AppLocale.ru: 'Нет измерений', AppLocale.kk: 'Өлшемдер жоқ', AppLocale.en: 'No measurements'},
+  // NOT «просрочена». domain/vaccination.dart:126 calls this state `passed` and
+  // forbids reading it as «пропущена» — the app does not know what the child
+  // has actually received, only what the parent has ticked.
+  'child_tile_vac_check': {AppLocale.ru: 'Стоит уточнить: {n}', AppLocale.kk: 'Тексеру қажет: {n}', AppLocale.en: 'Worth checking: {n}'},
+  'child_tile_vac_ok': {AppLocale.ru: 'Всё отмечено', AppLocale.kk: 'Бәрі белгіленген', AppLocale.en: 'All recorded'},
+  // The vaccination tile with no date of birth. An INSTRUCTION, not the
+  // statement `child_no_dob` makes: the tile is tappable and this line says
+  // what tapping it does. Reusing `child_no_dob` here would also print the same
+  // sentence twice on one screen, once as a subline and once as a row label.
+  'child_tile_set_dob': {AppLocale.ru: 'Укажите дату рождения', AppLocale.kk: 'Туған күнін көрсетіңіз', AppLocale.en: 'Add a date of birth'},
+  // The cry tile does not disappear when she is signed out — it says why the
+  // analysis cannot run and leads to the sign-in that fixes it. Hiding it is
+  // how a feature stops existing for everyone who has not signed in yet.
+  'cry_signed_out': {
+    AppLocale.ru: 'Чтобы разобрать плач, нужно войти — разбор идёт через наш сервер',
+    AppLocale.kk: 'Жылауды талдау үшін кіру керек — талдау біздің сервер арқылы жүреді',
+    AppLocale.en: 'Sign in to analyse a cry — the analysis runs on our server'
+  },
+
   // Safety alerts (zone enter/exit feed)
   'alerts_title': {AppLocale.ru: 'Оповещения', AppLocale.kk: 'Хабарламалар', AppLocale.en: 'Alerts'},
   'alerts_empty': {AppLocale.ru: 'Пока нет оповещений. Здесь появятся входы и выходы из зон.', AppLocale.kk: 'Әзірге хабарлама жоқ. Мұнда аймаққа кіру мен шығу пайда болады.', AppLocale.en: 'No alerts yet. Zone entries and exits will appear here.'},

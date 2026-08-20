@@ -257,6 +257,16 @@ const _offSurfaces = <String, String>{
   'lib/ui/settings/support_thread_screen.dart':
       'a support conversation: delivery state and the chat disclaimer',
   'lib/ui/home_shell.dart': 'the offline banner — a network claim',
+  'lib/ui/tracking/child_today_screen.dart':
+      'frame 15a\'s care list. It names the clinical screens (прививки, '
+          'прикорм, безопасность дома) but grades nothing: all four tile '
+          'glyphs are ONE colour on purpose, chosen so that «Стоит уточнить: '
+          '3» cannot go amber — domain/vaccination.dart:126 calls that state '
+          '`passed` and forbids reading it as «пропущена», and a tile that '
+          'went amber for it would be making exactly that claim in colour. '
+          'The single amber here is the cake glyph on «Дата рождения не '
+          'указана», which grades the app\'s own missing field. If a tile ever '
+          'takes its colour from a reading, this moves up.',
   'lib/ui/chat/assistant_chat_screen.dart':
       'message send state; the disclaimer above it carries no colour',
   'lib/ui/settings/help_support_screen.dart': 'help articles and contact rows',
