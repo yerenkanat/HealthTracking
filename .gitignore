@@ -51,3 +51,9 @@ graphify-out/
 # Agent probe scripts — analysis tools, not part of the app.
 # Swept into a commit once by `git add app/`; ignored so it cannot happen again.
 app/tool/_scratch/
+
+# TypeScript incremental build state. Machine-local and rewritten by every
+# `tsc -b`, so it appears as a spurious diff in unrelated commits and has
+# twice been reported as "dirty in your tree, not mine" by agents trying to
+# work out what they had changed.
+*.tsbuildinfo
