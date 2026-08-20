@@ -24,6 +24,7 @@ import { JSDOM } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -109,26 +110,27 @@ describe('the returns ledger paints a write-off', () => {
       caveats: [], byDay: [], byProduct: [], plan: null,
     };
 
-    const dom = new JSDOM(panelHtml, {
+    const settle = panelSettle();
+  const dom = new JSDOM(panelHtml, {
       runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/admin/ui',
       beforeParse(window) {
         window.HTMLCanvasElement.prototype.getContext = (() => null) as never;
         window.scrollTo = () => {};
         Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
         (window as unknown as { alert: () => void }).alert = () => {};
-        window.fetch = (async (path: string) => {
+        settle.attach(window as never, async (path: string) => {
           const p = String(path);
           const body = p.includes('/admin/me') ? { staffId: 's1', role: 'owner', displayName: 'Ерен' }
             : p.includes('/admin/finance') ? FINANCE : {};
           return { ok: true, status: 200, text: async () => '', json: async () => body };
-        }) as never;
+        });
       },
     });
     const w = dom.window;
-    await new Promise((r) => setTimeout(r, 200));
+    await settle.quiet('boot');
     w.document.querySelector('[data-view="finance"]')!
       .dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 300));
+    await settle.quiet('the Финансы tab');
 
     const cells = [...w.document.querySelectorAll('#finReturns span')] as HTMLElement[];
     const writeOff = cells.find((el) => el.textContent === 'списание');

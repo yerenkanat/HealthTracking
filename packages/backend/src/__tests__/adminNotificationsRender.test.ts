@@ -20,6 +20,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -50,6 +51,8 @@ interface Rendered {
   count(sel: string): number;
   errors: string[];
   window: import('jsdom').DOMWindow;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 interface BootOpts {
@@ -64,6 +67,7 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
   const errors: string[] = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -80,7 +84,7 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       (window as unknown as { CSS: { escape: (s: string) => string } }).CSS = { escape: (s) => s };
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         const ok = (body: unknown, status = 200) => ({
           ok: status >= 200 && status < 300, status,
@@ -95,22 +99,23 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
           return ok(opts.body ?? SUMMARY);
         }
         return ok({});
-      }) as never;
+      });
     },
   });
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 120));
+  await settle.quiet('boot');
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (sel) => window.document.querySelectorAll(sel).length,
     errors,
     window,
+    quiet: settle.quiet,
   };
 }
 
 async function click(page: Rendered, sel: string) {
   page.window.document.querySelector(sel)!.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 120));
+  await page.quiet(`the click on ${sel}`);
 }
 
 /** «Hidden vs painted»: a display rule beats the hidden attribute. */

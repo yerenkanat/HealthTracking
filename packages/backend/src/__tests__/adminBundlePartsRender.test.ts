@@ -27,6 +27,7 @@ import {
 } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
 import { hashToken, readSessionCookie } from '../http/staffAuth';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -161,6 +162,8 @@ interface Page {
   text(sel: string): string;
   el(sel: string): Element | null;
   click(sel: string): Promise<void>;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function render(opts: { answer?: boolean; putStatus?: number } = {}): Promise<Page> {
@@ -171,6 +174,7 @@ async function render(opts: { answer?: boolean; putStatus?: number } = {}): Prom
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true,
     url: 'http://localhost/admin', virtualConsole: vc,
@@ -189,7 +193,7 @@ async function render(opts: { answer?: boolean; putStatus?: number } = {}): Prom
         confirms.push(m);
         return opts.answer !== false;
       };
-      window.fetch = (async (path: string, init?: { method?: string; body?: string }) => {
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
         const p = String(path);
         const method = init?.method ?? 'GET';
         if (p.includes('/admin/me')) {
@@ -206,26 +210,26 @@ async function render(opts: { answer?: boolean; putStatus?: number } = {}): Prom
           : p.includes('/admin/device-registry') ? { devices: [] }
           : {};
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms = 250) => new Promise((r) => setTimeout(r, ms));
-  await wait(150);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="stock"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(300);
+  await settle.quiet('the Склад tab');
 
   return {
     window, errors, confirms, sent,
+    quiet: settle.quiet,
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     el: (sel) => window.document.querySelector(sel),
     click: async (sel) => {
       const el = window.document.querySelector(sel) as HTMLElement | null;
       expect(el, `no ${sel}`).not.toBeNull();
       el!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-      await wait(250);
+      await settle.quiet(`the click on ${sel}`);
     },
   };
 }
@@ -310,7 +314,7 @@ describe('saving a composition', () => {
     const sel = p.el('#bndRows .bnd-part') as HTMLSelectElement;
     sel.value = 'tracker';
     sel.dispatchEvent(new p.window.Event('change', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 60));
+    await p.quiet('the duplicate-part check');
     expect(p.text('#bndRule')).toContain('дважды');
   });
 

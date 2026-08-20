@@ -15,6 +15,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -55,6 +56,8 @@ interface Page {
   saved: Array<Record<string, unknown>>;
   $: (sel: string) => HTMLElement | null;
   text: (sel: string) => string;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function render(): Promise<Page> {
@@ -64,6 +67,7 @@ async function render(): Promise<Page> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -79,7 +83,7 @@ async function render(): Promise<Page> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string, opts?: { method?: string; body?: string }) => {
+      settle.attach(window as never, async (path: string, opts?: PanelRequestInit) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
@@ -97,16 +101,15 @@ async function render(): Promise<Page> {
             ? INVENTORY
             : {};
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(120);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="stock"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(250);
+  await settle.quiet('the Склад tab');
 
   return {
     window,
@@ -114,6 +117,7 @@ async function render(): Promise<Page> {
     saved,
     $: (sel) => window.document.querySelector(sel),
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+    quiet: settle.quiet,
   };
 }
 
@@ -153,7 +157,7 @@ describe('the article code', () => {
     type(page, 'prodPrice', '3500');
     page.$('#prodForm')!.dispatchEvent(
       new page.window.Event('submit', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the product save');
 
     expect(page.saved).toHaveLength(1);
     expect(page.saved[0].sku).toBe('AB-STRAP-01');
@@ -168,8 +172,9 @@ describe('the article code', () => {
     type(page, 'prodPrice', '3500');
     page.$('#prodForm')!.dispatchEvent(
       new page.window.Event('submit', { bubbles: true, cancelable: true }));
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the product save');
 
+    expect(page.saved, 'the form never sent the product').toHaveLength(1);
     expect(page.saved[0].sku).toBeNull();
   });
 

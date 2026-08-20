@@ -10,6 +10,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { childDevCalendar } from '../child/development.js';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -19,6 +20,8 @@ interface Rendered {
   count(sel: string): number;
   errors: string[];
   window: import('jsdom').DOMWindow;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function boot(): Promise<Rendered> {
@@ -26,6 +29,7 @@ async function boot(): Promise<Rendered> {
   const errors: string[] = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -42,8 +46,8 @@ async function boot(): Promise<Rendered> {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       (window as unknown as { CSS: { escape: (s: string) => string } }).CSS = { escape: (s) => s };
-      window.fetch = (async (path: string) => {
-        const p = String(path);
+      settle.attach(window as never, async (path: string) => {
+        const p = path;
         // The panel now opens on a sign-in gate and asks who is signed in
         // before it renders anything. These tests are about the dashboard,
         // so they answer as a signed-in admin.
@@ -52,21 +56,22 @@ async function boot(): Promise<Rendered> {
         }
         if (p.includes('/admin/reference/childdev')) return { ok: true, status: 200, json: async () => childDevCalendar };
         return { ok: false, status: 500, json: async () => ({}) };
-      }) as never;
+      });
     },
   });
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 120));
+  await settle.quiet('boot');
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (sel) => window.document.querySelectorAll(sel).length,
     errors,
     window,
+    quiet: settle.quiet,
   };
 }
 async function click(page: Rendered, sel: string) {
   page.window.document.querySelector(sel)!.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 100));
+  await page.quiet(`the click on ${sel}`);
 }
 
 describe('admin baby-development-calendar tab', () => {

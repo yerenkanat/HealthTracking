@@ -22,6 +22,7 @@ import { createMemoryRepository } from '../db/memoryRepository';
 import { computeBiMetrics } from '../analytics/biMetrics.js';
 import { buildSyntheticPopulation } from '../analytics/syntheticPopulation.js';
 import type { Repository } from '../db/repository';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -173,7 +174,8 @@ describe('the content-coverage card', () => {
     const vc = new VirtualConsole();
     vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
-    const dom = new JSDOM(html, {
+    const settle = panelSettle();
+  const dom = new JSDOM(html, {
       runScripts: 'dangerously', pretendToBeVisual: true,
       url: 'http://localhost/admin', virtualConsole: vc,
       beforeParse(window) {
@@ -186,7 +188,7 @@ describe('the content-coverage card', () => {
         }) as never;
         Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
         window.scrollTo = () => {};
-        window.fetch = (async (path: string) => {
+        settle.attach(window as never, async (path: string) => {
           const p = String(path);
           // The panel opens on a sign-in gate and asks who is signed in before
           // it renders anything; answering {} leaves it on the gate for ever.
@@ -198,15 +200,15 @@ describe('the content-coverage card', () => {
           }
           const body = p.includes('/admin/analytics') ? analytics : {};
           return { ok: true, status: 200, json: async () => body };
-        }) as never;
+        });
       },
     });
 
     const { window } = dom;
-    await new Promise((r) => setTimeout(r, 120));
+    await settle.quiet('boot');
     window.document.querySelector('[data-view="analytics"]')!
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 600));
+    await settle.quiet('the Аналитика tab');
 
     return {
       text: (window.document.querySelector('#anContent')?.textContent ?? '').replace(/\s+/g, ' ').trim(),

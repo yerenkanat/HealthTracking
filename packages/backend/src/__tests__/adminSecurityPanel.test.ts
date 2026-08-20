@@ -15,6 +15,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 import { retentionSummary, summarizeSecurity, type AuditRow } from '../admin/security.js';
 import { ALL_CAPABILITIES, ROLE_CAPS, STAFF_ROLES } from '../auth/capabilities.js';
 import { RETENTION_KEPT, RETENTION_SWEEPS } from '../privacy/retention.js';
@@ -70,6 +71,10 @@ interface Rendered {
   html(sel: string): string;
   errors: string[];
   window: JSDOM['window'];
+  /** Every path the panel asked for, in order. */
+  asked: string[];
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function render(
@@ -79,9 +84,11 @@ async function render(
 ): Promise<Rendered> {
   const html = readFileSync(PANEL, 'utf8');
   const errors: string[] = [];
+  const asked: string[] = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -101,8 +108,9 @@ async function render(
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
+        asked.push(p);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'owner' }) };
         }
@@ -113,17 +121,16 @@ async function render(
           : p.includes('/admin/roles') ? ROLES
             : {};
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(120);
+  await settle.quiet('boot');
   window.document
     .querySelector(`[data-view="${view}"]`)!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(120);
+  await settle.quiet(`the ${view} tab`);
 
   const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
   return {
@@ -132,6 +139,8 @@ async function render(
     html: (sel) => window.document.querySelector(sel)?.innerHTML ?? '',
     errors,
     window,
+    asked,
+    quiet: settle.quiet,
   };
 }
 
@@ -346,9 +355,13 @@ describe('frame 22 · Безопасность', () => {
     const p = await render('security');
     const sel = p.window.document.querySelector('#secDays') as HTMLSelectElement;
     sel.value = '7';
+    const before = p.asked.filter((u) => u.includes('/admin/security')).length;
     sel.dispatchEvent(new p.window.Event('change', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 80));
+    await p.quiet('the period change');
     expect(p.errors).toEqual([]);
+    const security = p.asked.filter((u) => u.includes('/admin/security'));
+    expect(security.length, 'the period changed and the server was never re-asked').toBeGreaterThan(before);
+    expect(security[security.length - 1]).toContain('days=7');
     expect(p.text('#secKpis').length).toBeGreaterThan(10);
   });
 });

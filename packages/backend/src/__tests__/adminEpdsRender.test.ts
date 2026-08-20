@@ -118,7 +118,7 @@ async function renderDrawer(epds: unknown): Promise<{ drawer: string; errors: st
   if (!row) throw new Error('no user row rendered');
   row.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
   await settle.quiet();
-  await answerReasonPromptIfShown(window);
+  await answerReasonPromptIfShown(window, undefined, { settled: settle.quiet });
 
   return { drawer: (window.document.querySelector('#drawer')?.textContent ?? '').replace(/\s+/g, ' ').trim(), errors };
 }

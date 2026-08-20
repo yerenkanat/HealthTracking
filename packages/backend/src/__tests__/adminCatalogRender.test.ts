@@ -13,6 +13,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -62,6 +63,8 @@ interface Rendered {
   el(s: string): Element | null;
   patches: Array<{ url: string; body: Record<string, unknown> }>;
   errors: string[];
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function boot(): Promise<Rendered> {
@@ -70,6 +73,7 @@ async function boot(): Promise<Rendered> {
   const patches: Array<{ url: string; body: Record<string, unknown> }> = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true,
     url: 'http://localhost/admin/ui', virtualConsole: vc,
@@ -82,7 +86,7 @@ async function boot(): Promise<Rendered> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string, opts?: { method?: string; body?: string }) => {
+      settle.attach(window as never, async (path: string, opts?: PanelRequestInit) => {
         const p = String(path);
         if (opts?.method === 'PATCH') {
           patches.push({ url: p, body: JSON.parse(opts.body ?? '{}') });
@@ -97,26 +101,26 @@ async function boot(): Promise<Rendered> {
           : null;
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
     },
   });
   const { window } = dom;
-  const settle = () => new Promise((r) => setTimeout(r, 120));
-  await settle();
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="catalog"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await settle();
+  await settle.quiet('the Каталог tab');
   return {
     text: (s) => (window.document.querySelector(s)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (s) => window.document.querySelectorAll(s).length,
     el: (s) => window.document.querySelector(s),
     click: async (s) => {
       window.document.querySelector(s)!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-      await settle();
+      await settle.quiet(`the click on ${s}`);
     },
     patches,
     errors,
+    quiet: settle.quiet,
   };
 }
 
@@ -232,7 +236,7 @@ describe('«Двуязычность блокирует публикацию» �
     active.checked = true;
     active.dispatchEvent(new (page.el('#pcActive') as Element).ownerDocument.defaultView!
       .Event('change', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 60));
+    await page.quiet('the Kazakh-name warning');
     expect(warn.hasAttribute('hidden')).toBe(false);
   });
 });

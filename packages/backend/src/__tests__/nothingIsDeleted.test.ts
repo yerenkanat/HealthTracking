@@ -26,6 +26,7 @@ import { dirname, resolve } from 'node:path';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -152,6 +153,7 @@ async function openCourse(deleteAnswers: { ok: boolean; body: unknown }) {
     }],
   };
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -171,7 +173,7 @@ async function openCourse(deleteAnswers: { ok: boolean; body: unknown }) {
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
       (window as unknown as { confirm: () => boolean }).confirm = () => true;
 
-      window.fetch = (async (path: string, init?: RequestInit) => {
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
         const p = String(path);
         if ((init?.method ?? 'GET') === 'DELETE') {
           return {
@@ -184,18 +186,21 @@ async function openCourse(deleteAnswers: { ok: boolean; body: unknown }) {
           : p.includes('/admin/course/lessons') ? LESSONS
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="course"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 300));
+  await settle.quiet('the Курс tab');
+  // Not `del?.`: a missing button used to make both tests below assert on an
+  // empty #lessonMsg and pass for the wrong reason.
   const del = window.document.querySelector('.ldel') as HTMLElement | null;
-  del?.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 250));
+  if (!del) throw new Error('no delete button on the lesson — the panel drew no lesson to delete');
+  del.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  await settle.quiet('the delete');
 
   return { window, errors, msg: (window.document.querySelector('#lessonMsg')?.textContent ?? '') };
 }

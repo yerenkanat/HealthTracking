@@ -16,6 +16,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
+import { until as untilTrue } from './helpers/panelSettle';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -64,13 +65,15 @@ afterEach(() => {
   while (openWindows.length) openWindows.pop()!.close();
 });
 
-/** Wait until `ready` is true, or fail loudly saying what never happened. */
-async function until(what: string, ready: () => boolean, ms = 5000) {
-  const deadline = Date.now() + ms;
-  while (!ready()) {
-    if (Date.now() > deadline) throw new Error(`timed out waiting for: ${what}`);
-    await new Promise((r) => setTimeout(r, 20));
-  }
+/**
+ * Wait until `ready` is true, or fail loudly saying what never happened.
+ *
+ * A thin argument-order wrapper over helpers/panelSettle's `until`, which is
+ * the same idea polled every turn rather than every 20 ms. This file had its
+ * own copy first; two of them is two definitions of "finished".
+ */
+async function until(what: string, ready: () => boolean, turns = 5000) {
+  await untilTrue(ready, what, { turns });
 }
 
 /** How the server answers a write — used to drive the panel's error path. */

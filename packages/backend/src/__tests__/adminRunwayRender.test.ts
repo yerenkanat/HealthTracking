@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -160,6 +161,7 @@ async function renderStock() {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -178,7 +180,7 @@ async function renderStock() {
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
 
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         const body =
           p.includes('/admin/me') ? { staffId: 's1', role: 'owner', displayName: 'Ерен' }
@@ -187,15 +189,15 @@ async function renderStock() {
           : p.includes('/admin/device-registry') ? { devices: [] }
           : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="stock"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 300));
+  await settle.quiet('the Склад tab');
   return { window, errors, body: window.document.querySelector('#stockBody')!.textContent ?? '' };
 }
 

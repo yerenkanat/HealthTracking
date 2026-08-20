@@ -389,6 +389,12 @@ describe('она прочитала', () => {
     const id = await answered();
     await her().post(`/support/${id}/read`, {});
     const read = (await ticketOf(id)).customerReadAt;
+    // Real elapsed time, deliberately, and not convertible to a condition-wait:
+    // the assertion below is `last > customerReadAt` on two millisecond
+    // timestamps, and two writes inside the same millisecond genuinely cannot
+    // be ordered by their clock. Waiting on "the reply arrived" would leave
+    // both stamps equal and the test would fail for the right reason at the
+    // wrong moment.
     await new Promise((r) => setTimeout(r, 5));
     await desk.post(`/admin/support/${id}/reply`, { body: 'Курьер выехал.' });
 

@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { pregnancyCalendar } from '../pregnancy/weeks.js';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 // A due date that puts her in week 28 TODAY, rather than a fixed calendar date
 // that silently drifts a week every week. The drawer derives the gestational
@@ -63,6 +64,8 @@ interface Rendered {
   /** Every write the panel sent: [method, path, parsed body]. */
   sent: Array<{ method: string; path: string; body: unknown }>;
   window: import('jsdom').DOMWindow;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 interface BootOpts {
@@ -82,6 +85,7 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
   const weeks = opts.weeks ?? adminWeeks();
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -99,7 +103,7 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
       window.scrollTo = () => {};
       window.confirm = () => opts.confirm !== false;
       (window as unknown as { CSS: { escape: (s: string) => string } }).CSS = { escape: (s) => s };
-      window.fetch = (async (path: string, init?: { method?: string; body?: string }) => {
+      settle.attach(window as never, async (path: string, init?: PanelRequestInit) => {
         const p = String(path);
         const method = init?.method ?? 'GET';
         if (method !== 'GET') {
@@ -133,23 +137,23 @@ async function boot(opts: BootOpts = {}): Promise<Rendered> {
           return { ok: true, status: 200, json: async () => ({ total: 1, users: [{ id: 'u1', displayName: 'Aigerim S.', phone: '+77073452244', dueDate: DUE_WEEK_28, lastMetricAt: new Date(Date.now() - 36e5).toISOString() }] }) };
         }
         return { ok: false, status: 500, text: async () => '{}', json: async () => ({}) };
-      }) as never;
+      });
     },
   });
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(120);
+  await settle.quiet('boot');
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (sel) => window.document.querySelectorAll(sel).length,
     errors,
     sent,
     window,
+    quiet: settle.quiet,
   };
 }
 async function click(page: Rendered, sel: string) {
   page.window.document.querySelector(sel)!.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 100));
+  await page.quiet(`the click on ${sel}`);
 }
 function type(page: Rendered, sel: string, value: string) {
   (page.window.document.querySelector(sel) as HTMLInputElement).value = value;

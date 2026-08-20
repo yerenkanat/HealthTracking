@@ -12,6 +12,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle, type PanelRequestInit } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -48,6 +49,8 @@ interface Page {
   errors: string[];
   window: JSDOM['window'];
   patched: Array<{ url: string; body: unknown }>;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function render(leads: unknown = LEADS): Promise<Page> {
@@ -57,6 +60,7 @@ async function render(leads: unknown = LEADS): Promise<Page> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -72,7 +76,7 @@ async function render(leads: unknown = LEADS): Promise<Page> {
       }) as never;
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
-      window.fetch = (async (path: string, opts?: { method?: string; body?: string }) => {
+      settle.attach(window as never, async (path: string, opts?: PanelRequestInit) => {
         const p = String(path);
         if (opts?.method === 'PATCH') {
           patched.push({ url: p, body: JSON.parse(opts.body ?? '{}') });
@@ -90,15 +94,14 @@ async function render(leads: unknown = LEADS): Promise<Page> {
               : null;
         if (body === null) return { ok: false, status: 500, json: async () => ({}) };
         return { ok: true, status: 200, json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  await wait(120);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="shop"]')!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await wait(200);
+  await settle.quiet('the Магазин tab');
 
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
@@ -107,6 +110,7 @@ async function render(leads: unknown = LEADS): Promise<Page> {
     errors,
     window,
     patched,
+    quiet: settle.quiet,
   };
 }
 
@@ -151,7 +155,7 @@ describe('the landing-leads card', () => {
 
     sel.value = 'ordered';
     sel.dispatchEvent(new page.window.Event('change', { bubbles: true }));
-    await new Promise((r) => setTimeout(r, 100));
+    await page.quiet('the status change');
 
     expect(page.patched).toHaveLength(1);
     expect(page.patched[0].url).toContain('/admin/shop/leads/l-1');

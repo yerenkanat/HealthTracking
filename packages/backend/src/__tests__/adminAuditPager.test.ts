@@ -36,6 +36,7 @@ import { dirname, resolve } from 'node:path';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -222,6 +223,8 @@ interface Rendered {
   click(sel: string): Promise<void>;
   asked: string[];
   errors: string[];
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 /** «Hidden vs painted»: a display rule beats the hidden attribute. */
@@ -257,6 +260,7 @@ async function boot(opts: { fail?: boolean } = {}): Promise<Rendered> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously', pretendToBeVisual: true,
     url: 'http://localhost/admin/ui', virtualConsole: vc,
@@ -270,7 +274,7 @@ async function boot(opts: { fail?: boolean } = {}): Promise<Rendered> {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
@@ -288,16 +292,15 @@ async function boot(opts: { fail?: boolean } = {}): Promise<Rendered> {
           };
         }
         return { ok: false, status: 500, json: async () => ({}) };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  const settle = (ms = 200) => new Promise((r) => setTimeout(r, ms));
-  await settle(200);
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="audit"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await settle(250);
+  await settle.quiet('the Журнал tab');
 
   const p: Rendered = {
     window: window as unknown as Window & typeof globalThis,
@@ -307,8 +310,9 @@ async function boot(opts: { fail?: boolean } = {}): Promise<Rendered> {
       const el = window.document.querySelector(sel) as HTMLElement | null;
       expect(el, `no ${sel}`).not.toBeNull();
       el!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-      await settle(250);
+      await settle.quiet(`the click on ${sel}`);
     },
+    quiet: settle.quiet,
     asked, errors,
   };
   return p;

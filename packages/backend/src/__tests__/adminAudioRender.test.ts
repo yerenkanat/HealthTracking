@@ -20,6 +20,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -45,6 +46,8 @@ interface Rendered {
   errors: string[];
   rejections: string[];
   window: import('jsdom').DOMWindow;
+  /** Resolves when the panel has stopped working, never after a fixed delay. */
+  quiet: (label?: string) => Promise<void>;
 }
 
 async function boot(): Promise<Rendered> {
@@ -57,6 +60,7 @@ async function boot(): Promise<Rendered> {
   const vc = new VirtualConsole();
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
   process.on('unhandledRejection', (r) => rejections.push(String(r)));
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -73,7 +77,7 @@ async function boot(): Promise<Rendered> {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       (window as unknown as { CSS: { escape: (s: string) => string } }).CSS = { escape: (s) => s };
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin' }) };
@@ -86,11 +90,11 @@ async function boot(): Promise<Rendered> {
           return { ok: true, status: 200, json: async () => ({ audio: p.includes('track=pregnancy') ? AUDIO : [] }) };
         }
         return { ok: true, status: 200, json: async () => ({}) };
-      }) as never;
+      });
     },
   });
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 150));
+  await settle.quiet('boot');
   return {
     text: (sel) => (window.document.querySelector(sel)?.textContent ?? '').replace(/\s+/g, ' ').trim(),
     count: (sel) => window.document.querySelectorAll(sel).length,
@@ -99,6 +103,7 @@ async function boot(): Promise<Rendered> {
     errors,
     rejections,
     window,
+    quiet: settle.quiet,
   };
 }
 
@@ -106,7 +111,7 @@ async function click(page: Rendered, sel: string) {
   const el = page.window.document.querySelector(sel);
   if (!el) throw new Error(`nothing to click at ${sel}`);
   el.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 120));
+  await page.quiet(`the click on ${sel}`);
 }
 
 describe('admin «Ежедневное аудио» tab', () => {

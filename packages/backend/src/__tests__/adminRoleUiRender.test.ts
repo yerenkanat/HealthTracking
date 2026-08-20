@@ -25,6 +25,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 import { ROLE_CAPS, STAFF_ROLES, type StaffRole } from '../auth/capabilities';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +38,7 @@ async function openAs(role: StaffRole, hash = '') {
   const errors: string[] = [];
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -55,7 +57,7 @@ async function openAs(role: StaffRole, hash = '') {
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
       (window as unknown as { alert: (m: string) => void }).alert = () => {};
 
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role, displayName: 'Ерен' }) };
@@ -63,12 +65,12 @@ async function openAs(role: StaffRole, hash = '') {
         // Everything else answers empty. What this file cares about is what the
         // panel DRAWS for a role, not what any endpoint returns.
         return { ok: true, status: 200, text: async () => '', json: async () => ({}) };
-      }) as never;
+      });
     },
   });
 
-  await new Promise((r) => setTimeout(r, 250));
-  return { window: dom.window, errors };
+  await settle.quiet(`the panel as ${role}`);
+  return { window: dom.window, errors, quiet: settle.quiet };
 }
 
 /**
@@ -260,10 +262,10 @@ describe('what each role sees', () => {
       // GET /admin/settings writes a `view_settings` audit row on the way to
       // refusing her, and «Не удалось загрузить склад» over a working server
       // is how a bug gets filed against one.
-      const { window, errors } = await openAs('operator');
+      const { window, errors, quiet } = await openAs('operator');
       window.document.querySelector('.nav[data-view="shop"]')!
         .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 300));
+      await quiet('the Магазин tab as an operator');
 
       expect(errors, errors.join('\n')).toEqual([]);
       expect(window.document.getElementById('shopVariants')!.textContent,

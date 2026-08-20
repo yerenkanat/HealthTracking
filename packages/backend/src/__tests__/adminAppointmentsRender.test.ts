@@ -120,7 +120,7 @@ async function boot() {
       window.document.querySelector(sel)!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
       await settle.quiet();
       // Clicking a user row now raises the 'why are you opening this?' prompt.
-      await answerReasonPromptIfShown(window);
+      await answerReasonPromptIfShown(window, undefined, { settled: settle.quiet });
     },
   };
 }

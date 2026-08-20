@@ -110,7 +110,7 @@ async function openDrawer(detailExtra: Record<string, unknown>, wellnessExtra: R
   await settle.quiet();
   // Opening a mother's record now asks why first, and the drawer does not
   // fetch anything until it is answered.
-  await answerReasonPromptIfShown(window);
+  await answerReasonPromptIfShown(window, undefined, { settled: settle.quiet });
 
   return { drawer: (window.document.querySelector('#drawer')?.textContent ?? '').replace(/\s+/g, ' ').trim(), errors };
 }

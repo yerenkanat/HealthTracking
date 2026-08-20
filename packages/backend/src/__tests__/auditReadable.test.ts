@@ -21,6 +21,7 @@ import { createMemoryRepository, DEMO_USER } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
 import { hashPassword, hashToken, readSessionCookie } from '../http/staffAuth';
 import { auditActionKeys, panelAuditLabels, RETIRED_ACTIONS } from './helpers/auditActions';
+import { panelSettle } from './helpers/panelSettle';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PANEL = resolve(here, '../../../admin/index.html');
@@ -128,6 +129,7 @@ async function openAudit(rows: unknown[]) {
   const errors: string[] = [];
   vc.on('jsdomError', (e: Error) => errors.push(e.message));
 
+  const settle = panelSettle();
   const dom = new JSDOM(html, {
     runScripts: 'dangerously',
     pretendToBeVisual: true,
@@ -144,7 +146,7 @@ async function openAudit(rows: unknown[]) {
       Object.defineProperty(window.HTMLElement.prototype, 'clientWidth', { get: () => 600 });
       window.scrollTo = () => {};
       Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
-      window.fetch = (async (path: string) => {
+      settle.attach(window as never, async (path: string) => {
         const p = String(path);
         if (p.includes('/admin/me')) {
           return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin', displayName: 'Ерен', phone: '77073452244' }) };
@@ -155,15 +157,15 @@ async function openAudit(rows: unknown[]) {
         const body = p.includes('/admin/stats')
           ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0 } : {};
         return { ok: true, status: 200, text: async () => '', json: async () => body };
-      }) as never;
+      });
     },
   });
 
   const { window } = dom;
-  await new Promise((r) => setTimeout(r, 200));
+  await settle.quiet('boot');
   window.document.querySelector('[data-view="audit"]')!
     .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 250));
+  await settle.quiet('the Журнал tab');
   return { window, errors };
 }
 

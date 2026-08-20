@@ -16,6 +16,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { panelSettle } from './helpers/panelSettle';
 import { buildServer } from '../server';
 import { createMemoryRepository, DEMO_USER, DEV_STAFF_PHONE, DEV_STAFF_PASSWORD } from '../db/memoryRepository';
 import type { Repository } from '../db/repository';
@@ -84,7 +85,8 @@ describe('the panel shows it where the owner looks', () => {
   async function overview(alertsConfigured: boolean) {
     const html = readFileSync(PANEL, 'utf8');
     const vc = new VirtualConsole();
-    const dom = new JSDOM(html, {
+    const settle = panelSettle();
+  const dom = new JSDOM(html, {
       runScripts: 'dangerously', pretendToBeVisual: true,
       url: 'http://localhost/admin', virtualConsole: vc,
       beforeParse(window) {
@@ -99,7 +101,7 @@ describe('the panel shows it where the owner looks', () => {
         window.scrollTo = () => {};
         Object.defineProperty(window, 'CSS', { value: { escape: (s: string) => s } });
         (window as unknown as { alert: () => void }).alert = () => {};
-        window.fetch = (async (path: string) => {
+        settle.attach(window as never, async (path: string) => {
           const p = String(path);
           if (p.includes('/admin/me')) {
             return { ok: true, status: 200, json: async () => ({ staffId: 's1', role: 'admin', displayName: 'Ерен', phone: '77073452244' }) };
@@ -108,10 +110,10 @@ describe('the panel shows it where the owner looks', () => {
             ? { activeUsers: 1, devicesOnline: 1, alertsToday: 0, ingestLastHour: 0, alertsConfigured }
             : {};
           return { ok: true, status: 200, text: async () => '', json: async () => body };
-        }) as never;
+        });
       },
     });
-    await new Promise((r) => setTimeout(r, 400));
+    await settle.quiet('the overview');
     return dom.window;
   }
 

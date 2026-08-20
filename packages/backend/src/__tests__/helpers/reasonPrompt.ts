@@ -12,6 +12,9 @@
  * prompt (because it broke) fails here rather than silently passing.
  */
 
+/** Must clear the server's 8-character minimum, so not 'x'. */
+const DEFAULT_REASON = 'Обращение клиента';
+
 export interface ReasonWindow {
   document: Document;
 }
@@ -24,14 +27,14 @@ export interface ReasonWindow {
  * caller read an empty card. Pass the panel's `quiet` (helpers/panelSettle) and
  * the wait becomes the work being finished instead of a clock running out.
  *
- * Optional only because the callers are being converted one at a time. The
- * fallback is the old sleep and it is a KNOWN flake — six drawer suites still
- * take it (adminAppointmentsRender, adminBpCalibrationRender, adminDevicesRender,
- * adminEpdsRender, adminFamilyRender, adminMotherCardRender). Passing `settled`
- * is what removes it.
+ * REQUIRED. It used to be optional with a 250 ms sleep behind it, "while the
+ * callers are converted one at a time" — and six drawer suites went on taking
+ * that fallback for as long as it existed, each one a known flake. There is no
+ * fallback now, so a new caller cannot quietly acquire one: it has to say how
+ * the panel is known to be finished.
  */
 export interface ReasonOpts {
-  settled?: () => Promise<void>;
+  settled: () => Promise<void>;
 }
 
 /**
@@ -48,8 +51,8 @@ export interface ReasonOpts {
  */
 export async function answerReasonPromptIfShown(
   window: ReasonWindow,
-  reason = 'Обращение клиента',
-  opts: ReasonOpts = {},
+  reason: string | undefined,
+  opts: ReasonOpts,
 ): Promise<boolean> {
   const wrap = window.document.querySelector('#reasonWrap') as HTMLElement | null;
   if (!wrap || wrap.hidden) return false;
@@ -65,23 +68,22 @@ export async function answerReasonPromptIfShown(
  */
 export async function answerReasonPrompt(
   window: ReasonWindow,
-  reason = 'Обращение клиента',
-  opts: ReasonOpts = {},
+  reason: string | undefined,
+  opts: ReasonOpts,
 ): Promise<void> {
   const wrap = window.document.querySelector('#reasonWrap') as HTMLElement | null;
   if (!wrap || wrap.hidden) {
     throw new Error('the reason prompt did not appear — the record opened unasked');
   }
   const text = window.document.querySelector('#reasonText') as HTMLInputElement;
-  text.value = reason;
+  text.value = reason ?? DEFAULT_REASON;
   text.dispatchEvent(new (window.document.defaultView as Window & typeof globalThis).Event('input', { bubbles: true }));
 
   const ok = window.document.querySelector('#reasonOk') as HTMLButtonElement;
-  if (ok.disabled) throw new Error(`the prompt refused "${reason}" as a reason`);
+  if (ok.disabled) throw new Error(`the prompt refused "${text.value}" as a reason`);
   ok.dispatchEvent(new (window.document.defaultView as Window & typeof globalThis).MouseEvent('click', { bubbles: true }));
 
   // Let the requests the prompt was gating actually run — by watching them
-  // finish where the caller can tell us how, and otherwise by the old guess.
-  if (opts.settled) await opts.settled();
-  else await new Promise((r) => setTimeout(r, 250));
+  // finish, never by guessing how long that takes.
+  await opts.settled();
 }
