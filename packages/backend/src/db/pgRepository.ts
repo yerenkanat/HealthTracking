@@ -1,8 +1,21 @@
 /**
- * Postgres-backed Repository (TimescaleDB + PostGIS). Uses `pg`.
- * Geo queries mirror the examples in db/schema.sql. Kept thin: parameterised SQL,
- * no ORM. Health/location columns should be envelope-encrypted at the app layer
- * before reaching here in production (Data Privacy Officer).
+ * Postgres-backed Repository. Uses `pg`. Plain Postgres — the TimescaleDB and
+ * PostGIS dependency this header used to advertise was dropped (see the
+ * portability note in db/schema.sql); geofence math is haversine in TypeScript.
+ * Kept thin: parameterised SQL, no ORM.
+ *
+ * Health and location columns are NOT encrypted. This header used to say they
+ * "should be envelope-encrypted at the app layer before reaching here in
+ * production", which reads to everyone who opens this file as though production
+ * does it. Production does not, no code here has ever done it, and the module
+ * db/schema.sql pointed at (backend/src/crypto) does not exist. Every value
+ * written by the methods below — blood pressure, triage severity, a child's
+ * lat/lng, a child's allergies — goes to the database in the clear.
+ *
+ * What guards them is the layer above: a capability check and an audit_log row
+ * with a stated reason. See docs/SECURITY_FOLLOWUP.md §8 before adding crypto
+ * here; the unanswered question is where a key would live, not how to call a
+ * cipher.
  */
 
 import { Pool } from 'pg';

@@ -52,6 +52,10 @@ tests + 40 Node vitest tests green. Everything below is what remains.
 ## 6. Backend productionization 🐳🔑
 - [ ] Run docker-compose (Timescale+PostGIS, Redis), apply schema, run `infra/integration_smoke.mjs`
 - [ ] Envelope-encrypt health + location columns; key management/rotation ⚖️
+      **Blocked on an owner decision, not on effort** — `docs/SECURITY_FOLLOWUP.md`
+      §8 states the key-management question (app and database share one host)
+      and lists what ciphertext breaks. The nightly dump IS encrypted (§6);
+      the columns are not, and `db/schema.sql` says so plainly since 2026-08-20.
 - [ ] Rate limiting, request-size caps, structured error responses
 - [ ] Env/secret config (`.env`, secret store), 12-factor cleanup
 - [ ] Deploy: container image, hosting, CI/CD to cloud

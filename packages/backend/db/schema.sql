@@ -14,10 +14,45 @@
 -- is unchanged.
 --
 -- Privacy: health + child-location data are special-category (GDPR Art.9) / PHI (HIPAA).
---   * Column-level: `bp_calibration.*_offset` and any free-text are stored under
---     application-layer envelope encryption (see backend/src/crypto). DB stores ciphertext.
---   * At-rest: enable cluster-level TDE / encrypted EBS volumes.
---   * Retention: prune location_history > 90d (a cron DELETE; was a Timescale policy).
+--
+-- Read this before assuming anything below is encrypted, because until 2026-08-20
+-- this block said the opposite. It claimed the bp_calibration offsets and any
+-- free text were held as ciphertext by an application-layer crypto module, and
+-- it named a directory under the backend source for that module. No such
+-- directory has ever existed: no cipher call, no pgcrypto, no key material
+-- anywhere in packages/backend/src. The claim's only effect was to stop the next
+-- reviewer looking. It is quoted in full, once, in docs/SECURITY_FOLLOWUP.md §8;
+-- it is not repeated here, because pgSchema.test.ts reads this file literally and
+-- cannot tell a quotation from a claim — which is precisely the property that
+-- keeps the claim from coming back.
+--
+--   * NOT encrypted at rest, at any layer. bp_calibration.systolic_offset /
+--     diastolic_offset, every column of pregnancy_health_metrics (triage_severity
+--     included), location_history.lat/lng, children, and child_emergency
+--     (blood_type, allergies, conditions, doctor_phone) are PLAINTEXT columns.
+--     Anyone holding a copy of this database — a stolen disk, a mishandled dump,
+--     a support query — reads them by name. pgSchema.test.ts now fails if this
+--     file ever again names a crypto module that is not on disk.
+--   * What IS cryptographic, and this is the whole list: staff passwords
+--     (staff_accounts.password_hash — salted scrypt) and staff session cookies
+--     (staff_sessions.token_hash — sha256). See src/http/staffAuth.ts.
+--   * What protects health and location instead: access control plus audit — a
+--     capability check (src/auth/capabilities.ts) and an audit_log row carrying a
+--     non-empty stated reason on every protected read. That is a control on the
+--     RUNNING SERVER. It does nothing for a copy of the data.
+--   * At-rest, host level: the Docker volume sits on an unencrypted disk. The
+--     nightly dump is the one copy that IS encrypted — age, to a public key on
+--     the box whose private half only the owner holds (deploy/backup.sh).
+--   * Encrypting the columns themselves is an OWNER decision, not a TODO, and the
+--     reason is key management: the app and the database share one host, so a key
+--     the app can read unattended is a key an attacker with that host can read
+--     too. docs/SECURITY_FOLLOWUP.md §8 states the question plainly and lists what
+--     ciphertext would break: the sane_hr / sane_spo2 / sane_bp CHECKs, the four
+--     triage_severity filters and idx_phm_emergency with them, and ORDER BY
+--     children.name. Answer the key question before touching these columns.
+--   * Retention: prune location_history older than ROUTE_RETENTION_DAYS
+--     (src/privacy/retention.ts — 90 days, the same constant the app shows the
+--     mother). A cron DELETE; was a Timescale policy.
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -248,6 +283,9 @@ CREATE TABLE bp_calibration (
   cuff_diastolic    SMALLINT NOT NULL,
   ppg_systolic      SMALLINT NOT NULL,   -- band's raw reading at calibration time
   ppg_diastolic     SMALLINT NOT NULL,
+  -- REAL, in the clear. These two are the columns the old privacy note at the
+  -- top of this file named as ciphertext; they never were. Anyone reading the
+  -- table reads her cuff-versus-band blood-pressure offsets.
   systolic_offset   REAL NOT NULL,       -- cuff - ppg, applied to future readings
   diastolic_offset  REAL NOT NULL
 );

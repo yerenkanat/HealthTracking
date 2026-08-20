@@ -35,7 +35,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STAFF_ROLES } from '../auth/capabilities';
@@ -293,5 +294,104 @@ describe('db/seed-staff.mjs (the lockout recovery path)', () => {
     // The message has to be actionable at 3am, so it lists the real options
     // rather than three of them.
     for (const role of STAFF_ROLES) expect(r.stderr).toContain(role);
+  });
+});
+
+/**
+ * The nightly dump is the only portable copy of the database, and nothing in
+ * the database is encrypted — not a mother's blood pressure, not a child's
+ * location trail, not a child's allergy list (db/schema.sql says so plainly
+ * now; it used to claim the opposite). So the dump is where that copy is either
+ * protected or not.
+ *
+ * Until 2026-08-20 it was `pg_dump -Fc > "$out"`, fourteen plaintext copies of
+ * every family's health record sitting beside the database they came from.
+ *
+ * These are text checks on purpose, like the rest of this file: the script is
+ * only ever run on the server, and the property worth guarding is structural —
+ * that no path through it leaves a readable dump behind.
+ */
+describe('deploy/backup.sh keeps no plaintext copy', () => {
+  const backup = scripts.find((s) => s.name === 'backup.sh');
+  const install = scripts.find((s) => s.name === 'backup-install.sh');
+
+  it('both scripts are here to check', () => {
+    // Guards the guard: a renamed file would make every assertion below vacuous.
+    expect(backup, 'deploy/backup.sh not found').toBeTruthy();
+    expect(install, 'deploy/backup-install.sh not found').toBeTruthy();
+  });
+
+  it('the file it keeps is encrypted, and the plaintext never lands in daily/', () => {
+    const b = backup!.body;
+    // The kept artefact is the age file.
+    expect(b).toMatch(/out="\$DEST\/daily\/umay-\$stamp\.dump\.age"/);
+    // pg_dump writes to the staging path, never to $out. `> "$out"` anywhere on
+    // a pg_dump line is the old bug returning.
+    expect(b).toMatch(/pg_dump[^\n]*> "\$plain"/);
+    expect(b, 'pg_dump must not write the file that is kept').not.toMatch(/pg_dump[^\n]*> "\$out"/);
+    // Something has to remove the plaintext even when the run dies halfway.
+    expect(b).toMatch(/trap cleanup EXIT/);
+    expect(b).toMatch(/shred -u "\$plain"/);
+    // Rotation and the monthly copy both operate on ciphertext; a glob left on
+    // *.dump would silently stop rotating and grow forever.
+    expect(b).toMatch(/umay-\*\.dump\.age/);
+    expect(b).toMatch(/cp -a "\$out" "\$DEST\/monthly\/umay-\$stamp\.dump\.age"/);
+  });
+
+  it('RUN with no key: exits non-zero, says why, and writes nothing', () => {
+    // Not a text check — the script is actually executed. The no-key path
+    // returns before it touches docker, so this is hermetic, and it is the one
+    // property worth proving by running: that there is no branch, however it is
+    // later refactored, in which a missing key still produces a dump.
+    //
+    // A warn-and-carry-on fallback would pass every string assertion in this
+    // file and still write a plaintext copy of every family's health record.
+    // It cannot pass this.
+    const dest = join(tmpdir(), `umay-backup-test-${process.pid}-${Date.now()}`);
+    const run = spawnSync('bash', [join(DEPLOY, 'backup.sh')], {
+      encoding: 'utf8',
+      env: { ...process.env, BACKUP_RECIPIENT: '', RECIPIENT_FILE: join(dest, 'absent.pub'), DEST: dest },
+    });
+
+    // Guards the guard: if bash could not be found, `status` is null and every
+    // assertion below would be meaningless. Say so rather than pass.
+    expect(run.error, `could not run bash: ${run.error?.message ?? ''}`).toBeUndefined();
+
+    expect(run.status, 'a run with no encryption key must fail').toBe(1);
+    expect(run.stderr).toContain('REFUSING TO BACK UP');
+    // And it stopped early enough that it created nothing at all — no staging
+    // directory, no daily/, and above all no dump.
+    expect(existsSync(dest), `${dest} was created despite refusing to run`).toBe(false);
+  });
+
+  it('has no escape hatch that turns encryption off', () => {
+    // An env var that disables it is the one that gets set during an incident
+    // at 2 a.m. and is never unset.
+    expect(backup!.body).not.toMatch(/ALLOW_PLAINTEXT|SKIP_ENCRYPT|NO_ENCRYPT/i);
+  });
+
+  it('proves the file it kept is really ciphertext before deleting the plaintext', () => {
+    const b = backup!.body;
+    // "age exited 0" is not "the file on disk is encrypted". PGDMP is pg_dump's
+    // custom-format magic: if the kept file starts with it, the plaintext came
+    // through and the script must throw the file away rather than keep it.
+    expect(b).toMatch(/age-encryption\.org/);
+    expect(b).toMatch(/PGDMP/);
+    const check = b.indexOf('PGDMP');
+    const drop = b.indexOf('cleanup            # the plaintext goes now');
+    expect(check, 'the ciphertext check must run before the plaintext is shredded')
+      .toBeLessThan(drop);
+  });
+
+  it('backup-install.sh will not install a timer that cannot encrypt', () => {
+    const i = install!.body;
+    // Otherwise the failure lands at 03:20 in a journal nobody reads, instead
+    // of in front of the person who just ran the installer.
+    expect(i).toMatch(/grep -qs '\^age1'/);
+    expect(i).toMatch(/Not installing the timer: no backup encryption key/);
+    const refuse = i.indexOf('Not installing the timer');
+    const unit = i.indexOf('/etc/systemd/system/umay-backup.service');
+    expect(refuse, 'the refusal must come before the unit file is written')
+      .toBeLessThan(unit);
   });
 });

@@ -56,9 +56,12 @@ admin.ana-bala.kz   A     188.137.231.252
   verifies it. `--revert` restores the newest backup. **Use this rather than
   editing the Caddyfile**; it validates a candidate, checks the container is
   really reading what was written, and prints a verification block.
-- `backup.sh` + `backup-install.sh` — nightly dump with a restore drill into a
-  scratch database. The drill enumerates the live tables rather than naming
-  them, and refuses to report success if every table was empty on both sides.
+- `backup.sh` + `backup-install.sh` — nightly dump, **encrypted with age to a
+  key the owner holds**, with a restore drill into a scratch database. The drill
+  enumerates the live tables rather than naming them, and refuses to report
+  success if every table was empty on both sides. It refuses to run at all when
+  no key is configured; there is no plaintext fallback. See
+  `docs/SECURITY_FOLLOWUP.md` §6 for the one-time key setup.
 - `uptime-check.sh` + `uptime-install.sh` — the site, `/ready` and TLS expiry,
   every few minutes, alerting on transitions.
 - `retire-test-crm.sh` — how the previous tenant of this box was stood down.
@@ -472,14 +475,29 @@ npx tsx tools/audit-landing.mts   # assets resolve, metadata, lead form, copy ch
   `pg_dump -Fc` outside the Docker volume, 14 daily kept plus one a month
   forever, and the dump is restored into a scratch database and compared table
   by table.
+- **Encrypted since 2026-08-20, and this needs a key before it will run.** The
+  database itself is not encrypted at all — see `docs/SECURITY_FOLLOWUP.md` §8 —
+  so a dump is a portable copy of every mother's health record and every child's
+  location trail. `backup.sh` now encrypts each dump with `age` to the public key
+  in `/etc/umay/backup-recipient.pub` and **refuses to run if that key is
+  absent**, rather than falling back to plaintext. The private half lives on the
+  owner's machine and never on the server, which is what makes a stolen disk or
+  a leaked dump worth nothing — and also means the server cannot prove a restore
+  works. Do the drill in §6 once, by hand, with the private key.
+- Dumps taken before that date are still plaintext, including the monthly one
+  that never rotates out. `backup.sh` counts them and prints the command that
+  encrypts them in place.
 - The drill **enumerates the live tables** rather than naming them, so a new
   table is covered the night it appears, and it refuses to report success when
   every table was empty on both sides. Before that it compared five hardcoded
   tables — one of which no longer existed — and three of the remaining four
   were empty, so "restore verified" rested on a single table with two rows.
+- The drill runs BEFORE the encryption step, because verifying afterwards would
+  need the private key, which is deliberately not on that machine.
 - **These backups are on the machine they back up.** A dead host takes both.
   Choosing an offsite destination is an owner item and does not wait on
-  anything else.
+  anything else. Copying ciphertext offsite is safe in a way copying the old
+  plaintext dumps was not.
 - Deploy is `git pull` + restart; migrations are additive, so a code rollback
   does not require a schema rollback. The edge config rolls back with
   `bash deploy/landing-takeover.sh --revert`.

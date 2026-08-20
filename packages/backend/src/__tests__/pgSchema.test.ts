@@ -432,4 +432,76 @@ describe('pgRepository against db/schema.sql', () => {
       `cannot be built from it: ${late.join('; ')}`,
     ).toEqual([]);
   });
+
+  it('the schema names no source module that is not on disk', () => {
+    // The durable half of a two-year lie.
+    //
+    // db/schema.sql's privacy block said health columns were "stored under
+    // application-layer envelope encryption (see backend/src/crypto). DB stores
+    // ciphertext." There is no backend/src/crypto and there never was. Nothing
+    // failed, because a comment cannot fail — and the sentence did the one
+    // thing a false comment does best: it stopped the next reviewer looking, so
+    // every mother's blood pressure and every child's allergy list sat in
+    // plaintext columns with a note above them saying otherwise.
+    //
+    // Every `backend/src/...` or `src/...` path the schema mentions must
+    // resolve to a real file or directory. A comment that points somewhere is a
+    // claim about this repository, and claims are checkable.
+    const referenced = new Set<string>();
+    for (const m of schema.matchAll(/\b(?:backend\/)?src\/[A-Za-z0-9_./-]+/g)) {
+      // Trailing punctuation from prose: "see backend/src/crypto)." etc.
+      referenced.add(m[0].replace(/[.,;:)]+$/, ''));
+    }
+
+    // Guards the guard: if the sweep matched nothing, this test would pass
+    // while the schema said anything it liked. The privacy block is expected to
+    // cite the modules that DO the protecting.
+    expect(referenced.size, 'the schema cites no src/ path at all — either the ' +
+      'sweep broke or the privacy block stopped naming where the controls live')
+      .toBeGreaterThan(0);
+
+    const missing = [...referenced].filter((rel) => {
+      const p = rel.startsWith('backend/') ? rel.slice('backend/'.length) : rel;
+      // Written without an extension in prose; a module may be either.
+      return !['', '.ts', '.tsx', '.js', '.mjs'].some((ext) => existsSync(`${root}${p}${ext}`));
+    });
+
+    expect(
+      missing,
+      `db/schema.sql points at source that does not exist: ${missing.join(', ')}. ` +
+      `A privacy comment naming a module nobody wrote reads as a control that ` +
+      `is in place. Either write the module or correct the comment — and the ` +
+      `comment is the one that moves.`,
+    ).toEqual([]);
+  });
+
+  it('the schema does not claim health data is encrypted while it is plaintext', () => {
+    // The narrower claim, checked against the columns themselves rather than
+    // against a filename. bp_calibration.*_offset was named as ciphertext while
+    // declared REAL NOT NULL; pregnancy_health_metrics, location_history,
+    // children and child_emergency are plaintext too.
+    //
+    // This is not a ban on the word "encryption" — the file must be free to
+    // describe what IS encrypted (the nightly dump) and what would be needed to
+    // encrypt these columns. It is a ban on the present tense: on saying the
+    // database stores ciphertext for columns that Postgres is holding in the
+    // clear. When that stops being true, this test is the thing to change, in
+    // the same commit as the crypto.
+    const claims = [
+      /DB stores ciphertext/i,
+      /stored\s+under\s+application-layer\s+envelope\s+encryption/i,
+      /(?:columns?|fields?|offsets?)\s+are\s+encrypted\s+at\s+rest/i,
+    ];
+    const found = claims.filter((re) => re.test(schema)).map(String);
+    expect(
+      found,
+      `db/schema.sql claims these columns are encrypted. They are not: ` +
+      `bp_calibration.systolic_offset is REAL NOT NULL, and there is no cipher ` +
+      `anywhere in packages/backend/src. See docs/SECURITY_FOLLOWUP.md §8.`,
+    ).toEqual([]);
+
+    // And the columns really are declared in the clear, so the check above is
+    // guarding a live situation rather than a historical one.
+    expect(schema).toMatch(/systolic_offset\s+REAL\s+NOT\s+NULL/i);
+  });
 });
